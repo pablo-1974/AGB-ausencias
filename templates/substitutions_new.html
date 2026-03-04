@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-6">Registrar sustitución</h2>
+
+<form method="POST" class="space-y-4">
+
+    <label class="block">
+        Baja:
+        <select name="leave_id" required class="border px-3 py-2 rounded w-full">
+            <option value="">-- Seleccionar --</option>
+            {% for l in open_leaves %}
+            <option value="{{ l.id }}">Profesor: {{ l.teacher_id }} ({{ l.start_date }})</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label class="block">
+        Fecha inicio:
+        <input type="date" name="start_date" class="border px-3 py-2 rounded w-full" required>
+    </label>
+
+    <label class="block">
+        Nombre sustituto:
+        <input name="substitute_name" class="border px-3 py-2 rounded w-full">
+    </label>
+
+    <label class="block">
+        Email sustituto:
+        <input name="substitute_email" class="border px-3 py-2 rounded w-full">
+    </label>
+
+    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Registrar</button>
+
+</form>
+
+{% endblock %}

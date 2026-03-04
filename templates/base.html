@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title if title else "Ausencias" }}</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- NAVBAR -->
+    <nav class="bg-indigo-600 text-white px-6 py-3 flex justify-between items-center shadow">
+        <div class="flex items-center space-x-3">
+            <img src="/static/logo.png" class="h-10 w-10 rounded">
+            <span class="text-xl font-semibold">IES Antonio García Bellido</span>
+        </div>
+
+        {% if user %}
+        <div class="flex items-center space-x-6">
+            <a href="/" class="hover:underline">Inicio</a>
+            <a href="/schedule" class="hover:underline">Horarios</a>
+            <a href="/absences/new" class="hover:underline">Ausencias</a>
+            <a href="/reports/daily" class="hover:underline">Parte Diario</a>
+            <a href="/reports/monthly" class="hover:underline">Parte Mensual</a>
+
+            {% if user.role.value == "admin" %}
+            <a href="/admin/import/teachers" class="hover:underline font-bold">Admin</a>
+            {% endif %}
+
+            <a href="/logout" class="hover:underline text-red-300">Salir</a>
+        </div>
+        {% endif %}
+    </nav>
+
+
+    <!-- CONTENIDO -->
+    <div class="max-w-5xl mx-auto mt-10 bg-white shadow rounded p-6">
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+</html>

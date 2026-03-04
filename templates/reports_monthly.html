@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-6">Parte mensual</h2>
+
+{% if uncategorized and uncategorized | length > 0 %}
+<div class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4">
+    ⚠ Hay ausencias sin catalogar. No aparecerán correctamente.
+</div>
+{% endif %}
+
+<form method="GET" action="/reports/monthly/pdf" class="space-y-4">
+
+    <label class="block">
+        Fecha inicio:
+        <input type="date" name="start" class="border px-3 py-2 rounded w-full" required>
+    </label>
+
+    <label class="block">
+        Fecha fin:
+        <input type="date" name="end" class="border px-3 py-2 rounded w-full" required>
+    </label>
+
+    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Generar PDF</button>
+</form>
+
+{% endblock %}

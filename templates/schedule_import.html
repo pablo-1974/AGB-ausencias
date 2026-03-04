@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-4">Importar horario (clases + guardias)</h2>
+
+<form method="POST" enctype="multipart/form-data" class="space-y-4">
+    <input type="file" name="file" accept=".xlsx" class="border p-2 rounded" required>
+    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Importar</button>
+</form>
+
+<p class="text-gray-500 mt-4">Formato (6 columnas): nombre, día, franja, grupo, aula, materia.</p>
+<p class="text-gray-500">Las guardias se detectan cuando grupo es: <b>G AULA</b> o <b>G RECREO</b>.</p>
+
+{% endblock %}

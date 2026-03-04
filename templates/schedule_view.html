@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-4">Horario de un profesor</h2>
+
+<form method="GET" action="/schedule" class="mb-6">
+    <select name="teacher_id" class="border rounded px-3 py-2">
+        <option value="">-- Seleccionar profesor --</option>
+        {% for t in user_select_list %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+        {% endfor %}
+    </select>
+
+    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Ver</button>
+</form>
+
+{% if schedule %}
+<h3 class="text-lg font-semibold mb-3">{{ schedule.teacher.name }}</h3>
+
+<table class="min-w-full border text-center">
+    <tr class="bg-gray-200">
+        <th class="border px-3 py-2">Día</th>
+        <th class="border px-3 py-2">Franja</th>
+        <th class="border px-3 py-2">Tipo</th>
+        <th class="border px-3 py-2">Grupo</th>
+        <th class="border px-3 py-2">Aula</th>
+        <th class="border px-3 py-2">Materia</th>
+    </tr>
+
+    {% for d, slots in schedule.schedule.items() %}
+        {% for slot, info in slots.items() %}
+        <tr>
+            <td class="border px-3 py-2">{{ d }}</td>
+            <td class="border px-3 py-2">{{ slot }}</td>
+            <td class="border px-3 py-2">{{ info.tipo }}</td>
+            <td class="border px-3 py-2">{{ info.grupo }}</td>
+            <td class="border px-3 py-2">{{ info.aula }}</td>
+            <td class="border px-3 py-2">{{ info.materia }}</td>
+        </tr>
+        {% endfor %}
+    {% endfor %}
+</table>
+{% endif %}
+
+{% endblock %}

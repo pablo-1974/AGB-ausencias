@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-6">Registrar ausencia</h2>
+
+<form method="POST" class="space-y-4">
+
+    <label class="block">
+        Profesor:
+        <select name="teacher_id" required class="border px-3 py-2 rounded w-full">
+            <option value="">-- Seleccionar profesor --</option>
+            {% for t in user_select_list %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label class="block">
+        Fecha:
+        <input type="date" name="date" class="border px-3 py-2 rounded w-full" required>
+    </label>
+
+    <label class="block">
+        Horas (separadas por comas: Ej: "1,2,5" o "Todas"):
+        <input name="hours" class="border px-3 py-2 rounded w-full" required>
+    </label>
+
+    <label class="block">
+        Explicación:
+        <textarea name="explanation" class="border px-3 py-2 rounded w-full"></textarea>
+    </label>
+
+    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Guardar</button>
+</form>
+
+{% endblock %}
