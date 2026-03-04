@@ -18,9 +18,11 @@ from auth import router as auth_router, get_current_user, require_admin
 from services.imports import import_teachers_file, import_schedule_file
 from services.schedule import get_schedule_for_teacher
 from services.absences import (
-    create_absence, get_absences_for_date,
-    update_absence, delete_absence,
-    categorize_absence, get_uncategorized_absences,
+    create_absence,
+    get_absences_for_date,
+    delete_absence,
+    categorize_absence,
+    get_uncategorized_absences,
 )
 from services.leaves import (
     create_leave, create_substitution,
@@ -302,4 +304,5 @@ def reports_daily_pdf(
     user=Depends(get_current_user)
 ):
     pdf_bytes = generate_daily_pdf(date, observations, db)
+
     return StreamingResponse(pdf_bytes, media_type="application/pdf")
