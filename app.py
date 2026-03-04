@@ -113,16 +113,22 @@ async def import_schedule(
 # =====================================================
 # VER HORARIO DE UN PROFESOR
 # =====================================================
+from typing import Optional
+from fastapi import Query
+
 @app.get("/schedule")
 def view_schedule(
     request: Request,
-    teacher_id: int = None,
+    teacher_id: Optional[str] = Query(None),   # 1) lo recibimos como str o None
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    user = Depends(get_current_user),
 ):
-    schedule = None
-    if teacher_id:
-        schedule = get_schedule_for_teacher(teacher_id, db)
+    # 2) Normalizamos: si está vacío o no es dígito, lo tratamos como None
+    tid = int(teacher_id) if teacher_id and teacher_id.isdigit() else None
+
+    # 3) Solo buscamos horario si hay un id válido
+    schedule = get_schedule_for_teacher(tid, db) if tid is not None else None
+
     return templates.TemplateResponse(
         "schedule_view.html",
         {"request": request, "user": user, "schedule": schedule},
@@ -306,3 +312,4 @@ def reports_daily_pdf(
     pdf_bytes = generate_daily_pdf(date, observations, db)
 
     return StreamingResponse(pdf_bytes, media_type="application/pdf")
+
