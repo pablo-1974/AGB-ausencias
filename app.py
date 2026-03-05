@@ -73,9 +73,10 @@ def dashboard(request: Request, user=Depends(get_current_user)):
 # =====================================================
 @app.get("/admin/import/teachers")
 def import_teachers_page(request: Request, user=Depends(require_admin)):
+    msg = request.session.pop("flash", None)  # recuperar mensaje si existe
     return templates.TemplateResponse(
         "teachers_import.html",
-        {"request": request, "user": user},
+        {"request": request, "user": user, "message": msg},
     )
 
 @app.post("/admin/import/teachers")
@@ -85,7 +86,11 @@ async def import_teachers(
     db: Session = Depends(get_db),
     user=Depends(require_admin)
 ):
-    await import_teachers_file(file, db)
+    result = await import_teachers_file(file, db)
+    request.session["flash"] = (
+        f"Profesores importados: {result['inserted']} nuevos, "
+        f"{result['skipped']} omitidos por email duplicado."
+    )
     return RedirectResponse("/admin/import/teachers", status_code=303)
 
 
@@ -312,4 +317,5 @@ def reports_daily_pdf(
     pdf_bytes = generate_daily_pdf(date, observations, db)
 
     return StreamingResponse(pdf_bytes, media_type="application/pdf")
+
 
