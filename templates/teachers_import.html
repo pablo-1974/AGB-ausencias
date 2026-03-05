@@ -3,11 +3,29 @@
 
 <h2 class="text-xl font-bold mb-4">Importar listado de profesores</h2>
 
+{# --- Mensaje de resultado (inserted / skipped) --- #}
+{% if message %}
+    <div class="mb-4 p-3 rounded bg-green-50 text-green-700 text-sm border border-green-200">
+        {{ message }}
+    </div>
+{% endif %}
+
 <form method="POST" enctype="multipart/form-data" class="space-y-4">
-    <input type="file" name="file" accept=".xlsx" class="border p-2 rounded" required>
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Importar</button>
+    <input type="file"
+           name="file"
+           accept=".xlsx,.xls"
+           class="border p-2 rounded w-full"
+           required>
+    
+    <button class="bg-indigo-600 text-white px-4 py-2 rounded">
+        Importar
+    </button>
 </form>
 
-<p class="text-gray-500 mt-4">Debe ser un Excel con columnas: <b>nombre</b> y <b>email</b>.</p>
+<p class="text-gray-500 mt-4">
+    Debe ser un Excel con columnas:
+    <b>nombre</b> y <b>email</b>.<br>
+    Si el email ya existe, la fila se <b>omitirá</b> automáticamente.
+</p>
 
 {% endblock %}
