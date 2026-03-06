@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-lg font-semibold mb-4">Editar ausencia</h1>
+
+<div class="card space-y-4">
+  <!-- Encabezado: profesor y fecha (solo lectura) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label class="label">Profesor</label>
+      <input class="input bg-gray-100" type="text" value="{{ teacher_name }}" readonly>
+    </div>
+    <div>
+      <label class="label">Fecha</label>
+      <input class="input bg-gray-100" type="date" value="{{ date_value }}" readonly>
+    </div>
+  </div>
+
+  <!-- Formulario principal -->
+  /absences/{{ absence.id }}/edit
+    <div>
+      <label class="label">Horas</label>
+      <div class="flex items-center gap-4 mb-2">
+        <label class="flex items-center gap-2">
+          <input id="allHours" type="checkbox" name="all" value="1" {% if is_all %}checked{% endif %}>
+          <span>Todas</span>
+        </label>
+      </div>
+
+      <div id="hoursGrid" class="grid grid-cols-6 gap-2">
+        {% for h in [1,2,3,4,5,6] %}
+          <label class="flex items-center gap-2">
+            <input class="hourBox" type="checkbox" name="hours" value="{{ h }}"
+                   {% if h in (hours_selected or []) %}checked{% endif %} {% if is_all %}disabled{% endif %}>
+            <span>{{ h }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <p class="text-xs text-gray-500 mt-1">
+        Puedes marcar varias horas. Si marcas “Todas”, las individuales quedan deshabilitadas.
+      </p>
+    </div>
+
+    <div>
+      <label class="label">Explicación (opcional)</label>
+      <textarea class="input" name="note" rows="3" placeholder="Motivo o anotación adicional">{{ absence.note or '' }}</textarea>
+    </div>
+
+    <div>
+      <label class="label">Catalogación (opcional)</label>
+      <select class="input" name="category">
+        <option value="">-- sin catalogar --</option>
+        {% for c in ["A","B","C","D","E","F","G","H","I","J","K","L","Z"] %}
+          <option value="{{ c }}" {% if absence.category == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-500 mt-1">
+        Esta catalogación se usa en el <b>Parte mensual</b>. La causa <b>Z</b> (Actividad del centro) se excluye del parte.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button class="btn-primary">Guardar cambios</button>
+      {% set back_date = return_date or date_value %}
+      /absences/manage?date={{ back_date }}Volver</a>
+    </div>
+  </form>
+</div>
+
+<!-- Borrar -->
+<div class="card border-red-200">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="font-semibold text-red-700">Borrar ausencia</div>
+      <div class="text-xs text-gray-500">Esta acción es definitiva.</div>
+    </div>
+    /absences/{{ absence.id }}/delete
+      <input type="hidden" name="date" value="{{ date_value }}">
+      <button class="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700">Borrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- JS mínimo para habilitar/deshabilitar horas según "Todas" -->
+<script>
+  (function() {
+    const allBox = document.getElementById('allHours');
+    const hourBoxes = document.querySelectorAll('.hourBox');
+    function syncHours() {
+      const disabled = allBox.checked;
+      hourBoxes.forEach(cb => {
+        cb.disabled = disabled;
+        if (disabled) cb.checked = false;
+      });
+    }
+    allBox.addEventListener('change', syncHours);
+    // Inicial
+    syncHours();
+  })();
+</script>
+{% endblock %}
