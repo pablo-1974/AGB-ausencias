@@ -1,49 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-lg font-semibold mb-4">Ausencias del día</h1>
 
-<h2 class="text-xl font-bold mb-6">Ausencias del día</h2>
-
-<form method="GET" class="mb-4">
-    <input type="date" name="date" value="{{ date }}" class="border px-3 py-2 rounded">
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Ver</button>
+<form method="get" action="/absences/manage" class="card space-y-2 max-w-md mb-4">
+  <div>
+    <label class="label">Fecha</label>
+    <input class="input" type="date" name="date" value="{{ date_value or '' }}" required>
+  </div>
+  <button class="btn-primary">Ver</button>
 </form>
 
-<table class="min-w-full border text-center">
-    <tr class="bg-gray-200">
-        <th class="border px-3 py-2">Profesor</th>
-        <th class="border px-3 py-2">Explicación</th>
-        <th class="border px-3 py-2">Categoría</th>
-        <th class="border px-3 py-2">Acciones</th>
-    </tr>
-
-    {% for abs, prof in absences %}
-    <tr>
-        <td class="border px-3 py-2">{{ prof.name }}</td>
-        <td class="border px-3 py-2">{{ abs.explanation }}</td>
-
-        <td class="border px-3 py-2">
-            {% if abs.category %}
-            {{ abs.category.value }}
-            {% else %}
-                <form method="POST" action="/absences/{{ abs.id }}/update">
-                    <select name="category" class="border px-1 py-1">
-                        <option value="">--</option>
-                        {% for c in ["A","B","C","D","E","F","G","H","I","J","K","L","Z"] %}
-                        <option value="{{ c }}">{{ c }}</option>
-                        {% endfor %}
-                    </select>
-                    <button class="bg-indigo-500 text-white px-2 py-1 rounded text-xs">OK</button>
-                </form>
-            {% endif %}
-        </td>
-
-        <td class="border px-3 py-2">
-            <form method="POST" action="/absences/{{ abs.id }}/delete">
-                <button class="bg-red-500 text-white px-3 py-1 rounded text-sm">Borrar</button>
+{% if absences is defined %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Profesor</th><th>Fecha</th><th>Horas</th><th>Nota</th><th>Causa</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in absences %}
+        <tr>
+          <td>{{ a.teacher_name }}</td>
+          <td>{{ a.date }}</td>
+          <td>{{ a.hours_text }}</td>
+          <td>{{ a.note or '' }}</td>
+          <td>{{ a.category or '' }}</td>
+          <td class="whitespace-nowrap">
+            <a class="btn-muted" href="/absences/{{ a.id }}/edit">Modificar</a>
+            <form class="inline" method="post" action="/absences/{{ a.id }}/delete" onsubmit="return confirm('¿Borrar ausencia?')">
+              <button class="btn-muted">Borrar</button>
             </form>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
 {% endblock %}
