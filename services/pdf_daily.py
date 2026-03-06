@@ -1,178 +1,198 @@
+# services/pdf_daily.py
+from __future__ import annotations
+from typing import List, Tuple, Set, Dict
+from datetime import date
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
-from io import BytesIO
-import datetime as dt
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 
-from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, or_
 
-from models import Teacher, Absence, Leave, Substitution, GuardDuty, TeachingSlot
-
-
-# ====================================================
-# OBTENER AUSENTES DEL DÍA
-# ====================================================
-
-def get_absent_teachers(date: dt.date, db: Session):
-    # Ausencias declaradas
-    absents = db.execute(
-        select(Absence.teacher_id).where(Absence.date == date)
-    ).scalars().all()
-
-    # Profesores de baja sin sustituto activo ese día
-    open_leaves = db.execute(
-        select(Leave).where(Leave.start_date <= date, (Leave.end_date == None) | (Leave.end_date >= date))
-    ).scalars().all()
-
-    for leave in open_leaves:
-        # Ver si hay sustituto activo
-        sub = db.execute(
-            select(Substitution)
-            .where(
-                Substitution.leave_id == leave.id,
-                Substitution.start_date <= date,
-                (Substitution.end_date == None) | (Substitution.end_date >= date)
-            )
-        ).scalar_one_or_none()
-
-        if not sub:
-            absents.append(leave.teacher_id)
-
-    return list(set(absents))
+from models import Absence, Leave, Teacher, ScheduleType
+from .schedule import get_teacher_slot, list_teachers_on_guard
 
 
-# ====================================================
-# OBTENER GUARDIAS POR FRANJA
-# ====================================================
-
-def get_guardias_for_day(weekday: int, db: Session):
-    guardias = db.execute(
-        select(GuardDuty).where(GuardDuty.weekday == weekday)
-    ).scalars().all()
-
-    result = {}
-    for gd in guardias:
-        result.setdefault(gd.slot, [])
-        teacher = db.get(Teacher, gd.teacher_id)
-        result[gd.slot].append(teacher.name)
-    return result
+# Mapeos según tu app
+HOUR_ROWS = [("1ª", 0), ("2ª", 1), ("3ª", 2), ("RECREO", 3), ("4ª", 4), ("5ª", 5), ("6ª", 6)]
+DAYS = {0: "lunes", 1: "martes", 2: "miércoles", 3: "jueves", 4: "viernes", 5: "sábado", 6: "domingo"}
 
 
-# ====================================================
-# OBTENER CLASES (solo si hay)
-# ====================================================
-
-def get_classes_for_teacher(teacher_id, weekday, db: Session):
-    rows = db.execute(
-        select(TeachingSlot).where(
-            TeachingSlot.teacher_id == teacher_id,
-            TeachingSlot.weekday == weekday
-        )
-    ).scalars().all()
-
-    out = {}
-    for r in rows:
-        out[r.slot] = {
-            "grupo": r.group,
-            "aula": r.room,
-            "asignatura": r.subject
-        }
-    return out
+def _bit_on(mask: int, hour_one_based: int) -> bool:
+    return (mask & (1 << (hour_one_based - 1))) != 0
 
 
-# ====================================================
-# GENERAR PDF DIARIO
-# ====================================================
+async def _teachers_absent_that_day(session: AsyncSession, the_date: date) -> Tuple[Set[int], Dict[int, int]]:
+    """
+    Devuelve:
+    - set de teacher_id ausentes (por ausencia manual y/o baja sin sustituto)
+    - dict teacher_id -> bitmask de horas ausentes (manuales). En bajas sin sustituto, activamos todo el día.
+    """
+    # Ausencias manuales
+    q_abs = select(Absence).where(Absence.date == the_date)
+    absences = (await session.execute(q_abs)).scalars().all()
 
-def generate_daily_pdf(date_str: str, observations: str, db: Session):
-    date = dt.date.fromisoformat(date_str)
-    weekday = date.weekday()
+    hours_by_teacher: Dict[int, int] = {}
+    absent_ids: Set[int] = set()
 
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    W, H = A4
+    for a in absences:
+        absent_ids.add(a.teacher_id)
+        hours_by_teacher[a.teacher_id] = hours_by_teacher.get(a.teacher_id, 0) | (a.hours_mask or 0)
 
-    # Título
-    title = f"AUSENCIAS DEL DÍA {date.strftime('%A %d/%m/%Y').upper()}"
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(20*mm, H - 20*mm, title)
+    # Bajas sin sustituto → ausente todo el día (1..6)
+    q_leave = select(Leave).where(
+        and_(Leave.start_date <= the_date, or_(Leave.end_date == None, Leave.end_date >= the_date),
+             or_(Leave.substitute_teacher_id == None, Leave.substitute_teacher_id == 0))
+    )
+    leaves = (await session.execute(q_leave)).scalars().all()
+    FULL_MASK = (1 << 6) - 1
+    for lv in leaves:
+        absent_ids.add(lv.teacher_id)
+        hours_by_teacher[lv.teacher_id] = hours_by_teacher.get(lv.teacher_id, 0) | FULL_MASK
 
-    # Observaciones
-    c.setFont("Helvetica", 10)
-    c.drawString(20*mm, H - 30*mm, "Observaciones:")
-    c.rect(20*mm, H - 60*mm, W - 40*mm, 25*mm)
+    return absent_ids, hours_by_teacher
 
-    if observations:
-        c.drawString(22*mm, H - 35*mm, observations[:100])
 
-    # Datos del día
-    absents = get_absent_teachers(date, db)
-    guardias = get_guardias_for_day(weekday, db)
+async def build_daily_report_pdf(
+    session: AsyncSession,
+    the_date: date,
+    path_out: str,
+    observaciones_usuario: str | None = None,
+    recreo_index: int = 3,  # 0..6
+) -> None:
+    absent_ids, hours_by_teacher = await _teachers_absent_that_day(session, the_date)
 
-    slots = ["1", "2", "3", "RECREO", "4", "5", "6"]
+    # Nombres de ausentes
+    if absent_ids:
+        q_teachers = select(Teacher.id, Teacher.name).where(Teacher.id.in_(absent_ids))
+        name_by_id = {tid: tname for tid, tname in (await session.execute(q_teachers)).all()}
+    else:
+        name_by_id = {}
 
-    y = H - 75*mm
-    c.setFont("Helvetica-Bold", 9)
+    head = ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"]
+    data = [head]
+    obs_lines: List[str] = []
 
-    # Cabecera
-    headers = ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"]
-    colw = [16*mm, 40*mm, 20*mm, 18*mm, 25*mm, 20*mm, 40*mm]
+    weekday_py = the_date.weekday()
+    weekday_name = DAYS.get(weekday_py, "")
 
-    x = 15*mm
-    for i, h in enumerate(headers):
-        c.drawString(x, y, h)
-        x += colw[i]
+    for label, hour_idx in HOUR_ROWS:
+        row_prof, row_grp, row_room, row_subj, row_guard = [], [], [], [], []
 
-    y -= 7*mm
+        # Ausentes en esta hora
+        for tid in sorted(absent_ids):
+            mask = hours_by_teacher.get(tid, 0)
+            # En manual, el RECREO suele no marcarse; en baja sin sustituto asumimos todo el día
+            is_abs_now = (_bit_on(mask, hour_idx + 1) if hour_idx != recreo_index else True)
+            if not is_abs_now:
+                continue
 
-    # Filas
-    for slot in slots:
-        x = 15*mm
+            tname = name_by_id.get(tid, f"ID {tid}")
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
 
-        # Fila de recreo gris
-        if slot == "RECREO":
-            c.setFillGray(0.9)
-            c.rect(15*mm, y - 4*mm, sum(colw), 8*mm, fill=1, stroke=0)
-            c.setFillGray(0)
+            if not slot:
+                # No hay info de clase/guardia
+                row_prof.append(tname); row_grp.append(""); row_room.append(""); row_subj.append("")
+            else:
+                if slot.type == ScheduleType.CLASS:
+                    row_prof.append(tname)
+                    row_grp.append(slot.group or ""); row_room.append(slot.room or ""); row_subj.append(slot.subject or "")
+                else:
+                    # Guardia
+                    gtext = (slot.guard_type or "").upper()
+                    if "RECREO" in gtext:
+                        # Guardias de recreo → a observaciones
+                        obs_lines.append(f"{tname}: {gtext.replace('G ', '').lower()}")
+                        row_prof.append(tname); row_grp.append(""); row_room.append(""); row_subj.append("")
+                    else:
+                        # Guardia de aula
+                        row_prof.append(tname); row_grp.append("guardia"); row_room.append("guardia"); row_subj.append("guardia")
 
-        c.setFont("Helvetica", 9)
+        # Profes en guardia (no ausentes)
+        guard_names = await list_teachers_on_guard(session, weekday_py, hour_idx, absent_ids)
+        row_guard = guard_names
 
-        # Ausentes
-        absent_list = []
-        class_group = ""
-        class_room = ""
-        class_subj = ""
+        def crush(xs: List[str]) -> str:
+            return "\n".join([s for s in xs if s and s.strip()])
 
-        for tid in absents:
-            classes = get_classes_for_teacher(tid, weekday, db)
-            if slot in classes:
-                absent_list.append(db.get(Teacher, tid).name)
-                class_group = classes[slot]["grupo"]
-                class_room = classes[slot]["aula"]
-                class_subj = classes[slot]["asignatura"]
+        data.append([
+            label,
+            crush(row_prof),
+            crush(row_grp),
+            crush(row_room),
+            crush(row_subj),
+            "",  # firmas
+            crush(row_guard),
+        ])
 
-        # Guardias
-        guard_list = guardias.get(slot, [])
+    # ---------- PDF maquetación ----------
+    doc = SimpleDocTemplate(path_out, pagesize=A4,
+                            leftMargin=1.2 * cm, rightMargin=1.2 * cm,
+                            topMargin=1.0 * cm, bottomMargin=1.0 * cm)
+    styles = getSampleStyleSheet()
+    elements: List = []
 
-        fields = [
-            slot,
-            ", ".join(absent_list),
-            class_group,
-            class_room,
-            class_subj,
-            "",
-            ", ".join(guard_list)
-        ]
+    title = f"Ausencias del día ({weekday_name} {the_date.strftime('%d/%m/%Y')})"
+    elements.append(Paragraph(title, styles["Title"]))
+    elements.append(Spacer(1, 6))
 
-        for i, val in enumerate(fields):
-            c.drawString(x, y, val)
-            x += colw[i]
+    obs_text = ""
+    if obs_lines or observaciones_usuario:
+        appended = []
+        if obs_lines:
+            appended.append("; ".join(obs_lines))
+        if observaciones_usuario:
+            appended.append(observaciones_usuario.strip())
+        obs_text = "; ".join(appended)
 
-        y -= 12*mm
+    elements.append(Paragraph(f"<b>Observaciones:</b> {obs_text}", styles["Normal"]))
+    elements.append(Spacer(1, 8))
 
-    c.showPage()
-    c.save()
-    buffer.seek(0)
-    return buffer
+    # Columnas con ancho fijo para ocupar toda la hoja
+    total_width = A4[0] - doc.leftMargin - doc.rightMargin
+    col_widths = [
+        1.2 * cm,           # HORA
+        total_width * 0.24, # PROFESOR
+        total_width * 0.13, # GRUPO
+        total_width * 0.12, # AULA
+        total_width * 0.16, # ASIGN.
+        total_width * 0.12, # FIRMAS
+        total_width * 0.21, # GUARDIA
+    ]
+    header_h = 16
+    row_h = 58
+    row_heights = [header_h] + [row_h] * 7
+
+    table = Table(data, colWidths=col_widths, rowHeights=row_heights, repeatRows=1)
+    ts = TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 9),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+
+        # Líneas horizontales de separación de franjas
+        ("LINEBELOW", (0, 1), (-1, 1), 1, colors.black),
+        ("LINEBELOW", (0, 2), (-1, 2), 0.8, colors.black),
+        ("LINEBELOW", (0, 3), (-1, 3), 0.8, colors.black),
+        ("LINEBELOW", (0, 4), (-1, 4), 0.8, colors.black),
+        ("LINEBELOW", (0, 5), (-1, 5), 0.8, colors.black),
+        ("LINEBELOW", (0, 6), (-1, 6), 0.8, colors.black),
+        ("LINEBELOW", (0, 7), (-1, 7), 0.8, colors.black),
+        ("LINEBELOW", (0, 8), (-1, 8), 1, colors.black),
+
+        # RECREO en gris (cabecera + 3 filas => índice 4)
+        ("BACKGROUND", (0, 4), (-1, 4), colors.lightgrey),
+
+        ("FONTSIZE", (0, 1), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ])
+    table.setStyle(ts)
+
+    elements.append(table)
+    doc.build(elements)
