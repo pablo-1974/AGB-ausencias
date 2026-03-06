@@ -1,89 +1,128 @@
-from sqlalchemy import (
-    Column, Integer, String, Boolean, Date, DateTime, ForeignKey, Enum, UniqueConstraint
-)
-from sqlalchemy.orm import relationship
-from datetime import datetime
+# models.py
+from __future__ import annotations
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
+from sqlalchemy import String, Integer, Enum, ForeignKey, Text, Date, Boolean, UniqueConstraint
 import enum
-from database import Base
+from datetime import datetime
 
-class Role(enum.Enum):
+
+# ---------------------------------------------------------
+# Base
+# ---------------------------------------------------------
+class Base(DeclarativeBase):
+    pass
+
+
+# ---------------------------------------------------------
+# Enums
+# ---------------------------------------------------------
+class Role(str, enum.Enum):
     admin = "admin"
     user = "user"
+
+
+class ScheduleType(str, enum.Enum):
+    CLASS = "CLASS"
+    GUARD = "GUARD"
+
+
+class GuardType(str, enum.Enum):
+    G_AULA = "G AULA"
+    G_RECREO_PATIO = "G RECREO PATIO"
+    G_RECREO_PASILLO = "G RECREO PASILLO"
+
+
+# ---------------------------------------------------------
+# MODELOS
+# ---------------------------------------------------------
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    email = Column(String, unique=True, index=True)
-    name = Column(String)
-    password_hash = Column(String)
-    role = Column(Enum(Role), default=Role.user)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[Role] = mapped_column(Enum(Role), default=Role.user)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
 
 class Teacher(Base):
     __tablename__ = "teachers"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    email = Column(String, unique=True)
-    is_current = Column(Boolean, default=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), index=True)
+    email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
+    active: Mapped[bool] = mapped_column(default=True)
 
-class DutyType(enum.Enum):
-    AULA = "G AULA"
-    RECREO = "G RECREO"
-
-class GuardDuty(Base):
-    __tablename__ = "guard_duties"
     __table_args__ = (
-        UniqueConstraint("teacher_id", "weekday", "slot", name="uq_teacher_weekday_slot"),
+        UniqueConstraint("name", "email", name="uq_teacher_name_email"),
     )
 
-    id = Column(Integer, primary_key=True)
-    teacher_id = Column(Integer, ForeignKey("teachers.id"))
-    weekday = Column(Integer)  # 0..4
-    slot = Column(String)      # "1","2","3","RECREO","4","5","6"
-    type = Column(Enum(DutyType))
 
-class TeachingSlot(Base):
-    __tablename__ = "teaching_slots"
+class ScheduleSlot(Base):
+    """
+    Slot de horario de profesor:
+    - type = CLASS → grupo/aula/asignatura
+    - type = GUARD → guard_type = GuardType
+    """
+    __tablename__ = "schedule_slots"
 
-    id = Column(Integer, primary_key=True)
-    teacher_id = Column(Integer, ForeignKey("teachers.id"))
-    weekday = Column(Integer)
-    slot = Column(String)
-    group = Column(String)
-    room = Column(String)
-    subject = Column(String)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"), index=True)
+
+    day_index: Mapped[int] = mapped_column(Integer)    # 0=Lunes...4=Viernes
+    hour_index: Mapped[int] = mapped_column(Integer)   # 0=1ª ... 6=6ª ; recreo el que corresponda
+
+    type: Mapped[ScheduleType] = mapped_column(Enum(ScheduleType))
+
+    # SOLO si type=GUARD
+    guard_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    # SOLO si type=CLASS
+    group: Mapped[str | None] = mapped_column(String(50))
+    room: Mapped[str | None] = mapped_column(String(50))
+    subject: Mapped[str | None] = mapped_column(String(50))
+
+    source: Mapped[str | None] = mapped_column(String(30), default="import")
+
 
 class Leave(Base):
+    """
+    Bajas.
+    - Cuando no hay sustituto: profesor ausente todo el día en el parte diario.
+    - Cuando tiene sustituto: el ausente NO aparece en parte diario.
+    """
     __tablename__ = "leaves"
 
-    id = Column(Integer, primary_key=True)
-    teacher_id = Column(Integer, ForeignKey("teachers.id"))
-    start_date = Column(Date)
-    end_date = Column(Date, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"), index=True)
+    start_date: Mapped[Date] = mapped_column(Date)
+    end_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
 
-class Substitution(Base):
-    __tablename__ = "substitutions"
+    substitute_teacher_id: Mapped[int | None] = mapped_column(ForeignKey("teachers.id"), nullable=True)
 
-    id = Column(Integer, primary_key=True)
-    leave_id = Column(Integer, ForeignKey("leaves.id"))
-    substitute_teacher_id = Column(Integer, ForeignKey("teachers.id"))
-    start_date = Column(Date)
-    end_date = Column(Date, nullable=True)
-
-class AbsenceCategory(enum.Enum):
-    A="A"; B="B"; C="C"; D="D"; E="E"; F="F"; G="G"; H="H"; I="I"; J="J"; K="K"; L="L"; Z="Z"
 
 class Absence(Base):
+    """
+    Ausencias puntuales.
+    hours_mask:
+      bit0 = 1ª
+      bit1 = 2ª
+      ...
+      bit5 = 6ª
+    (Recreo no se marca normalmente en mask)
+    """
     __tablename__ = "absences"
 
-    id = Column(Integer, primary_key=True)
-    teacher_id = Column(Integer, ForeignKey("teachers.id"))
-    date = Column(Date)
-    hours_mask = Column(Integer)  # bits 0–6
-    explanation = Column(String)
-    category = Column(Enum(AbsenceCategory), nullable=True)
-    created_by_user_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"), index=True)
+    date: Mapped[Date] = mapped_column(Date, index=True)
+    hours_mask: Mapped[int] = mapped_column(Integer, default=0)
+    note: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(String(2))  # A..L o Z o None
+
+    __table_args__ = (
+        UniqueConstraint("teacher_id", "date", name="uq_teacher_date"),
+    )
