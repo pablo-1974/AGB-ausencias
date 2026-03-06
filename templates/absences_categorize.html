@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-lg font-semibold mb-4">Catalogación de ausencias</h1>
+
+{% if absences is defined and absences %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Profesor</th><th>Fecha</th><th>Horas</th><th>Nota</th><th>Catalogación</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in absences %}
+        <tr>
+          <td>{{ a.teacher_name }}</td>
+          <td>{{ a.date }}</td>
+          <td>{{ a.hours_text }}</td>
+          <td>{{ a.note or '' }}</td>
+          <td>
+            <form method="post" action="/absences/{{ a.id }}/categorize" class="flex gap-2">
+              <select name="category" class="input">
+                <option value="">-- seleccionar --</option>
+                <option>A</option><option>B</option><option>C</option><option>D</option>
+                <option>E</option><option>F</option><option>G</option><option>H</option>
+                <option>I</option><option>J</option><option>K</option><option>L</option>
+                <option>Z</option>
+              </select>
+              <button class="btn-primary">Guardar</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/absences/{{ a.id }}/delete" onsubmit="return confirm('¿Borrar ausencia?')">
+              <button class="btn-muted">Borrar</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="text-sm text-gray-500">No hay ausencias pendientes.</div>
+{% endif %}
+{% endblock %}
+``
