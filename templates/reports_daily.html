@@ -1,25 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-lg font-semibold mb-4">Parte diario de ausencias</h1>
 
-<h2 class="text-xl font-bold mb-6">Parte diario</h2>
-
-<form method="GET" action="/reports/daily" class="space-y-4 mb-6">
-    <input type="date" name="date" value="{{ date }}" class="border px-3 py-2 rounded">
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Ver</button>
+<form method="post" action="/reports/daily" class="card space-y-3 max-w-2xl">
+  <div>
+    <label class="label">Fecha</label>
+    <input class="input" type="date" name="fecha" value="{{ today or '' }}" required>
+  </div>
+  <div>
+    <label class="label">Observaciones</label>
+    <input class="input" type="text" name="observaciones" placeholder="Opcional: añade aquí un texto">
+  </div>
+  <button class="btn-primary">Generar PDF</button>
 </form>
-
-<form method="GET" action="/reports/daily/pdf">
-
-    <input type="hidden" name="date" value="{{ date }}">
-
-    <label class="block">
-        Observaciones:
-        <input name="observations" class="border px-3 py-2 rounded w-full">
-    </label>
-
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded mt-4">
-        Generar PDF
-    </button>
-</form>
-
 {% endblock %}
