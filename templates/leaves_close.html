@@ -1,27 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-
-<h2 class="text-xl font-bold mb-6">Cerrar baja</h2>
-
-<form method="POST" class="space-y-4">
-
-    <label class="block">
-        Baja abierta:
-        <select name="leave_id" class="border px-3 py-2 rounded w-full" required>
-            <option value="">-- Seleccionar --</option>
-            {% for l in open_leaves %}
-            <option value="{{ l.id }}">{{ l.teacher_id }} ({{ l.start_date }})</option>
-            {% endfor %}
-        </select>
-    </label>
-
-    <label class="block">
-        Fecha fin:
-        <input type="date" name="end_date" class="border px-3 py-2 rounded w-full" required>
-    </label>
-
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Cerrar</button>
-
+<h1 class="text-lg font-semibold mb-4">Cerrar baja</h1>
+<form method="post" action="/leaves/close" class="card space-y-3 max-w-xl">
+  <div>
+    <label class="label">Profesor de baja</label>
+    <select name="teacher_id" class="input">
+      <option value="">-- seleccionar --</option>
+      {% for t in leaves_teachers or [] %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="label">Fecha fin</label>
+    <input class="input" type="date" name="end_date" required>
+  </div>
+  <button class="btn-primary">Cerrar baja</button>
 </form>
-
 {% endblock %}
