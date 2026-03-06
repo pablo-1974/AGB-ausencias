@@ -1,43 +1,52 @@
-# project/app.py
+# app.py
 from datetime import datetime
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.responses import RedirectResponse, JSONResponse
 
-from .config import settings
-from .auth import router as auth_router, setup_session
+from config import settings
+from auth import router as auth_router, setup_session
 
-# -------------------------------------------------
-# App base
-# -------------------------------------------------
+
+# ------------------------------------------------------------
+# APP FASTAPI (configurada ya para Render + Neon)
+# ------------------------------------------------------------
 app = FastAPI(title=settings.APP_NAME)
 
-# Proxy headers (Render / reverse proxy)
-# - Asegura que request.url.scheme sea https cuando Render manda X-Forwarded-Proto
+# Asegurar https detrás de Render (X-Forwarded-Proto)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
-# Archivos estáticos (logo, estilos…)
+# ------------------------------------------------------------
+# STATIC y TEMPLATES
+# ------------------------------------------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Templates Jinja2
 templates = Jinja2Templates(directory="templates")
 app.state.templates = templates
 
-# Sesiones (cookies seguras)
-setup_session(app)  # añade SessionMiddleware con SECRET_KEY (ver auth.setup_session)
+# ------------------------------------------------------------
+# SESIONES (cookies)
+# ------------------------------------------------------------
+setup_session(app)
 
-# -------------------------------------------------
-# Contexto común para plantillas
-# -------------------------------------------------
-APP_NAME = "Ausencias de profesores"
-INSTITUTION_NAME = "IES Antonio García Bellido"
-LOGO_PATH = "/static/logo.png"
+# ------------------------------------------------------------
+# INCLUIR RUTAS (solo auth de momento)
+# El resto las iremos activando cuando generemos sus routers
+# ------------------------------------------------------------
+app.include_router(auth_router)
 
-def _tpl(request: Request, **extra):
-    base_ctx = {
+
+# ------------------------------------------------------------
+# Contexto común
+# ------------------------------------------------------------
+APP_NAME = settings.APP_NAME
+INSTITUTION_NAME = settings.INSTITUTION_NAME
+LOGO_PATH = settings.LOGO_PATH
+
+def tpl(request: Request, **extra):
+    ctx = {
         "request": request,
         "title": APP_NAME,
         "app_name": APP_NAME,
@@ -45,71 +54,45 @@ def _tpl(request: Request, **extra):
         "logo_path": LOGO_PATH,
         "now": datetime.now(),
     }
-    base_ctx.update(extra or {})
-    return base_ctx
+    ctx.update(extra or {})
+    return ctx
 
-# -------------------------------------------------
-# Routers
-# -------------------------------------------------
-# Autenticación
-app.include_router(auth_router)
 
-# Cuando tengas listos los demás routers, descomenta:
-try:
-    from .services import pdf_daily, pdf_monthly  # noqa
-    # from .reports import router as reports_router
-    # app.include_router(reports_router, prefix="/reports", tags=["reports"])
-except Exception:
-    pass
-
-try:
-    # from .schedule import router as schedule_router
-    # app.include_router(schedule_router, prefix="/schedule", tags=["schedule"])
-    pass
-except Exception:
-    pass
-
-try:
-    # from .absences import router as absences_router
-    # app.include_router(absences_router, prefix="/absences", tags=["absences"])
-    pass
-except Exception:
-    pass
-
-try:
-    # from .leaves import router as leaves_router
-    # app.include_router(leaves_router, prefix="/leaves", tags=["leaves"])
-    pass
-except Exception:
-    pass
-
-# -------------------------------------------------
-# Rutas base
-# -------------------------------------------------
+# ------------------------------------------------------------
+# RUTA PRINCIPAL
+# ------------------------------------------------------------
 @app.get("/")
 async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", _tpl(request))
+    # Si no hay login → enviar a login
+    if not request.session.get("uid"):
+        return RedirectResponse("/login", status_code=303)
 
+    return templates.TemplateResponse("dashboard.html", tpl(request))
+
+
+# ------------------------------------------------------------
+# HEALTHCHECK (Render lo usa si quieres)
+# ------------------------------------------------------------
 @app.get("/health")
 async def health():
-    return JSONResponse({"status": "ok", "ts": datetime.utcnow().isoformat()})
+    return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
 
-# -------------------------------------------------
-# Manejo de errores (opcional, más amable)
-# -------------------------------------------------
+
+# ------------------------------------------------------------
+# ERRORES
+# ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    # Si quieres una plantilla 404.html, cámbialo
     return templates.TemplateResponse(
         "dashboard.html",
-        _tpl(request, message="Página no encontrada"),
+        tpl(request, message="Página no encontrada"),
         status_code=404
     )
 
 @app.exception_handler(500)
-async def server_error(request: Request, exc):
+async def internal_error(request: Request, exc):
     return templates.TemplateResponse(
         "dashboard.html",
-        _tpl(request, message="Error interno. Intenta de nuevo."),
+        tpl(request, message="Error interno. Intenta más tarde."),
         status_code=500
     )
