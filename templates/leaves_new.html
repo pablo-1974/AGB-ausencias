@@ -1,37 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-
-<h2 class="text-xl font-bold mb-6">Registrar baja</h2>
-
-<form method="POST" class="space-y-4">
-
-    <label class="block">
-        Profesor:
-        <select name="teacher_id" required class="border px-3 py-2 rounded w-full">
-            <option value="">-- Seleccionar --</option>
-            {% for t in teacher_list %}
-            <option value="{{ t.id }}">{{ t.name }}</option>
-            {% endfor %}
-        </select>
-    </label>
-
-    <label class="block">
-        Fecha inicio:
-        <input type="date" name="start_date" class="border px-3 py-2 rounded w-full">
-    </label>
-
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Registrar</button>
-
+<h1 class="text-lg font-semibold mb-4">Abrir baja</h1>
+<form method="post" action="/leaves/new" class="card space-y-3 max-w-xl">
+  <div>
+    <label class="label">Profesor</label>
+    <select name="teacher_id" class="input">
+      <option value="">-- seleccionar --</option>
+      {% for t in teachers or [] %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="label">Fecha de inicio</label>
+    <input class="input" type="date" name="start_date" required>
+  </div>
+  <button class="btn-primary">Abrir baja</button>
 </form>
-
-<h3 class="text-lg font-semibold mt-8 mb-3">Bajas abiertas</h3>
-
-<ul class="list-disc ml-6">
-    {% for b in open_leaves %}
-    <li>
-        {{ b.teacher_id }} desde {{ b.start_date }}
-    </li>
-    {% endfor %}
-</ul>
-
 {% endblock %}
