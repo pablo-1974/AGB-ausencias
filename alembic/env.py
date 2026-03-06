@@ -1,21 +1,71 @@
+# alembic/env.py
+
+from __future__ import annotations
+import asyncio
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
+import os
+
 from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy import engine_from_config, create_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
+
 from alembic import context
 
-# Interpret the config file for Python logging.
+# Importar la metadata de tu app
+# (models.py está en la raíz del proyecto)
+from models import Base
+
+
+# ------------------------------------------------------------
+# Configuración base de Alembic
+# ------------------------------------------------------------
 config = context.config
-fileConfig(config.config_file_name)
 
-# Add your model's MetaData object here for 'autogenerate' support
-# from your_app import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+# Logging
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# Metadata para autogenerar migraciones
+target_metadata = Base.metadata
 
 
+# ------------------------------------------------------------
+# Helper: obtener URL de conexión
+# Render / Neon → DATABASE_URL asyncpg
+# Para offline migration, Alembic necesita versión sync
+# ------------------------------------------------------------
+def get_url_sync():
+    """
+    Convierte:
+        postgresql+asyncpg://user:pass@host/db?sslmode=require
+    a:
+        postgresql://user:pass@host/db?sslmode=require
+    """
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL no está definido")
+
+    if url.startswith("postgresql+asyncpg://"):
+        return url.replace("postgresql+asyncpg://", "postgresql://")
+
+    return url
+
+
+def get_url_async():
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL no está definido")
+    return url
+
+
+# ------------------------------------------------------------
+# OFFLINE MODE
+# ------------------------------------------------------------
 def run_migrations_offline():
-    """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    """Ejecutar migraciones sin conexión a DB."""
+    url = get_url_sync()
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -27,22 +77,44 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-def run_migrations_online():
-    """Run migrations in 'online' mode."""
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+# ------------------------------------------------------------
+# ONLINE MODE (ASYNC)
+# ------------------------------------------------------------
+def do_run_migrations(connection):
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,     # detectar cambios en tipos
+        compare_server_default=True,
     )
 
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-
-        with context.begin_transaction():
-            context.run_migrations()
+    with context.begin_transaction():
+        context.run_migrations()
 
 
+async def run_migrations_online():
+    url = get_url_async()
+
+    connectable = AsyncEngine(
+        engine_from_config(
+            {},
+            prefix="sqlalchemy.",
+            url=url,
+            future=True,
+            poolclass=pool.NullPool,
+        )
+    )
+
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+
+    await connectable.dispose()
+
+
+# ------------------------------------------------------------
+# EJECUCIÓN
+# ------------------------------------------------------------
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()
+    asyncio.run(run_migrations_online())
