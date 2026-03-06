@@ -1,22 +1,72 @@
-import bcrypt
+# utils.py
+from typing import List
 
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+# ---------------------------
+# Bitmask de horas (1ª..6ª)
+# ---------------------------
 
-def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode(), hashed.encode())
-
-def hours_list_to_mask(hours: list[str]) -> int:
+def hours_list_to_mask(hours: List[int], all_selected: bool = False) -> int:
     """
-    Convierte ["1","2","6"] → bitmask.
-    'Todas' → 0b1111111 (127)
+    hours → lista con números 1..6
+    all_selected=True → activa todas las horas (1..6)
     """
-    if "Todas" in hours:
-        return 127
-    
-    mapping = {"1":0,"2":1,"3":2,"RECREO":3,"4":4,"5":5,"6":6}
-    mask = 0
+    if all_selected:
+        return (1 << 6) - 1  # 0b111111 = 63
+    m = 0
     for h in hours:
-        if h in mapping:
-            mask |= (1 << mapping[h])
-    return mask
+        if 1 <= h <= 6:
+            m |= (1 << (h - 1))
+    return m
+
+
+def mask_to_hour_list(mask: int) -> List[int]:
+    """Devuelve lista de horas activas en máscara."""
+    out = []
+    for h in range(1, 7):  # 1..6
+        if mask & (1 << (h - 1)):
+            out.append(h)
+    return out
+
+
+# ---------------------------
+# Mapeos horario
+# ---------------------------
+
+DAY_NAMES = {
+    0: "Lunes",
+    1: "Martes",
+    2: "Miércoles",
+    3: "Jueves",
+    4: "Viernes",
+    5: "Sábado",
+    6: "Domingo",
+}
+
+HOUR_LABELS = {
+    0: "1ª",
+    1: "2ª",
+    2: "3ª",
+    3: "RECREO",
+    4: "4ª",
+    5: "5ª",
+    6: "6ª",
+}
+
+def day_name(idx: int) -> str:
+    return DAY_NAMES.get(idx, "?")
+
+
+def hour_label(idx: int) -> str:
+    return HOUR_LABELS.get(idx, "?")
+
+
+# ---------------------------
+# Validaciones Excel
+# ---------------------------
+
+def require_columns(df, required: List[str]):
+    """Lanza ValueError si faltan columnas."""
+    cols = [c.strip().lower() for c in df.columns]
+    missing = [c for c in required if c.lower() not in cols]
+    if missing:
+        raise ValueError(f"Faltan columnas obligatorias en Excel: {missing}")
