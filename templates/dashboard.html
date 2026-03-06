@@ -1,28 +1,53 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-xl font-semibold mb-4">Panel de control</h1>
 
-<h1 class="text-2xl font-semibold mb-4">Bienvenido, {{ user.name }}</h1>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <a class="card hover:shadow-lg" href="/imports/teachers">
+    <div class="font-semibold mb-1">Importar profesores</div>
+    <div class="text-sm text-gray-600">Excel (nombre, email)</div>
+  </a>
 
-<p class="text-gray-600 mb-6">Seleccione una opción del menú para comenzar.</p>
+  <a class="card hover:shadow-lg" href="/imports/guards">
+    <div class="font-semibold mb-1">Importar guardias</div>
+    <div class="text-sm text-gray-600">Excel (nombre, día, franja = G AULA / G RECREO...)</div>
+  </a>
 
-<div class="grid grid-cols-2 gap-6">
+  <a class="card hover:shadow-lg" href="/schedule/view">
+    <div class="font-semibold mb-1">Horario por profesor</div>
+    <div class="text-sm text-gray-600">Ver/editar guardias a mano y PDF</div>
+  </a>
 
-    <a href="/absences/new" class="bg-indigo-100 hover:bg-indigo-200 p-6 rounded shadow">
-        Registrar ausencia
-    </a>
+  <a class="card hover:shadow-lg" href="/absences/new">
+    <div class="font-semibold mb-1">Añadir ausencia</div>
+  </a>
 
-    <a href="/schedule" class="bg-indigo-100 hover:bg-indigo-200 p-6 rounded shadow">
-        Consultar horario
-    </a>
+  <a class="card hover:shadow-lg" href="/absences/manage">
+    <div class="font-semibold mb-1">Gestionar ausencias del día</div>
+  </a>
 
-    <a href="/reports/daily" class="bg-indigo-100 hover:bg-indigo-200 p-6 rounded shadow">
-        Parte diario
-    </a>
+  <a class="card hover:shadow-lg" href="/absences/categorize">
+    <div class="font-semibold mb-1">Catalogar ausencias</div>
+  </a>
 
-    <a href="/reports/monthly" class="bg-indigo-100 hover:bg-indigo-200 p-6 rounded shadow">
-        Parte mensual
-    </a>
+  <a class="card hover:shadow-lg" href="/leaves/new">
+    <div class="font-semibold mb-1">Abrir baja</div>
+  </a>
 
+  <a class="card hover:shadow-lg" href="/substitutions/new">
+    <div class="font-semibold mb-1">Asignar sustitución</div>
+  </a>
+
+  <a class="card hover:shadow-lg" href="/leaves/close">
+    <div class="font-semibold mb-1">Cerrar baja</div>
+  </a>
+
+  <a class="card hover:shadow-lg" href="/reports/daily">
+    <div class="font-semibold mb-1">Parte diario</div>
+  </a>
+
+  <a class="card hover:shadow-lg" href="/reports/monthly">
+    <div class="font-semibold mb-1">Parte mensual</div>
+  </a>
 </div>
-
 {% endblock %}
