@@ -1,0 +1,308 @@
+/* ====================================================================== */
+/*  Global styles for "Ausencias de profesores"                           */
+/*  Archivo: static/styles.css                                            */
+/*  Funciona solo o junto a Tailwind (no requiere pipeline).              */
+/* ====================================================================== */
+
+/* -----------------------
+   Variables de color
+------------------------ */
+:root{
+  --brand-600: #7c3aed;    /* morado principal */
+  --brand-700: #6d28d9;
+  --brand-200: #ddd6fe;
+  --ink-900:   #111827;
+  --ink-700:   #374151;
+  --ink-600:   #4b5563;
+  --ink-500:   #6b7280;
+  --muted-100: #f3f4f6;
+  --muted-200: #e5e7eb;
+  --muted-300: #d1d5db;
+  --muted-50:  #f9fafb;
+  --ok:        #16a34a;
+  --warn:      #f59e0b;
+  --error:     #dc2626;
+  --white:     #ffffff;
+}
+
+/* -----------------------
+   Reset & base
+------------------------ */
+*,
+*::before,
+*::after{ box-sizing: border-box; }
+
+html{ font-size: 16px; }
+body{
+  margin: 0;
+  color: var(--ink-900);
+  background: var(--muted-50);
+  font: 400 0.95rem/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Links */
+a{ color: var(--brand-700); text-decoration: none; }
+a:hover{ text-decoration: underline; }
+
+/* Helpers */
+.hide{ display: none !important; }
+.nowrap{ white-space: nowrap; }
+
+/* Container widths (si no usas Tailwind) */
+.container{
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+/* -----------------------
+   Header & Nav
+------------------------ */
+.app-header{
+  background: var(--white);
+  border-bottom: 1px solid var(--muted-200);
+}
+.app-header__row{
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+}
+.logo{
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+.logo img{
+  display: block;
+  height: 36px;           /* ajusta el alto del logo */
+  width: auto;
+}
+.logo__title{
+  font-weight: 600;
+}
+.logo__subtitle{
+  color: var(--ink-500);
+  font-size: .75rem;
+}
+
+.app-nav{
+  background: #f3f4f6;
+  border-bottom: 1px solid var(--muted-200);
+}
+.app-nav__row{
+  display: flex;
+  gap: 1rem;
+  padding: .5rem 1rem;
+  font-size: .9rem;
+  flex-wrap: wrap;
+}
+.app-nav__row a{
+  color: var(--ink-700);
+  padding: .2rem .25rem;
+  border-radius: .25rem;
+}
+.app-nav__row a:hover{
+  background: var(--muted-200);
+  text-decoration: none;
+}
+
+/* -----------------------
+   Cards / Panels
+------------------------ */
+.card{
+  background: var(--white);
+  border: 1px solid var(--muted-200);
+  border-radius: .5rem;
+  box-shadow: 0 1px 2px rgba(17,24,39,0.05);
+  padding: 1rem;
+}
+
+/* -----------------------
+   Formularios
+------------------------ */
+.label{
+  display: block;
+  font-weight: 600;
+  font-size: .875rem;
+  margin-bottom: .25rem;
+  color: var(--ink-700);
+}
+
+.input,
+select,
+textarea{
+  display: block;
+  width: 100%;
+  background: var(--white);
+  color: var(--ink-900);
+  border: 1px solid var(--muted-300);
+  border-radius: .5rem;
+  padding: .55rem .75rem;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.input:focus,
+select:focus,
+textarea:focus{
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+}
+
+/* Inputs de fecha en Safari */
+input[type="date"]{
+  appearance: none;
+}
+
+/* -----------------------
+   Botones
+------------------------ */
+.btn-primary{
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--brand-600);
+  color: var(--white);
+  font-weight: 600;
+  padding: .55rem .9rem;
+  border: 0;
+  border-radius: .5rem;
+  cursor: pointer;
+  transition: background .15s ease, opacity .15s ease;
+}
+.btn-primary:hover{ background: var(--brand-700); text-decoration: none; }
+.btn-primary:disabled{ opacity: .6; cursor: not-allowed; }
+
+.btn-muted{
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--muted-200);
+  color: var(--ink-700);
+  font-weight: 600;
+  padding: .45rem .8rem;
+  border: 0;
+  border-radius: .5rem;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.btn-muted:hover{ background: var(--muted-300); text-decoration: none; }
+
+.btn-danger{
+  background: var(--error);
+  color: var(--white);
+}
+.btn-danger:hover{ background: #b91c1c; }
+
+/* -----------------------
+   Tablas
+------------------------ */
+.table{
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  border: 1px solid var(--muted-200);
+}
+.table th,
+.table td{
+  border-bottom: 1px solid var(--muted-200);
+  padding: .5rem .6rem;
+  vertical-align: top;
+  text-align: left;
+}
+.table th{
+  background: var(--muted-100);
+  font-weight: 600;
+  font-size: .9rem;
+}
+.table tbody tr:hover{
+  background: #fafafa;
+}
+
+/* -----------------------
+   Login (bloque con degradado)
+   Si quieres evitar el inline-style en login.html,
+   añade la clase .login-hero al contenedor y usa esto.
+------------------------ */
+.login-hero{
+  background: linear-gradient(135deg, rgba(124,58,237,0.85), rgba(168,85,247,0.85));
+  color: var(--white);
+  border-radius: .75rem;
+  padding: 2rem;
+}
+.login-hero h1{
+  margin: .25rem 0 .1rem 0;
+}
+.login-hero .subtitle{
+  font-size: .85rem;
+  opacity: .9;
+}
+
+/* -----------------------
+   Utilidades layout (si no usas Tailwind)
+------------------------ */
+.grid{
+  display: grid;
+  gap: 1rem;
+}
+.grid-2{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.flex{ display: flex; gap: .5rem; }
+.items-center{ align-items: center; }
+.justify-between{ justify-content: space-between; }
+.mt-1{ margin-top: .25rem; }
+.mt-2{ margin-top: .5rem; }
+.mt-3{ margin-top: .75rem; }
+.mt-4{ margin-top: 1rem; }
+.mb-1{ margin-bottom: .25rem; }
+.mb-2{ margin-bottom: .5rem; }
+.mb-3{ margin-bottom: .75rem; }
+.mb-4{ margin-bottom: 1rem; }
+
+/* -----------------------
+   Parte diario (por si quieres estilos web previos a PDF)
+------------------------ */
+.parte-diario .fila-recreo{
+  background: #e5e7eb; /* gris suave */
+}
+
+/* Línea separadora entre franjas (si quieres en HTML también) */
+.separator{
+  height: 1px;
+  background: var(--ink-600);
+  opacity: .25;
+  margin: .5rem 0;
+}
+
+/* -----------------------
+   Mensajes/alertas
+------------------------ */
+.alert{
+  padding: .6rem .8rem;
+  border-radius: .5rem;
+  border: 1px solid transparent;
+}
+.alert.ok{ background: #ecfdf5; border-color: #a7f3d0; color: var(--ok); }
+.alert.warn{ background: #fffbeb; border-color: #fde68a; color: var(--warn); }
+.alert.err{ background: #fef2f2; border-color: #fecaca; color: var(--error); }
+
+/* -----------------------
+   Footer
+------------------------ */
+footer{
+  color: var(--ink-500);
+}
+
+/* -----------------------
+   Print tweaks (opcional)
+   No afecta a PDFs generados con ReportLab,
+   solo a impresión del HTML desde el navegador.
+------------------------ */
+@media print{
+  a{ text-decoration: none; color: black; }
+  .app-nav, .btn-primary, .btn-muted{ display: none !important; }
+  .card{ box-shadow: none; border-color: #999; }
+}
