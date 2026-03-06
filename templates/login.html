@@ -1,45 +1,28 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Login</title>
-
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-</head>
-
-<body class="min-h-screen bg-gradient-to-br from-purple-200 via-purple-300 to-indigo-300 flex items-center justify-center">
-
-    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-
-        <div class="flex flex-col items-center mb-6">
-            <img src="/static/logo.png" class="h-20 mb-4">
-            <h1 class="text-2xl font-bold text-indigo-700">Ausencias de profesores</h1>
-            <p class="text-gray-600">IES Antonio García Bellido</p>
-        </div>
-
-        {% if error %}
-        <div class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4">{{ error }}</div>
-        {% endif %}
-
-        {% if register_mode %}
-        <form method="POST" action="/register" class="space-y-4">
-            <input name="name" placeholder="Nombre completo" class="w-full border rounded px-3 py-2" required>
-            <input name="email" placeholder="Email" type="email" class="w-full border rounded px-3 py-2" required>
-            <input name="password" type="password" placeholder="Contraseña" class="w-full border rounded px-3 py-2" required>
-
-            <button class="bg-indigo-600 text-white w-full py-2 rounded">Crear Admin</button>
-        </form>
-        {% else %}
-        <form method="POST" action="/login" class="space-y-4">
-            <input name="email" placeholder="Email" type="email" class="w-full border rounded px-3 py-2" required>
-            <input name="password" type="password" placeholder="Contraseña" class="w-full border rounded px-3 py-2" required>
-
-            <button class="bg-indigo-600 text-white w-full py-2 rounded">Entrar</button>
-        </form>
-        {% endif %}
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="w-full max-w-md rounded-xl p-8 text-white"
+       style="background: linear-gradient(135deg, rgba(124,58,237,0.85), rgba(168,85,247,0.85));">
+    <div class="flex flex-col items-center gap-2 mb-6">
+      <img src="{{ logo_path }}" class="h-12 w-12" alt="logo">
+      <h1 class="text-2xl font-bold">Ausencias de profesores</h1>
+      <p class="text-sm opacity-90">IES Antonio García Bellido</p>
     </div>
-
-</body>
-</html>
+    <form action="/login" method="post" class="space-y-3">
+      <div>
+        <label class="label">Email</label>
+        <input class="input text-black" type="email" name="email" required>
+      </div>
+      <div>
+        <label class="label">Contraseña</label>
+        <input class="input text-black" type="password" name="password" required>
+      </div>
+      <button class="btn-primary w-full">Entrar</button>
+    </form>
+    <div class="mt-4 text-xs opacity-90">
+      Si es el primer acceso y la base de datos está vacía, crea el administrador en
+      <a class="underline" href="/register-first-admin">este enlace</a>.
+    </div>
+  </div>
+</div>
+{% endblock %}
