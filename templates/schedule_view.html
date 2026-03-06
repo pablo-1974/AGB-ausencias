@@ -1,45 +1,80 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-lg font-semibold mb-4">Horario de profesor</h1>
 
-<h2 class="text-xl font-bold mb-4">Horario de un profesor</h2>
-
-<form method="GET" action="/schedule" class="mb-6">
-    <select name="teacher_id" class="border rounded px-3 py-2">
-        <option value="">-- Seleccionar profesor --</option>
-        {% for t in user_select_list %}
-        <option value="{{ t.id }}">{{ t.name }}</option>
-        {% endfor %}
+<form method="get" action="/schedule/view" class="card space-y-3 max-w-xl mb-4">
+  <div>
+    <label class="label">Profesor</label>
+    <select name="teacher_id" class="input">
+      <option value="">-- seleccionar --</option>
+      {% for t in teachers or [] %}
+        <option value="{{ t.id }}" {% if selected_teacher_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
     </select>
-
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Ver</button>
+  </div>
+  <div class="flex gap-2">
+    <button class="btn-primary">Ver horario</button>
+    {% if selected_teacher_id %}
+      <a class="btn-muted" href="/schedule/{{ selected_teacher_id }}/pdf" target="_blank">PDF</a>
+    {% endif %}
+  </div>
 </form>
 
-{% if schedule %}
-<h3 class="text-lg font-semibold mb-3">{{ schedule.teacher.name }}</h3>
-
-<table class="min-w-full border text-center">
-    <tr class="bg-gray-200">
-        <th class="border px-3 py-2">Día</th>
-        <th class="border px-3 py-2">Franja</th>
-        <th class="border px-3 py-2">Tipo</th>
-        <th class="border px-3 py-2">Grupo</th>
-        <th class="border px-3 py-2">Aula</th>
-        <th class="border px-3 py-2">Materia</th>
-    </tr>
-
-    {% for d, slots in schedule.schedule.items() %}
-        {% for slot, info in slots.items() %}
+{% if slots is defined %}
+  <div class="card">
+    <div class="font-semibold mb-2">Tabla de slots</div>
+    <table class="table">
+      <thead>
         <tr>
-            <td class="border px-3 py-2">{{ d }}</td>
-            <td class="border px-3 py-2">{{ slot }}</td>
-            <td class="border px-3 py-2">{{ info.tipo }}</td>
-            <td class="border px-3 py-2">{{ info.grupo }}</td>
-            <td class="border px-3 py-2">{{ info.aula }}</td>
-            <td class="border px-3 py-2">{{ info.materia }}</td>
+          <th>Día</th><th>Hora</th><th>Tipo</th><th>Grupo</th><th>Aula</th><th>Asign.</th><th>Guardia</th><th></th>
         </tr>
+      </thead>
+      <tbody>
+        {% for s in slots %}
+          <tr>
+            <td>{{ s.day_index }}</td>
+            <td>{{ s.hour_index }}</td>
+            <td>{{ s.type }}</td>
+            <td>{{ s.group or "" }}</td>
+            <td>{{ s.room or "" }}</td>
+            <td>{{ s.subject or "" }}</td>
+            <td>{{ s.guard_type or "" }}</td>
+            <td>
+              <form method="post" action="/schedule/delete-slot">
+                <input type="hidden" name="slot_id" value="{{ s.id }}">
+                <button class="btn-muted">Quitar</button>
+              </form>
+            </td>
+          </tr>
         {% endfor %}
-    {% endfor %}
-</table>
-{% endif %}
+      </tbody>
+    </table>
 
+    <div class="mt-4">
+      <div class="font-semibold mb-2">Añadir guardia manual</div>
+      <form method="post" action="/schedule/add-guard" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <input type="hidden" name="teacher_id" value="{{ selected_teacher_id }}">
+        <div>
+          <label class="label">Día (0=L, 4=V)</label>
+          <input class="input" type="number" name="day_index" min="0" max="4" required>
+        </div>
+        <div>
+          <label class="label">Hora (0=1ª..6=6ª)</label>
+          <input class="input" type="number" name="hour_index" min="0" max="6" required>
+        </div>
+        <div>
+          <label class="label">Tipo</label>
+          <select class="input" name="guard_type" required>
+            <option value="G AULA">G AULA</option>
+            <option value="G RECREO PATIO">G RECREO PATIO</option>
+            <option value="G RECREO PASILLO">G RECREO PASILLO</option>
+          </select>
+        </div>
+        <div class="flex items-end">
+          <button class="btn-primary">Añadir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}
