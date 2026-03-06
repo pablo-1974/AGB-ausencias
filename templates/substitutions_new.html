@@ -1,37 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-lg font-semibold mb-4">Asignar sustitución</h1>
 
-<h2 class="text-xl font-bold mb-6">Registrar sustitución</h2>
-
-<form method="POST" class="space-y-4">
-
-    <label class="block">
-        Baja:
-        <select name="leave_id" required class="border px-3 py-2 rounded w-full">
-            <option value="">-- Seleccionar --</option>
-            {% for l in open_leaves %}
-            <option value="{{ l.id }}">Profesor: {{ l.teacher_id }} ({{ l.start_date }})</option>
-            {% endfor %}
-        </select>
-    </label>
-
-    <label class="block">
-        Fecha inicio:
-        <input type="date" name="start_date" class="border px-3 py-2 rounded w-full" required>
-    </label>
-
-    <label class="block">
-        Nombre sustituto:
-        <input name="substitute_name" class="border px-3 py-2 rounded w-full">
-    </label>
-
-    <label class="block">
-        Email sustituto:
-        <input name="substitute_email" class="border px-3 py-2 rounded w-full">
-    </label>
-
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Registrar</button>
-
+<form method="post" action="/substitutions/new" class="card space-y-3 max-w-2xl">
+  <div>
+    <label class="label">Profesor de baja</label>
+    <select name="teacher_id" class="input">
+      <option value="">-- seleccionar --</option>
+      {% for t in leaves_teachers or [] %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+      {% endfor %}
+    </select>
+    <p class="text-xs text-gray-500">Solo aparecen profesores con baja activa.</p>
+  </div>
+  <div>
+    <label class="label">Fecha inicio sustitución</label>
+    <input type="date" class="input" name="start_date" required>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div>
+      <label class="label">Nombre sustituto</label>
+      <input class="input" type="text" name="substitute_name" placeholder="Nombre y apellidos" required>
+    </div>
+    <div>
+      <label class="label">Email sustituto (opcional)</label>
+      <input class="input" type="email" name="substitute_email" placeholder="si lo conoces">
+    </div>
+  </div>
+  <button class="btn-primary">Asignar</button>
 </form>
-
 {% endblock %}
