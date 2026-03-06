@@ -1,36 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-lg font-semibold mb-4">Añadir ausencia</h1>
 
-<h2 class="text-xl font-bold mb-6">Registrar ausencia</h2>
-
-<form method="POST" class="space-y-4">
-
-    <label class="block">
-        Profesor:
-        <select name="teacher_id" required class="border px-3 py-2 rounded w-full">
-            <option value="">-- Seleccionar profesor --</option>
-            {% for t in user_select_list %}
-            <option value="{{ t.id }}">{{ t.name }}</option>
-            {% endfor %}
-        </select>
-    </label>
-
-    <label class="block">
-        Fecha:
-        <input type="date" name="date" class="border px-3 py-2 rounded w-full" required>
-    </label>
-
-    <label class="block">
-        Horas (separadas por comas: Ej: "1,2,5" o "Todas"):
-        <input name="hours" class="border px-3 py-2 rounded w-full" required>
-    </label>
-
-    <label class="block">
-        Explicación:
-        <textarea name="explanation" class="border px-3 py-2 rounded w-full"></textarea>
-    </label>
-
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Guardar</button>
+<form method="post" action="/absences/new" class="card space-y-4 max-w-2xl">
+  <div>
+    <label class="label">Profesor</label>
+    <select name="teacher_id" class="input">
+      <option value="">-- seleccionar --</option>
+      {% for t in teachers or [] %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="label">Fecha</label>
+    <input class="input" type="date" name="date" required>
+  </div>
+  <div>
+    <label class="label">Horas</label>
+    <div class="grid grid-cols-8 gap-2">
+      <label class="flex items-center gap-1"><input type="checkbox" name="all" value="1"> Todas</label>
+      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="1"> 1</label>
+      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="2"> 2</label>
+      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="3"> 3</label>
+      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="4"> 4</label>
+      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="5"> 5</label>
+      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="6"> 6</label>
+    </div>
+    <p class="text-xs text-gray-500">Se pueden marcar varias, salvo que elijas “Todas”.</p>
+  </div>
+  <div>
+    <label class="label">Explicación</label>
+    <textarea class="input" name="note" rows="2" placeholder="Opcional"></textarea>
+  </div>
+  <button class="btn-primary">Guardar</button>
 </form>
-
 {% endblock %}
+``
