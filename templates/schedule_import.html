@@ -1,14 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
+<h1 class="text-lg font-semibold mb-4">Importar horario de guardias</h1>
 
-<h2 class="text-xl font-bold mb-4">Importar horario (clases + guardias)</h2>
-
-<form method="POST" enctype="multipart/form-data" class="space-y-4">
-    <input type="file" name="file" accept=".xlsx" class="border p-2 rounded" required>
-    <button class="bg-indigo-600 text-white px-4 py-2 rounded">Importar</button>
+<form action="/imports/guards" method="post" enctype="multipart/form-data" class="card space-y-3 max-w-xl">
+  <div>
+    <label class="label">Excel guardias (solo G AULA / G RECREO)</label>
+    <input type="file" name="file" accept=".xlsx" required class="input">
+    <p class="text-xs text-gray-500 mt-1">Columnas: <b>nombre</b>, <b>día</b>, <b>franja horaria</b>. Opcional <b>hora</b>.</p>
+  </div>
+  <button class="btn-primary">Importar guardias</button>
 </form>
 
-<p class="text-gray-500 mt-4">Formato (6 columnas): nombre, día, franja, grupo, aula, materia.</p>
-<p class="text-gray-500">Las guardias se detectan cuando grupo es: <b>G AULA</b> o <b>G RECREO</b>.</p>
+<hr class="my-6">
 
+<!-- Opcional: clases completas si decides usarlo -->
+<form action="/imports/classes" method="post" enctype="multipart/form-data" class="card space-y-3 max-w-xl">
+  <div>
+    <label class="label">Excel horario de clases (opcional)</label>
+    <input type="file" name="file" accept=".xlsx" class="input">
+    <p class="text-xs text-gray-500 mt-1">Columnas: <b>nombre</b>, <b>día</b>, <b>franja horaria</b>, <b>grupo</b>, <b>aula</b>, <b>materia</b>.</p>
+  </div>
+  <button class="btn-muted">Importar clases</button>
+</form>
+{% if imported is defined %}
+  <div class="mt-4 text-sm">Importados: <b>{{ imported }}</b></div>
+{% endif %}
 {% endblock %}
