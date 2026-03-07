@@ -8,6 +8,9 @@ from starlette.responses import RedirectResponse, JSONResponse
 from config import settings
 from auth import router as auth_router, setup_session
 
+# router de importación de profesores
+from imports_teachers import router as teachers_import_router  # NEW
+
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
 #   Intento 1: import “antiguo” de Starlette (compat si bajas versión)
@@ -61,10 +64,10 @@ async def no_cache_mw(request: Request, call_next):
     return response
 
 # ------------------------------------------------------------
-# INCLUIR RUTAS (solo auth de momento)
-# El resto las iremos activando cuando generemos sus routers
+# INCLUIR RUTAS
 # ------------------------------------------------------------
 app.include_router(auth_router)
+app.include_router(teachers_import_router)  # NEW
 
 # ------------------------------------------------------------
 # Contexto común
