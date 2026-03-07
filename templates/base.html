@@ -19,7 +19,12 @@
     .table td { @apply border-b p-2 align-top; }
   </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900">
+
+<body class="{% block body_class %}min-h-screen bg-gray-50 text-gray-900{% endblock %}">
+  {% set hide_chrome = hide_chrome if hide_chrome is defined else false %}
+  {% set show_nav = show_nav if show_nav is defined else (not hide_chrome) %}
+
+  {% if not hide_chrome %}
   <!-- Header -->
   <header class="bg-white border-b">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -31,10 +36,12 @@
       <div class="ml-auto text-xs text-gray-500">{{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}</div>
     </div>
   </header>
+  {% endif %}
 
+  {% if show_nav %}
   <!-- Navbar -->
   <nav class="bg-gray-100 border-b">
-    <div class="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm">
+    <div class="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm flex-wrap">
       <a class="link" href="/">Inicio</a>
       <a class="link" href="/imports/teachers">Importar profesores</a>
       <a class="link" href="/imports/guards">Importar guardias</a>
@@ -52,15 +59,17 @@
       <a class="link" href="/logout">Salir</a>
     </div>
   </nav>
+  {% endif %}
 
   <!-- Main -->
-  <main class="max-w-7xl mx-auto px-4 py-6">
+  <main class="{% if hide_chrome %}min-h-[70vh]{% else %}max-w-7xl mx-auto px-4 py-6{% endif %}">
     {% block content %}{% endblock %}
   </main>
 
+  {% if not hide_chrome %}
   <footer class="py-6 text-center text-xs text-gray-400">
     &copy; {{ now.year if now else '' }} · {{ institution_name }}
   </footer>
+  {% endif %}
 </body>
 </html>
-
