@@ -18,6 +18,9 @@ from database import get_session
 from config import settings
 from models import User, Role
 
+# Nombre de la cookie de sesión: úsalo en setup_session y en logout
+COOKIE_NAME = "ausencias_session"
+
 logger = logging.getLogger("uvicorn.error")
 router = APIRouter()
 
@@ -25,14 +28,13 @@ router = APIRouter()
 # Sesión (cookie)
 # ---------------------------
 def setup_session(app):
-    # Ajusta flags según tu política
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.SECRET_KEY,
-        session_cookie="ausencias_session",
-        max_age=60 * 60 * 8,    # 8 horas
+        session_cookie=COOKIE_NAME,  # <-- usar constante
+        max_age=60 * 60 * 8,         # 8 horas
         same_site="lax",
-        https_only=True,
+        https_only=True,             # OK en Render (HTTPS)
     )
 
 # ---------------------------
@@ -177,6 +179,28 @@ async def login_post(
             },
             status_code=500,
         )
+
+@router.get("/logout")
+async def logout(request: Request):
+    # Vacía la sesión en servidor
+    if request.session:
+        request.session.clear()
+
+    # Redirige a /login
+    response = RedirectResponse(url="/login", status_code=303)
+
+    # Borrar explícitamente la cookie en el cliente.
+    # secure=True si estamos en HTTPS (Render), False si pruebas en local http.
+    is_secure = (request.url.scheme == "https")
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        path="/",
+        samesite="lax",
+        secure=is_secure,
+        domain=None,  # ajusta si alguna vez defines un dominio explícito en SessionMiddleware
+    )
+
+    return response
 
 # ---------------------------
 # Registro (primer admin)
@@ -448,5 +472,6 @@ async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
         }
     except Exception as e:
         return {"error": str(e)}
+
 
 
