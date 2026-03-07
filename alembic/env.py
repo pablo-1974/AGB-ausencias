@@ -36,7 +36,7 @@ target_metadata = Base.metadata
 # Helpers para URL
 # ------------------------------------------------------------
 def _get_raw_url() -> str:
-    # Prioriza env var; NO uses sqlalchemy.url del ini (déjalo vacío)
+    # Prioriza env var; deja sqlalchemy.url vacío en alembic.ini
     url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
     if not url:
         raise RuntimeError("No se encontró DATABASE_URL ni sqlalchemy.url en alembic.ini")
@@ -44,8 +44,8 @@ def _get_raw_url() -> str:
 
 def _clean_asyncpg_url_and_args(raw_url: str) -> tuple[str, dict]:
     """
-    Si el driver es asyncpg, limpia sslmode/ssl de la query para no pasarlos al DBAPI
-    y devuelve connect_args apropiados (ssl='require' para Neon).
+    Si el driver es asyncpg, limpia sslmode/ssl de la query (para que no se
+    pasen como kwargs a asyncpg.connect) y devuelve connect_args apropiados.
     """
     connect_args: dict = {}
     clean_url = raw_url
@@ -53,9 +53,8 @@ def _clean_asyncpg_url_and_args(raw_url: str) -> tuple[str, dict]:
     if raw_url.startswith("postgresql+asyncpg://"):
         parts = urlsplit(raw_url)
         qs = dict(parse_qsl(parts.query, keep_blank_values=True))
-        # Evita que Alembic/SQLAlchemy propaguen estos a asyncpg.connect(...)
-        qs.pop("sslmode", None)
-        qs.pop("ssl", None)
+        qs.pop("sslmode", None)  # propio de psycopg/libpq; asyncpg no lo entiende
+        qs.pop("ssl", None)      # forzaremos abajo por connect_args
         clean_url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(qs), parts.fragment))
         # Para Neon: TLS obligatorio
         connect_args = {"ssl": "require"}
@@ -64,8 +63,7 @@ def _clean_asyncpg_url_and_args(raw_url: str) -> tuple[str, dict]:
 
 def get_url_offline() -> str:
     """
-    Devuelve la URL para modo offline.
-    Alembic offline no entiende asyncpg → convierte a 'postgresql://'
+    URL para modo offline. Alembic offline no entiende asyncpg → convierte a postgresql://
     y escapa % para el parser de Alembic.
     """
     url = _get_raw_url()
@@ -74,9 +72,7 @@ def get_url_offline() -> str:
     return url.replace("%", "%%")
 
 def get_url_online() -> tuple[str, dict]:
-    """
-    Devuelve (url, connect_args) para modo online (async).
-    """
+    """Devuelve (url, connect_args) para modo online (async)."""
     raw_url = _get_raw_url()
     url, connect_args = _clean_asyncpg_url_and_args(raw_url)
     return url, connect_args
