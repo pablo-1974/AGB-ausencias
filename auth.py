@@ -116,6 +116,8 @@ async def login_page(request: Request):
         },
     )
 
+# arriba del archivo ya añadimos: import logging; logger = logging.getLogger("uvicorn.error")
+
 @router.post("/login")
 async def login_post(
     request: Request,
@@ -123,16 +125,47 @@ async def login_post(
     password: str = Form(...),
     session: AsyncSession = Depends(get_session),
 ):
-    u = await _get_user_by_email(session, email)
-    if not u or not _verify_password(password, u.password_hash):
-        raise HTTPException(status_code=401, detail="Credenciales inválidas")
-    request.session["uid"] = u.id
-    return RedirectResponse(url="/", status_code=303)
+    email_norm = (email or "").strip().lower()
+    try:
+        u = await _get_user_by_email(session, email_norm)
+        if not u or not _verify_password(password or "", u.password_hash):
+            # En lugar de 401, re-renderizamos login con mensaje de error
+            logger.info("Login fallido para %s", email_norm)
+            return _templates(request).TemplateResponse(
+                "login.html",
+                {
+                    "request": request,
+                    "title": settings.APP_NAME,
+                    "app_name": settings.APP_NAME,
+                    "institution_name": settings.INSTITUTION_NAME,
+                    "logo_path": settings.LOGO_PATH,
+                    "error": "Correo o contraseña no válidos",
+                    "email": email_norm,  # para repoblar el campo
+                },
+                status_code=400,
+            )
 
-@router.get("/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+        # OK: establecemos la sesión y redirigimos al dashboard
+        request.session["uid"] = u.id
+        logger.info("Login OK para %s (uid=%s)", email_norm, u.id)
+        return RedirectResponse(url="/", status_code=303)
+
+    except Exception:
+        # Si algo raro pasa (DB, etc.), lo veremos en Events
+        logger.exception("Error inesperado en /login para %s", email_norm)
+        return _templates(request).TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "title": settings.APP_NAME,
+                "app_name": settings.APP_NAME,
+                "institution_name": settings.INSTITUTION_NAME,
+                "logo_path": settings.LOGO_PATH,
+                "error": "Error interno al iniciar sesión. Inténtalo de nuevo.",
+                "email": email_norm,
+            },
+            status_code=500,
+        )
 
 # ---------------------------
 # Registro (primer admin)
@@ -404,3 +437,4 @@ async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
         }
     except Exception as e:
         return {"error": str(e)}
+
