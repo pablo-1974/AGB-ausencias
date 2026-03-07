@@ -12,15 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from alembic import context
 
-# --- AÑADIDO: garantiza que la raíz del repo (una carpeta por encima de /alembic)
-# --- está en sys.path para poder importar models.py
+# --- Añade la raíz del repo al sys.path para poder importar models.py ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 # Importa tu metadata (Base) desde models.py en la raíz
 from models import Base  # noqa: E402
-
 
 # ------------------------------------------------------------
 # Configuración base de Alembic
@@ -33,7 +31,6 @@ if config.config_file_name is not None:
 
 # Metadata para autogenerar migraciones
 target_metadata = Base.metadata
-
 
 # ------------------------------------------------------------
 # Helpers de URL
@@ -62,7 +59,6 @@ def get_url_async() -> str:
         raise RuntimeError("No se encontró DATABASE_URL ni sqlalchemy.url en alembic.ini")
     return url
 
-
 # ------------------------------------------------------------
 # OFFLINE MODE
 # ------------------------------------------------------------
@@ -80,7 +76,6 @@ def run_migrations_offline():
     with context.begin_transaction():
         context.run_migrations()
 
-
 # ------------------------------------------------------------
 # ONLINE MODE (ASYNC)
 # ------------------------------------------------------------
@@ -94,12 +89,11 @@ def do_run_migrations(connection):
     with context.begin_transaction():
         context.run_migrations()
 
-
 async def run_migrations_online():
     url = get_url_async()
     connectable = AsyncEngine(
         engine_from_config(
-            {},  # sin usar secciones del ini; pasamos url explícita
+            {},
             prefix="sqlalchemy.",
             url=url,
             future=True,
@@ -111,7 +105,6 @@ async def run_migrations_online():
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()
-
 
 # ------------------------------------------------------------
 # EJECUCIÓN
