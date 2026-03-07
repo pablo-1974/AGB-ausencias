@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from logging.config import fileConfig
 import os
+import sys
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -11,6 +12,11 @@ from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from alembic import context
+
+# Fuerza a que la raíz del repo (donde vive models.py) esté en sys.path
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 # Importar la metadata de tu app
 # (models.py está en la raíz del proyecto)
@@ -118,3 +124,4 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     asyncio.run(run_migrations_online())
+
