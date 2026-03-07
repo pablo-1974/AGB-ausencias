@@ -46,6 +46,21 @@ app.state.templates = templates
 setup_session(app)
 
 # ------------------------------------------------------------
+# MIDDLEWARE: No cache en páginas sensibles
+#   Evita que tras "dormir/despertar" el servicio el navegador o un proxy
+#   sirvan una página vieja con el menú aunque no haya sesión.
+# ------------------------------------------------------------
+@app.middleware("http")
+async def no_cache_mw(request: Request, call_next):
+    response = await call_next(request)
+    nocache_paths = {"/", "/login", "/register-first-admin", "/register"}
+    if request.url.path in nocache_paths or request.url.path.startswith("/admin"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+# ------------------------------------------------------------
 # INCLUIR RUTAS (solo auth de momento)
 # El resto las iremos activando cuando generemos sus routers
 # ------------------------------------------------------------
@@ -90,9 +105,13 @@ async def health():
 
 # ------------------------------------------------------------
 # ERRORES
+#   Nota: si no hay sesión, en vez de "maquillar" el error como dashboard,
+#   redirigimos a /login para no confundir (menú sólo tras login).
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
+    if not request.session.get("uid"):
+        return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
         "dashboard.html",
         tpl(request, message="Página no encontrada"),
@@ -101,6 +120,9 @@ async def not_found(request: Request, exc):
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
+    if not request.session.get("uid"):
+        # Evita mostrar dashboard si no hay login
+        return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
         "dashboard.html",
         tpl(request, message="Error interno. Intenta más tarde."),
