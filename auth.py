@@ -2,18 +2,23 @@
 from __future__ import annotations
 from typing import Optional
 
+import logging
+
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from starlette.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 from passlib.hash import bcrypt
 
 from database import get_session
 from config import settings
 from models import User, Role
 
+logger = logging.getLogger("uvicorn.error")
 router = APIRouter()
 
 # ---------------------------
@@ -34,7 +39,7 @@ def setup_session(app):
 # Helpers
 # ---------------------------
 async def _get_user_by_email(session: AsyncSession, email: str) -> Optional[User]:
-    return (await session.execute(select(User).where(User.email == email.lower()))).scalar_one_or_none()
+    return (await session.execute(select(User).where(User.email == email.lower().strip()))).scalar_one_or_none()
 
 async def _count_users(session: AsyncSession) -> int:
     return (await session.execute(select(func.count()).select_from(User))).scalar_one()
@@ -45,7 +50,20 @@ async def _count_admins(session: AsyncSession) -> int:
     )).scalar_one()
 
 def _hash_password(raw: str) -> str:
-    return bcrypt.hash(raw)
+    """
+    Bcrypt sólo usa los **primeros 72 bytes**. Para evitar errores de backend
+    o contraseñas multibyte largas, validamos y lanzamos un 400 controlado.
+    """
+    if raw is None:
+        raise ValueError("Contraseña vacía")
+    try:
+        # Validar tamaño efectivo en bytes (UTF-8)
+        if len(raw.encode("utf-8")) > 72:
+            raise ValueError("La contraseña no puede superar 72 bytes (bcrypt)")
+        return bcrypt.hash(raw)
+    except Exception as e:
+        # Evita que un fallo de backend deje el alta en silencio
+        raise ValueError(f"No se pudo generar el hash de la contraseña: {e}")
 
 def _verify_password(raw: str, pw_hash: str) -> bool:
     try:
@@ -107,7 +125,6 @@ async def login_post(
 ):
     u = await _get_user_by_email(session, email)
     if not u or not _verify_password(password, u.password_hash):
-        # Renderizar el login con error también es posible
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
     request.session["uid"] = u.id
     return RedirectResponse(url="/", status_code=303)
@@ -142,16 +159,61 @@ async def register_first_admin_post(
     password: str = Form(...),
     session: AsyncSession = Depends(get_session),
 ):
-    total = await _count_users(session)
-    if total > 0:
-        raise HTTPException(400, "Ya existe al menos un usuario.")
-    if settings.ADMIN_EMAIL_DOMAIN and not email.lower().endswith("@" + settings.ADMIN_EMAIL_DOMAIN):
-        raise HTTPException(400, "Email no autorizado para admin inicial.")
-    u = User(name=name.strip(), email=email.lower().strip(), password_hash=_hash_password(password), role=Role.admin)
-    session.add(u)
-    await session.commit()
-    request.session["uid"] = u.id
-    return RedirectResponse("/", status_code=303)
+    try:
+        total = await _count_users(session)
+        if total > 0:
+            raise HTTPException(400, "Ya existe al menos un usuario.")
+
+        email_norm = email.lower().strip()
+        if settings.ADMIN_EMAIL_DOMAIN and not email_norm.endswith("@" + settings.ADMIN_EMAIL_DOMAIN):
+            raise HTTPException(400, "Email no autorizado para admin inicial.")
+
+        # Hash seguro (controla errores y tamaño)
+        try:
+            pw_hash = _hash_password(password)
+        except ValueError as ve:
+            logger.exception("Hash error creando primer admin (%s)", email_norm)
+            raise HTTPException(400, str(ve))
+
+        u = User(
+            name=name.strip(),
+            email=email_norm,
+            password_hash=pw_hash,
+            role=Role.admin,
+            active=True,
+        )
+
+        session.add(u)
+        # Garantiza PK antes de commit; si falla, saltará al except
+        await session.flush()
+        await session.commit()
+
+        # Si por expiración/driver no quedó el id en u, reférescalo
+        if not getattr(u, "id", None):
+            await session.refresh(u)
+
+        request.session["uid"] = u.id
+        return RedirectResponse("/", status_code=303)
+
+    except IntegrityError:
+        await session.rollback()
+        logger.exception("IntegrityError creando primer admin (%s)", email)
+        raise HTTPException(400, "El email ya existe o no es válido")
+
+    except SQLAlchemyError:
+        await session.rollback()
+        logger.exception("SQLAlchemyError creando primer admin")
+        raise HTTPException(500, "Error de base de datos")
+
+    except HTTPException:
+        # Ya gestionado arriba; no vuelques doble log
+        await session.rollback()
+        raise
+
+    except Exception:
+        await session.rollback()
+        logger.exception("Error general creando primer admin")
+        raise
 
 # ---------------------------
 # Registro normal
@@ -163,20 +225,6 @@ async def register_page(request: Request):
         {"request": request, "logo_path": settings.LOGO_PATH},
     )
 
-# --- DEBUG: eliminar cuando acabemos ---
-@router.get("/__debug-first-admin")
-async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
-    try:
-        total = await _count_users(session)
-        admins = await _count_admins(session)
-        return {
-            "total_users": int(total or 0),
-            "total_admins": int(admins or 0),
-            "db_url_prefix": (settings.DATABASE_URL[:40] + "...") if hasattr(settings, "DATABASE_URL") else None,
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
 @router.post("/register")
 async def register_post(
     request: Request,
@@ -185,17 +233,56 @@ async def register_post(
     password: str = Form(...),
     session: AsyncSession = Depends(get_session),
 ):
-    total = await _count_users(session)
-    role = Role.admin if total == 0 else Role.user
+    try:
+        total = await _count_users(session)
+        role = Role.admin if total == 0 else Role.user
 
-    exists = await _get_user_by_email(session, email)
-    if exists:
-        raise HTTPException(400, "Ya existe un usuario con ese email")
-    u = User(name=name.strip(), email=email.lower().strip(), password_hash=_hash_password(password), role=role)
-    session.add(u)
-    await session.commit()
-    request.session["uid"] = u.id
-    return RedirectResponse("/", status_code=303)
+        email_norm = email.lower().strip()
+        exists = await _get_user_by_email(session, email_norm)
+        if exists:
+            raise HTTPException(400, "Ya existe un usuario con ese email")
+
+        try:
+            pw_hash = _hash_password(password)
+        except ValueError as ve:
+            logger.exception("Hash error creando usuario (%s)", email_norm)
+            raise HTTPException(400, str(ve))
+
+        u = User(
+            name=name.strip(),
+            email=email_norm,
+            password_hash=pw_hash,
+            role=role,
+            active=True,
+        )
+        session.add(u)
+        await session.flush()
+        await session.commit()
+
+        if not getattr(u, "id", None):
+            await session.refresh(u)
+
+        request.session["uid"] = u.id
+        return RedirectResponse("/", status_code=303)
+
+    except IntegrityError:
+        await session.rollback()
+        logger.exception("IntegrityError creando usuario (%s)", email)
+        raise HTTPException(400, "El email ya existe o no es válido")
+
+    except SQLAlchemyError:
+        await session.rollback()
+        logger.exception("SQLAlchemyError creando usuario")
+        raise HTTPException(500, "Error de base de datos")
+
+    except HTTPException:
+        await session.rollback()
+        raise
+
+    except Exception:
+        await session.rollback()
+        logger.exception("Error general creando usuario")
+        raise
 
 # ---------------------------
 # Cambio de contraseña (propio)
@@ -217,7 +304,10 @@ async def me_password_post(
 ):
     if not _verify_password(current_password, user.password_hash):
         raise HTTPException(400, "La contraseña actual no es válida")
-    user.password_hash = _hash_password(new_password)
+    try:
+        user.password_hash = _hash_password(new_password)
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
     await session.commit()
     return RedirectResponse("/", status_code=303)
 
@@ -250,10 +340,15 @@ async def admin_users_new(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    if await _get_user_by_email(session, email):
+    email_norm = email.lower().strip()
+    if await _get_user_by_email(session, email_norm):
         raise HTTPException(400, "Email ya registrado")
+    try:
+        pw_hash = _hash_password(password)
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
     r = Role.admin if role == "admin" else Role.user
-    u = User(name=name.strip(), email=email.lower().strip(), password_hash=_hash_password(password), role=r)
+    u = User(name=name.strip(), email=email_norm, password_hash=pw_hash, role=r, active=True)
     session.add(u)
     await session.commit()
     return RedirectResponse("/admin/users", status_code=303)
@@ -269,7 +364,10 @@ async def admin_users_reset_password(
     u = await session.get(User, user_id)
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
-    u.password_hash = _hash_password(new_password)
+    try:
+        u.password_hash = _hash_password(new_password)
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
     await session.commit()
     return RedirectResponse("/admin/users", status_code=303)
 
@@ -293,3 +391,16 @@ async def admin_users_delete(
     await session.commit()
     return RedirectResponse("/admin/users", status_code=303)
 
+# --- DEBUG: eliminar cuando acabemos ---
+@router.get("/__debug-first-admin")
+async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
+    try:
+        total = await _count_users(session)
+        admins = await _count_admins(session)
+        return {
+            "total_users": int(total or 0),
+            "total_admins": int(admins or 0),
+            "db_url_prefix": (settings.DATABASE_URL[:40] + "...") if hasattr(settings, "DATABASE_URL") else None,
+        }
+    except Exception as e:
+        return {"error": str(e)}
