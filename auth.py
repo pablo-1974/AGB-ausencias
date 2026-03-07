@@ -103,6 +103,17 @@ async def admin_required(user: User = Depends(current_user)) -> User:
 # ---------------------------
 # Login / Logout
 # ---------------------------
+
+# PROVISIONAL #
+@router.get("/__whoami")
+async def __whoami(request: Request):
+    return {
+        "has_session": bool(request.session),
+        "uid": request.session.get("uid") if request.session else None,
+        "path": str(request.url.path),
+    }
+###############
+
 @router.get("/login")
 async def login_page(request: Request):
     return _templates(request).TemplateResponse(
@@ -437,4 +448,5 @@ async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
         }
     except Exception as e:
         return {"error": str(e)}
+
 
