@@ -6,10 +6,10 @@ from logging.config import fileConfig
 import os
 import sys
 
+
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy import engine_from_config, create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.engine import engine_from_config
+from sqlalchemy.ext.asyncio import 
 
 from alembic import context
 
@@ -124,4 +124,5 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     asyncio.run(run_migrations_online())
+
 
