@@ -1,12 +1,17 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <link rel="stylesheet" href="/static/styles.css">
   <meta charset="utf-8">
   <title>{{ title or app_name }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- CSS propio -->
+  <link rel="stylesheet" href="/static/styles.css">
+  <!-- Tailwind vía CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="icon" href="{{ logo_path }}">
+  <!-- Favicon / logo -->
+  {% if logo_path %}
+    <link rel="icon" href="{{ logo_path }}">
+  {% endif %}
   <style>
     .card { @apply bg-white rounded-lg shadow p-4; }
     .btn-primary { @apply bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700; }
@@ -28,12 +33,16 @@
   <!-- Header -->
   <header class="bg-white border-b">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-      <img src="{{ logo_path }}" alt="logo" class="h-8 w-8">
+      {% if logo_path %}
+        <img src="{{ logo_path }}" alt="logo" class="h-8 w-8">
+      {% endif %}
       <div>
         <div class="font-semibold">{{ app_name }}</div>
         <div class="text-xs text-gray-500">{{ institution_name }}</div>
       </div>
-      <div class="ml-auto text-xs text-gray-500">{{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}</div>
+      <div class="ml-auto text-xs text-gray-500">
+        {{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}
+      </div>
     </div>
   </header>
   {% endif %}
