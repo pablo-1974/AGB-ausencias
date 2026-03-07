@@ -306,3 +306,49 @@ footer{
   .app-nav, .btn-primary, .btn-muted{ display: none !important; }
   .card{ box-shadow: none; border-color: #999; }
 }
+
+/* ==== Login stand-alone (si no usas Tailwind) ======================= */
+.login-bg {
+  min-height: 70vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #C2A8F9, #C9B6FF 50%, #E6D9FF);
+}
+.login-card {
+  width: 100%; max-width: 28rem;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(4px);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.06);
+  padding: 1.25rem 1.5rem;
+}
+@media (min-width: 640px){
+  .login-card { padding: 2rem; }
+}
+.login-title {
+  color: #3E2AA3;
+  font-weight: 800;
+  font-size: 1.55rem;
+  letter-spacing: .1px;
+  margin: .25rem 0 0;
+}
+.input-soft {
+  width: 100%; border-radius: .65rem;
+  border: 1px solid #CBD5E1; background: #F8FAFC;
+  padding: .55rem .75rem; color: #0F172A;
+  outline: none; box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+.input-soft::placeholder { color: #94A3B8; }
+.input-soft:focus {
+  border-color: #6D5AE6; box-shadow: 0 0 0 4px rgba(109,90,230,.20);
+}
+.btn-solid {
+  width: 100%; border: 0; cursor: pointer;
+  border-radius: .65rem; padding: .65rem .9rem;
+  background: #4F46E5; color: #fff; font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.btn-solid:hover { background: #4338CA; }
