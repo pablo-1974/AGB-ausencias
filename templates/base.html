@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="es">
 <head>
-  /static/styles.css
+  <link rel="stylesheet" href="/static/styles.css">
   <meta charset="utf-8">
   <title>{{ title or app_name }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  https://cdn.tailwindcss.com
-  {{ logo_path }}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="{{ logo_path }}">
   <style>
     .card { @apply bg-white rounded-lg shadow p-4; }
     .btn-primary { @apply bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700; }
@@ -28,40 +28,39 @@
   <!-- Header -->
   <header class="bg-white border-b">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-      {{ logo_path }}
+      <img src="{{ logo_path }}" alt="logo" class="h-8 w-8">
       <div>
         <div class="font-semibold">{{ app_name }}</div>
         <div class="text-xs text-gray-500">{{ institution_name }}</div>
       </div>
-      <div class="ml-auto text-xs text-gray-500">
-        {{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}
-      </div>
+      <div class="ml-auto text-xs text-gray-500">{{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}</div>
     </div>
   </header>
   {% endif %}
 
-  {# ---------------- NAV SOLO SI HAY SESIÓN ---------------- #}
-  {% if request.session and request.session.get('uid') %}
+  {# -------- NAV: solo si se permite y hay sesión -------- #}
+  {% if show_nav and request.session and request.session.get('uid') %}
   <nav class="bg-gray-100 border-b">
     <div class="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm flex-wrap">
-      /Inicio</a>
-      /imports/teachersImportar profesores</a>
-      /imports/guardsImportar guardias</a>
-      /schedule/viewHorario</a>
-      /absences/newNueva ausencia</a>
-      <a class="link" href="/absences/manage">Ausenciasnces/categorizeCatalogar</a>
-      /leaves/newBaja</a>
-      /substitutions/newSustitución</a>
-      /leaves/closeFin de baja</a>
-      /reports/dailyParte diario</a>
-      /reports/monthlyParte mensual</a>
-      /me/passwordCambiar clave</a>
-      /admin/usersUsuarios</a>
+      <a class="link" href="/">Inicio</a>
+      <a class="link" href="/imports/teachers">Importar profesores</a>
+      <a class="link" href="/imports/guards">Importar guardias</a>
+      <a class="link" href="/schedule/view">Horario</a>
+      <a class="link" href="/absences/new">Nueva ausencia</a>
+      <a class="link" href="/absences/manage">Ausencias del día</a>
+      <a class="link" href="/absences/categorize">Catalogar</a>
+      <a class="link" href="/leaves/new">Baja</a>
+      <a class="link" href="/substitutions/new">Sustitución</a>
+      <a class="link" href="/leaves/close">Fin de baja</a>
+      <a class="link" href="/reports/daily">Parte diario</a>
+      <a class="link" href="/reports/monthly">Parte mensual</a>
+      <a class="link ml-auto" href="/me/password">Cambiar clave</a>
+      <a class="link" href="/admin/users">Usuarios</a>
       <a class="link" href="/logout">Salir</a>
     </div>
   </nav>
   {% endif %}
-  {# --------------------------------------------------------- #}
+  {# ------------------------------------------------------ #}
 
   <!-- Main -->
   <main class="{% if hide_chrome %}min-h-[70vh]{% else %}max-w-7xl mx-auto px-4 py-6{% endif %}">
