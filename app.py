@@ -3,12 +3,25 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.responses import RedirectResponse, JSONResponse
 
 from config import settings
 from auth import router as auth_router, setup_session
 
+# ------------------------------------------------------------
+# Middleware de proxy (fallback tolerante)
+#   Intento 1: import “antiguo” de Starlette (compat si bajas versión)
+#   Intento 2: import recomendado actual de Uvicorn
+#   Si ninguno existe, seguimos sin middleware (no rompe el arranque)
+# ------------------------------------------------------------
+ProxyHeadersMiddleware = None
+try:
+    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware  # type: ignore
+except Exception:
+    try:
+        from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # type: ignore
+    except Exception:
+        ProxyHeadersMiddleware = None
 
 # ------------------------------------------------------------
 # APP FASTAPI (configurada ya para Render + Neon)
@@ -16,7 +29,8 @@ from auth import router as auth_router, setup_session
 app = FastAPI(title=settings.APP_NAME)
 
 # Asegurar https detrás de Render (X-Forwarded-Proto)
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+if ProxyHeadersMiddleware:
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ------------------------------------------------------------
 # STATIC y TEMPLATES
@@ -37,7 +51,6 @@ setup_session(app)
 # ------------------------------------------------------------
 app.include_router(auth_router)
 
-
 # ------------------------------------------------------------
 # Contexto común
 # ------------------------------------------------------------
@@ -57,7 +70,6 @@ def tpl(request: Request, **extra):
     ctx.update(extra or {})
     return ctx
 
-
 # ------------------------------------------------------------
 # RUTA PRINCIPAL
 # ------------------------------------------------------------
@@ -69,14 +81,12 @@ async def dashboard(request: Request):
 
     return templates.TemplateResponse("dashboard.html", tpl(request))
 
-
 # ------------------------------------------------------------
 # HEALTHCHECK (Render lo usa si quieres)
 # ------------------------------------------------------------
 @app.get("/health")
 async def health():
     return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
-
 
 # ------------------------------------------------------------
 # ERRORES
