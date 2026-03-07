@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+
 <!-- Contenedor a pantalla casi completa con degradado -->
 <section class="min-h-[70vh] flex items-center justify-center px-4
                 bg-gradient-to-br from-[#C2A8F9] via-[#C9B6FF] to-[#E6D9FF]">
@@ -16,15 +17,26 @@
       <h1 class="text-2xl sm:text-[1.55rem] font-extrabold tracking-tight text-[#3E2AA3]">
         Ausencias de profesores
       </h1>
-      <p class="text-sm text-slate-600">{{ institution_name or "IES Antonio García Bellido" }}</p>
+      <p class="text-sm text-slate-600">
+        {{ institution_name or "IES Antonio García Bellido" }}
+      </p>
     </div>
 
+    <!-- Mensaje de error -->
+    {% if error %}
+      <div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+        {{ error }}
+      </div>
+    {% endif %}
+
     <!-- Formulario -->
-    /login
+    <form method="post" action="/login">
+
       <!-- Email -->
       <label for="email" class="sr-only">Correo electrónico</label>
       <input id="email" name="email" type="email" required autocomplete="username"
              placeholder="tuusuario@educa.jcyl.es"
+             value="{{ email or '' }}"
              class="mb-3 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2
                     text-slate-900 placeholder-slate-400 shadow-sm outline-none
                     focus:border-[#6D5AE6] focus:ring-4 focus:ring-[#6D5AE6]/20" />
@@ -47,10 +59,13 @@
 
       <!-- Enlace primer admin -->
       <p class="mt-4 text-center text-xs text-slate-500">
-        Si es tu primer acceso y la base de datos está vacía, crea el administrador en
-        /register-first-admineste enlace</a>.
+        Si es tu primer acceso y la base de datos está vacía,
+        crea el administrador en
+        <a class="text-[#4F46E5] underline" href="/register-first-admin">este enlace</a>.
       </p>
     </form>
+
   </div>
 </section>
+
 {% endblock %}
