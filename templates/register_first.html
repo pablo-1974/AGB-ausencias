@@ -1,84 +1,50 @@
+<!-- templates/register_first.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crear administrador</title>
-
-    <link rel="stylesheet" href="/static/auth.css" />
-
-    <style>
-        body {
-            background: #ece3ff;
-            font-family: Arial, sans-serif;
-            padding: 40px 0;
-        }
-        .card {
-            width: 400px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 14px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
-            text-align: center;
-        }
-        .input-group {
-            margin: 12px 0;
-            text-align: left;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            margin-top: 4px;
-        }
-        button {
-            width: 100%;
-            background: #4a35d6;
-            border: none;
-            padding: 12px;
-            border-radius: 6px;
-            color: white;
-            font-weight: bold;
-            margin-top: 20px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #3424a6;
-        }
-        img.logo {
-            width: 140px;
-            margin-bottom: 20px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Crear administrador</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { background:#f4f2ff; font-family: system-ui, Arial, sans-serif; padding:40px 0; }
+    .card { width: 380px; margin: auto; background: #fff; padding: 24px 22px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    p { color: #666; margin: 0 0 18px; }
+    .group { margin: 12px 0; }
+    label { display:block; margin-bottom: 6px; font-weight: 600; }
+    input { width: 100%; padding: 10px; border:1px solid #ccc; border-radius: 6px; }
+    button { width: 100%; margin-top: 16px; padding: 12px; background:#4a35d6; color:#fff; border:0; border-radius: 6px; font-weight:700; cursor:pointer; }
+    button:hover { background:#3b29b3; }
+    .logo { text-align:center; margin-bottom: 12px; }
+    .logo img { max-width: 120px; height:auto; }
+  </style>
 </head>
-
 <body>
-    <div class="card">
-        <img src="{{ logo_path }}" class="logo" alt="Logo" />
-
-        <h2>Crear administrador</h2>
-        <p>Como la base de datos está vacía, debes crear el primer usuario administrador.</p>
-
-        <form method="post">
-            <div class="input-group">
-                <label>Nombre</label>
-                <input type="text" name="name" required />
-            </div>
-
-            <div class="input-group">
-                <label>Email</label>
-                <input type="email" name="email" required />
-            </div>
-
-            <div class="input-group">
-                <label>Contraseña</label>
-                <input type="password" name="password" required />
-            </div>
-
-            <button type="submit">Crear administrador</button>
-        </form>
+  <div class="card">
+    <div class="logo">
+      {% if logo_path %}<img src="{{ logo_path }}" alt="Logo">{% endif %}
     </div>
+    <h1>Crear administrador</h1>
+    <p>Como la base de datos está vacía, crea el primer usuario administrador.</p>
+
+    <form method="post">
+      <div class="group">
+        <label>Nombre</label>
+        <input type="text" name="name" required />
+      </div>
+
+      <div class="group">
+        <label>Email</label>
+        <input type="email" name="email" required />
+      </div>
+
+      <div class="group">
+        <label>Contraseña</label>
+        <input type="password" name="password" required />
+      </div>
+
+      <button type="submit">Crear administrador</button>
+    </form>
+  </div>
 </body>
 </html>
