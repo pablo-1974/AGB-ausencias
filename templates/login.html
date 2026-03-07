@@ -1,28 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="min-h-[70vh] flex items-center justify-center">
-  <div class="w-full max-w-md rounded-xl p-8 text-white"
-       style="background: linear-gradient(135deg, rgba(124,58,237,0.85), rgba(168,85,247,0.85));">
-    <div class="flex flex-col items-center gap-2 mb-6">
-      <img src="{{ logo_path }}" class="h-12 w-12" alt="logo">
-      <h1 class="text-2xl font-bold">Ausencias de profesores</h1>
-      <p class="text-sm opacity-90">IES Antonio García Bellido</p>
+<!-- Contenedor a pantalla casi completa con degradado -->
+<section class="min-h-[70vh] flex items-center justify-center px-4
+                bg-gradient-to-br from-[#C2A8F9] via-[#C9B6FF] to-[#E6D9FF]">
+
+  <!-- Tarjeta -->
+  <div class="w-full max-w-md rounded-2xl shadow-xl bg-white/95 backdrop-blur
+              ring-1 ring-black/5 p-6 sm:p-8">
+
+    <!-- Logo -->
+    <div class="flex flex-col items-center gap-3 mb-6">
+      {% if logo_path %}
+        <img src="{{ logo_path }}" alt="Logo IES" class="h-14 w-auto" />
+      {% endif %}
+      <h1 class="text-2xl sm:text-[1.55rem] font-extrabold tracking-tight text-[#3E2AA3]">
+        Ausencias de profesores
+      </h1>
+      <p class="text-sm text-slate-600">{{ institution_name or "IES Antonio García Bellido" }}</p>
     </div>
-    <form action="/login" method="post" class="space-y-3">
-      <div>
-        <label class="label">Email</label>
-        <input class="input text-black" type="email" name="email" required>
-      </div>
-      <div>
-        <label class="label">Contraseña</label>
-        <input class="input text-black" type="password" name="password" required>
-      </div>
-      <button class="btn-primary w-full">Entrar</button>
+
+    <!-- Formulario -->
+    /login
+      <!-- Email -->
+      <label for="email" class="sr-only">Correo electrónico</label>
+      <input id="email" name="email" type="email" required autocomplete="username"
+             placeholder="tuusuario@educa.jcyl.es"
+             class="mb-3 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2
+                    text-slate-900 placeholder-slate-400 shadow-sm outline-none
+                    focus:border-[#6D5AE6] focus:ring-4 focus:ring-[#6D5AE6]/20" />
+
+      <!-- Password -->
+      <label for="password" class="sr-only">Contraseña</label>
+      <input id="password" name="password" type="password" required
+             autocomplete="current-password" placeholder="••••••••"
+             class="mb-4 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2
+                    text-slate-900 placeholder-slate-400 shadow-sm outline-none
+                    focus:border-[#6D5AE6] focus:ring-4 focus:ring-[#6D5AE6]/20" />
+
+      <!-- Botón -->
+      <button type="submit"
+              class="w-full rounded-lg bg-[#4F46E5] px-4 py-2.5 font-semibold text-white
+                     shadow-sm transition hover:bg-[#4338CA] focus:outline-none
+                     focus-visible:ring-4 focus-visible:ring-[#4F46E5]/30">
+        Entrar
+      </button>
+
+      <!-- Enlace primer admin -->
+      <p class="mt-4 text-center text-xs text-slate-500">
+        Si es tu primer acceso y la base de datos está vacía, crea el administrador en
+        /register-first-admineste enlace</a>.
+      </p>
     </form>
-    <div class="mt-4 text-xs opacity-90">
-      Si es el primer acceso y la base de datos está vacía, crea el administrador en
-      <a class="underline" href="/register-first-admin">este enlace</a>.
-    </div>
   </div>
-</div>
+</section>
 {% endblock %}
