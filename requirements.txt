@@ -1,23 +1,18 @@
-# Web
 fastapi==0.115.0
+starlette>=0.37,<0.39
 uvicorn[standard]>=0.27.0
 
-# DB y migraciones (async)
 SQLAlchemy[asyncio]==2.0.29
 asyncpg==0.29.0
 alembic==1.13.1
 
-# Utilidades
 python-dotenv>=1.0.0
 jinja2==3.1.4
 python-multipart==0.0.9
 passlib[bcrypt]==1.7.4
 itsdangerous==2.2.0
 
-# Datos (si los usas realmente en runtime)
 pandas==2.2.1
 openpyxl==3.1.2
-
-# PDF (si lo usas realmente en runtime)
 reportlab==4.1.0
 python-dateutil==2.9.0.post0
