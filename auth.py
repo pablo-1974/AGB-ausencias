@@ -163,6 +163,20 @@ async def register_page(request: Request):
         {"request": request, "logo_path": settings.LOGO_PATH},
     )
 
+# --- DEBUG: eliminar cuando acabemos ---
+@router.get("/__debug-first-admin")
+async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
+    try:
+        total = await _count_users(session)
+        admins = await _count_admins(session)
+        return {
+            "total_users": int(total or 0),
+            "total_admins": int(admins or 0),
+            "db_url_prefix": (settings.DATABASE_URL[:40] + "...") if hasattr(settings, "DATABASE_URL") else None,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @router.post("/register")
 async def register_post(
     request: Request,
@@ -278,3 +292,4 @@ async def admin_users_delete(
     await session.delete(u)
     await session.commit()
     return RedirectResponse("/admin/users", status_code=303)
+
