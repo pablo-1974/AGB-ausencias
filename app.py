@@ -9,7 +9,9 @@ from config import settings
 from auth import router as auth_router, setup_session
 
 # router de importación de profesores
-from imports_teachers import router as teachers_import_router  # NEW
+from imports_teachers import router as teachers_import_router
+# router de importación de clases y guardias
+from imports_schedule import router as schedule_import_router
 
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
@@ -67,7 +69,8 @@ async def no_cache_mw(request: Request, call_next):
 # INCLUIR RUTAS
 # ------------------------------------------------------------
 app.include_router(auth_router)
-app.include_router(teachers_import_router)
+app.include_router(teachers_import_router)   # importar profesores
+app.include_router(schedule_import_router)   # importar guardias y clases
 
 # ------------------------------------------------------------
 # Contexto común
@@ -131,4 +134,5 @@ async def internal_error(request: Request, exc):
         tpl(request, message="Error interno. Intenta más tarde."),
         status_code=500
     )
+
 
