@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto card">
+  <h1 class="text-xl font-semibold mb-2">Importar guardias</h1>
+  <p class="text-slate-600 mb-4">
+    Sube un <b>.xlsx/.xls</b> con columnas: <code>nombre</code>, <code>día</code>, <code>tipo</code>. Opcional: <code>hora</code>.
+  </p>
+
+  {% if error %}
+    <div class="mb-3 p-3 rounded border border-red-200 bg-red-50 text-red-800 text-sm">{{ error }}</div>
+  {% endif %}
+  {% if info %}
+    <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{{ info }}</div>
+  {% endif %}
+
+/imports/guards
+    <div>
+      <label class="label">Archivo Excel</label>
+      <input type="file" name="file" accept=".xlsx,.xls" required class="input">
+      <p class="text-xs text-gray-500 mt-1">
+        <b>tipo</b> admitido: <code>G AULA</code>, <code>G RECREO PATIO</code>, <code>G RECREO PASILLO</code>.<br>
+        <b>hora</b>: <code>1ª</code>, <code>2ª</code>, <code>3ª</code>, <code>Recreo</code>, <code>4ª</code>, <code>5ª</code>, <code>6ª</code>.<br>
+        Si <b>tipo</b> empieza por <code>G RECREO</code> y no indicas <b>hora</b>, se usará <code>Recreo</code>.
+      </p>
+    </div>
+    <button class="btn-primary">Importar</button>
+  </form>
+
+  {% if imported is defined %}
+    <div class="mt-4 text-sm">Guardias creadas/actualizadas: <b>{{ imported }}</b></div>
+  {% endif %}
+</div>
+{% endblock %}
