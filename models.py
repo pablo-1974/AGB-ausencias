@@ -48,12 +48,15 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
 
+# models.py (solo el bloque Teacher modificado)
 class Teacher(Base):
     __tablename__ = "teachers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), index=True)
     email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
+    alias: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+
     active: Mapped[bool] = mapped_column(default=True)
 
     __table_args__ = (
@@ -126,3 +129,4 @@ class Absence(Base):
     __table_args__ = (
         UniqueConstraint("teacher_id", "date", name="uq_teacher_date"),
     )
+
