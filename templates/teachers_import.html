@@ -1,14 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="text-lg font-semibold mb-4">Importar listado de profesores</h1>
-<form action="/imports/teachers" method="post" enctype="multipart/form-data" class="card space-y-3 max-w-xl">
+
+{% if error %}
+  <div class="mb-3 p-3 rounded border border-red-200 bg-red-50 text-red-800 text-sm">{{ error }}</div>
+{% endif %}
+{% if info %}
+  <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{{ info }}</div>
+{% endif %}
+
+/imports/teachers
   <div>
     <label class="label">Archivo Excel</label>
-    <input type="file" name="file" accept=".xlsx" required class="input">
+    <input type="file" name="file" accept=".xlsx,.xls" required class="input">
     <p class="text-xs text-gray-500 mt-1">Debe tener columnas: <b>nombre</b>, <b>email</b>.</p>
   </div>
   <button class="btn-primary">Importar</button>
 </form>
+
 {% if imported is defined %}
   <div class="mt-4 text-sm">Importados: <b>{{ imported }}</b></div>
 {% endif %}
