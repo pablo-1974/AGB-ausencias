@@ -67,7 +67,7 @@ async def no_cache_mw(request: Request, call_next):
 # INCLUIR RUTAS
 # ------------------------------------------------------------
 app.include_router(auth_router)
-app.include_router(teachers_import_router)  # NEW
+app.include_router(teachers_import_router)
 
 # ------------------------------------------------------------
 # Contexto común
@@ -131,3 +131,4 @@ async def internal_error(request: Request, exc):
         tpl(request, message="Error interno. Intenta más tarde."),
         status_code=500
     )
+
