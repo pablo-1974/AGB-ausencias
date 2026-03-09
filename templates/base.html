@@ -47,30 +47,64 @@
   </header>
   {% endif %}
 
-  {# -------- NAV: solo si se permite y hay sesión -------- #}
-  {% if show_nav and request.session and request.session.get('uid') %}
-  <nav class="bg-gray-100 border-b">
-    <div class="max-w-7xl mx-auto px-4 py-2 flex gap-4 text-sm flex-wrap">
-      <a class="link" href="/">Inicio</a>
-      <a class="link" href="/imports/teachers">Importar profesores</a>
-      <a class="link" href="/imports/guards">Importar guardias</a>
-      <a class="link" href="/imports/classes">Importar clases</a>
-      <a class="link" href="/schedule/view">Horario</a>
-      <a class="link" href="/absences/new">Nueva ausencia</a>
-      <a class="link" href="/absences/manage">Ausencias del día</a>
-      <a class="link" href="/absences/categorize">Catalogar</a>
-      <a class="link" href="/leaves/new">Baja</a>
-      <a class="link" href="/substitutions/new">Sustitución</a>
-      <a class="link" href="/leaves/close">Fin de baja</a>
-      <a class="link" href="/reports/daily">Parte diario</a>
-      <a class="link" href="/reports/monthly">Parte mensual</a>
-      <a class="link ml-auto" href="/me/password">Cambiar clave</a>
-      <a class="link" href="/admin/users">Usuarios</a>
-      <a class="link" href="/logout">Salir</a>
+{# -------- NAV: solo si se permite y hay sesión -------- #}
+{% if show_nav and request.session and request.session.get('uid') %}
+<nav class="bg-gray-100 border-b">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex gap-6 text-sm flex-wrap">
+
+    <!-- 1. Inicio -->
+    /</a>
+
+    <!-- 2. Importar -->
+    <div class="relative group">
+      <span class="link cursor-pointer">Importar ▼</span>
+      <div class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 hidden group-hover:block z-50">
+        /imports/teachersImportar profesores</a>
+        /imports/guardsImportar guardias</a>
+        /imports/classesImportar clases</a>
+      </div>
     </div>
-  </nav>
-  {% endif %}
-  {# ------------------------------------------------------ #}
+
+    <!-- 3. Horario -->
+    /schedule/viewHorario</a>
+
+    <!-- 4. Ausencias -->
+    <div class="relative group">
+      <span class="link cursor-pointer">Ausencias ▼</span>
+      <div class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 hidden group-hover:block z-50">
+        /absences/newNueva ausencia</a>
+        /absences/manageAusencias del día</a>
+        /absences/categorizeCatalogar ausencia</a>
+      </div>
+    </div>
+
+    <!-- 5. Bajas -->
+    <div class="relative group">
+      <span class="link cursor-pointer">Bajas ▼</span>
+      <div class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 hidden group-hover:block z-50">
+        /leaves/newProfesor de baja</a>
+        /substitutions/newSustitución</a>
+        /leaves/closeFin de baja</a>
+      </div>
+    </div>
+
+    <!-- 6. Parte diario -->
+    /reports/dailyParte diario</a>
+
+    <!-- 7. Parte mensual -->
+    /reports/monthlyParte mensual</a>
+
+    <!-- Lado derecho -->
+    <div class="ml-auto flex gap-4">
+      /me/passwordCambiar clave</a>
+      /admin/usersUsuarios</a>
+      /logoutSalir</a>
+    </div>
+
+  </div>
+</nav>
+{% endif %}
+{# ------------------------------------------------------ #}
 
   <!-- Main -->
   <main class="{% if hide_chrome %}min-h-[70vh]{% else %}max-w-7xl mx-auto px-4 py-6{% endif %}">
@@ -84,4 +118,5 @@
   {% endif %}
 </body>
 </html>
+
 
