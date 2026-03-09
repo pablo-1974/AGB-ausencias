@@ -12,7 +12,7 @@ from auth import router as auth_router, setup_session
 from imports_teachers import router as teachers_import_router
 # router de importación de clases y guardias
 from imports_schedule import router as schedule_import_router
-@ router de horarios
+# router de horarios
 from schedule_router import router as schedule_router
 
 # ------------------------------------------------------------
@@ -137,6 +137,7 @@ async def internal_error(request: Request, exc):
         tpl(request, message="Error interno. Intenta más tarde."),
         status_code=500
     )
+
 
 
 
