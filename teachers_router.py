@@ -11,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session
 from config import settings
 from models import Teacher
-# Ajusta este import a tu modelo real de sustituciones:
-from models import Substitution  # <-- si tiene otro nombre, cámbialo
-
 from services.pdf_teachers import generate_teachers_list_pdf
+
+# Intentar importar el modelo de sustituciones; si no existe, seguimos en modo “sin sustituciones”
+try:
+    from models import Substitution  # <-- si en tu proyecto tiene otro nombre, cámbialo aquí
+except Exception:
+    Substitution = None  # tolerante: el router funciona sin este modelo
 
 router = APIRouter()
 
@@ -58,7 +61,12 @@ def _teacher_id(value) -> Optional[int]:
         return None
 
 def _extract_ids_and_is_active(s) -> Tuple[Optional[int], Optional[int], bool]:
-    # ADAPTA nombres de campos aquí si tu modelo usa otros:
+    """
+    ADAPTA nombres si tu modelo usa otros:
+      substitute_id  -> ['substitute_id','substitute_teacher_id','sub_id','substitute']
+      replaced_id    -> ['replaced_id','replaced_teacher_id','orig_id','teacher_id','replaced']
+      start/end date -> ['start_date'/'end_date'] o ['since'/'until']
+    """
     sub = _get_attr(s, ["substitute_id", "substitute_teacher_id", "sub_id", "substitute"])
     rep = _get_attr(s, ["replaced_id", "replaced_teacher_id", "orig_id", "teacher_id", "replaced"])
     sub_id = _teacher_id(sub)
@@ -75,10 +83,18 @@ def _extract_ids_and_is_active(s) -> Tuple[Optional[int], Optional[int], bool]:
     return sub_id, rep_id, active
 
 
+# ------- núcleo de listados -------
 async def _compute_lists(session: AsyncSession):
+    # Profes (para mapa de nombres y ordenación)
     teachers = (await session.execute(select(Teacher))).scalars().all()
     t_by_id: Dict[int, Teacher] = {int(t.id): t for t in teachers}
 
+    # Si no tenemos modelo de sustituciones aún → todo el mundo es “inicial” y “actual”, no hay “sustituidos”
+    if Substitution is None:
+        names = sorted([t.name for t in teachers], key=lambda x: x.lower())
+        return names, names, []
+
+    # Con modelo de sustituciones
     subs = (await session.execute(select(Substitution))).scalars().all()
 
     all_sub_ids = set()
@@ -90,11 +106,11 @@ async def _compute_lists(session: AsyncSession):
         if active and sub_id and rep_id:
             active_pairs.append((sub_id, rep_id))
 
-    # INICIAL: no sustitutos
+    # INICIAL: no sustitutos (nunca han sido substitute_id)
     initial_ids = [tid for tid in t_by_id.keys() if tid not in all_sub_ids]
     initial_names = sorted([t_by_id[tid].name for tid in initial_ids], key=lambda x: x.lower())
 
-    # ACTUAL
+    # ACTUAL (hoy)
     active_sub_to_rep = {sub: rep for sub, rep in active_pairs}
     active_rep_to_sub = {rep: sub for sub, rep in active_pairs}
     active_sub_ids = set(active_sub_to_rep.keys())
@@ -103,7 +119,7 @@ async def _compute_lists(session: AsyncSession):
     current_display: List[str] = []
     for tid, t in t_by_id.items():
         if tid in active_rep_ids:
-            continue  # sustituido hoy: no aparece como titular
+            continue  # sustituido hoy → no lo listamos como “titular”
         if tid in active_sub_ids:
             rep_id = active_sub_to_rep.get(tid)
             rep_name = t_by_id.get(rep_id).name if rep_id in t_by_id else "—"
@@ -112,7 +128,7 @@ async def _compute_lists(session: AsyncSession):
             current_display.append(t.name)
     current_display = sorted(current_display, key=lambda x: x.lower())
 
-    # SUSTITUIDOS (sección 2 dentro de 'Actual')
+    # SUSTITUIDOS (segunda lista en “Actual”)
     replaced_display: List[str] = []
     for rep_id in sorted(list(active_rep_ids), key=lambda rid: t_by_id[rid].name.lower() if rid in t_by_id else ""):
         rep_name = t_by_id.get(rep_id).name if rep_id in t_by_id else "—"
