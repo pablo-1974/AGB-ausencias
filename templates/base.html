@@ -48,56 +48,66 @@
   {% endif %}
 
 {# -------- NAV: solo si se permite y hay sesión -------- #}
-{# -------- NAV: solo si se permite y hay sesión -------- #}
 {% if show_nav and request.session and request.session.get('uid') %}
-<nav class="bg-gray-100 border-b">
-  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center gap-6 text-sm">
+<nav class="bg-gray-100 border-b relative z-50">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex gap-6 text-sm">
 
     <!-- 1. Inicio -->
-    <a class="link" href="/">Inicio</a>
+    <a class="link px-2 py-1 block" href="/">Inicio</a>
 
     <!-- 2. Importar -->
     <div class="relative group">
-      <button class="link cursor-pointer">Importar ▼</button>
-      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg hidden group-hover:block z-50">
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/imports/teachers">Importar profesores</a>
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/imports/guards">Importar guardias</a>
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/imports/classes">Importar clases</a>
+      <span class="link cursor-pointer px-2 py-1 block">Importar</span>
+
+      <!-- BUFFER anti-cierre (zona transparente) -->
+      <div class="absolute left-0 top-full h-4 w-full group-hover:block"></div>
+
+      <!-- Submenú -->
+      <div class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 hidden group-hover:block">
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/imports/teachers">Importar profesores</a>
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/imports/guards">Importar guardias</a>
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/imports/classes">Importar clases</a>
       </div>
     </div>
 
     <!-- 3. Horario -->
-    <a class="link" href="/schedule/view">Horario</a>
+    <a class="link px-2 py-1 block" href="/schedule/view">Horario</a>
 
     <!-- 4. Ausencias -->
     <div class="relative group">
-      <button class="link cursor-pointer">Ausencias ▼</button>
-      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg hidden group-hover:block z-50">
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/absences/new">Nueva ausencia</a>
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/absences/manage">Ausencias del día</a>
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/absences/categorize">Catalogar ausencia</a>
+      <span class="link cursor-pointer px-2 py-1 block">Ausencias</span>
+
+      <div class="absolute left-0 top-full h-4 w-full group-hover:block"></div>
+
+      <div class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 hidden group-hover:block">
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/absences/new">Nueva ausencia</a>
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/absences/manage">Ausencias del día</a>
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/absences/categorize">Catalogar ausencia</a>
       </div>
     </div>
 
     <!-- 5. Bajas -->
     <div class="relative group">
-      <button class="link cursor-pointer">Bajas ▼</button>
-      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg hidden group-hover:block z-50">
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/leaves/new">Profesor de baja</a>
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/substitutions/new">Sustitución</a>
-        <a class="block px-3 py-1 hover:bg-gray-100" href="/leaves/close">Fin de baja</a>
+      <span class="link cursor-pointer px-2 py-1 block">Bajas</span>
+
+      <div class="absolute left-0 top-full h-4 w-full group-hover:block"></div>
+
+      <div class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 hidden group-hover:block">
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/leaves/new">Profesor de baja</a>
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/substitutions/new">Sustitución</a>
+        <a class="block px-2 py-1 hover:bg-gray-100" href="/leaves/close">Fin de baja</a>
       </div>
     </div>
 
     <!-- 6 y 7 Partes -->
-    <a class="link" href="/reports/daily">Parte diario</a>
-    <a class="link" href="/reports/monthly">Parte mensual</a>
+    <a class="link px-2 py-1 block" href="/reports/daily">Parte diario</a>
+    <a class="link px-2 py-1 block" href="/reports/monthly">Parte mensual</a>
 
     <!-- Lado derecho -->
     <div class="ml-auto flex gap-4">
-      <a class="link" href="/me/password">Cambiar clave</a>
-      <a class="link" href="/admin/users">Usuarios</a>
-      <a class="link" href="/logout">Salir</a>
+      <a class="link px-2 py-1 block" href="/me/password">Cambiar clave</a>
+      <a class="link px-2 py-1 block" href="/admin/users">Usuarios</a>
+      <a class="link px-2 py-1 block" href="/logout">Salir</a>
     </div>
 
   </div>
@@ -117,6 +127,7 @@
   {% endif %}
 </body>
 </html>
+
 
 
 
