@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-4">Listado de profesorado</h1>
+
+<div class="grid md:grid-cols-2 gap-6">
+
+  <!-- Inicial -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold">Profesorado Inicial (no sustitutos)</h2>
+      <a href="/teachers/list/pdf?view=initial" class="btn-muted text-xs">Imprimir PDF</a>
+    </div>
+    {% if initial_list and initial_list|length > 0 %}
+      <ol class="list-decimal pl-6 space-y-1 text-sm">
+        {% for name in initial_list %}
+          <li>{{ name }}</li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="text-slate-600 text-sm">Sin datos.</p>
+    {% endif %}
+  </div>
+
+  <!-- Actual -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold">Profesorado Actual</h2>
+      <a href="/teachers/list/pdf?view=current" class="btn-muted text-xs">Imprimir PDF</a>
+    </div>
+    {% if current_list and current_list|length > 0 %}
+      <ol class="list-decimal pl-6 space-y-1 text-sm">
+        {% for name in current_list %}
+          <li>{{ name }}</li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="text-slate-600 text-sm">Sin datos.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Sustituidos -->
+<div class="card mt-6">
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="text-lg font-semibold">Profesores sustituidos (hoy)</h2>
+    <a href="/teachers/list/pdf?view=replaced" class="btn-muted text-xs">Imprimir PDF</a>
+  </div>
+  {% if replaced_list and replaced_list|length > 0 %}
+    <ol class="list-decimal pl-6 space-y-1 text-sm">
+      {% for name in replaced_list %}
+        <li>{{ name }}</li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="text-slate-600 text-sm">Sin datos.</p>
+  {% endif %}
+</div>
+
+{% endblock %}
