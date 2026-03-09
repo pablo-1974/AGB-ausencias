@@ -9,7 +9,7 @@
   Modifica clases y guardias. Las casillas libres déjalas en “–”.
 </p>
 
-/schedule/edit/{{ teacher.id }}
+<form action="/schedule/edit/{{ teacher.id }}" method="post">
 <div class="overflow-x-auto">
   <table class="table text-center border">
     <thead>
@@ -41,13 +41,9 @@
               <option value="NONE"
                 {% if not slot %}selected{% endif %}>–</option>
               <option value="CLASS"
-                {% if slot and slot.type.name == "CLASS" %}selected{% endif %}>
-                Clase
-              </option>
+                {% if slot and slot.type.name == "CLASS" %}selected{% endif %}>Clase</option>
               <option value="GUARD"
-                {% if slot and slot.type.name == "GUARD" %}selected{% endif %}>
-                Guardia
-              </option>
+                {% if slot and slot.type.name == "GUARD" %}selected{% endif %}>Guardia</option>
             </select>
 
             <!-- Datos de clase -->
@@ -85,6 +81,7 @@
       </tr>
       {% endfor %}
     </tbody>
+
   </table>
 </div>
 
