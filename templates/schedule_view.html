@@ -6,8 +6,8 @@
 <!-- Selector de profesor -->
 <div class="max-w-md mb-6 card">
   <form action="/schedule/view" method="post">
-    <label class="label">Profesor</label>
-    <select name="teacher_id" class="input" required>
+    <label class="label" for="teacher_id">Profesor</label>
+    <select id="teacher_id" name="teacher_id" class="input" required>
       <option value="">-- Selecciona profesor --</option>
       {% for t in teachers %}
         <option value="{{ t.id }}" {% if selected_id == t.id %}selected{% endif %}>
@@ -16,7 +16,7 @@
       {% endfor %}
     </select>
 
-    <button class="btn-primary mt-3">Ver horario</button>
+    <button type="submit" class="btn-primary mt-3">Ver horario</button>
   </form>
 </div>
 
@@ -59,18 +59,17 @@
             
             <!-- Primera columna (gris + estrecha + centrado) -->
             <th class="border bg-gray-100 align-middle text-center text-sm">
-              {% if hour == 3 %}Recreo{% else %}{{ hour + 1 }}ª{% endif %}
-            </th>
-
-            <!-- Celdas L-V, centradas -->
+              {% if hour == 3 %}Recreo{% else %ntradas -->
             {% for day in range(5) %}
               {% set slot = schedule[hour][day] %}
               <td class="border align-middle text-center text-xs">
                 {% if slot %}
                   {% if slot.type.name == "CLASS" %}
-                    <div>{{ slot.group }}</div>
-                    <div>{{ slot.room }}</div>
-                    <div>{{ slot.subject }}</div>
+                    <div class="text-center">
+                      <div>{{ slot.group }}</div>
+                      <div>{{ slot.room }}</div>
+                      <div>{{ slot.subject }}</div>
+                    </div>
                   {% elif slot.type.name == "GUARD" %}
                     <div class="text-purple-700 font-semibold">{{ slot.guard_type }}</div>
                   {% endif %}
@@ -86,4 +85,3 @@
 {% endif %}
 
 {% endblock %}
-
