@@ -5,7 +5,6 @@
 
 <!-- Selector de profesor -->
 <div class="max-w-md mb-6 card">
-
   <form action="/schedule/view" method="post">
     <label class="label">Profesor</label>
     <select name="teacher_id" class="input" required>
@@ -19,44 +18,54 @@
 
     <button class="btn-primary mt-3">Ver horario</button>
   </form>
-
 </div>
 
 {% if schedule %}
-  <!-- Botones -->
+  <!-- Acciones -->
   <div class="mb-4 flex gap-4">
-    <a class="btn-muted" href="/schedule/edit/{{ selected_id }}">Editar horario</a>
-    <a class="btn-muted" href="/schedule/print/{{ selected_id }}">Imprimir horario</a>
+    <a class="link" href="/schedule/edit/{{ selected_id }}">Editar horario</a>
+    <a class="link" href="/schedule/print/{{ selected_id }}">Imprimir horario</a>
   </div>
 
-  <!-- Tabla de horario -->
+  <!-- Tabla del horario -->
   <div class="overflow-x-auto">
-    <table class="table text-center border">
+    <table class="table table-fixed w-full text-center border border-gray-200">
+
+      <!-- Columnas: primera más estrecha -->
+      <colgroup>
+        <col style="width: 70px; background-color: #f3f4f6;">  <!-- gris -->
+        <col style="width: calc((100% - 70px) / 5);">
+        <col style="width: calc((100% - 70px) / 5);">
+        <col style="width: calc((100% - 70px) / 5);">
+        <col style="width: calc((100% - 70px) / 5);">
+        <col style="width: calc((100% - 70px) / 5);">
+      </colgroup>
+
       <thead>
-        <tr class="bg-gray-200">
-          <th class="p-2">Franja</th>
-          <th class="p-2">Lunes</th>
-          <th class="p-2">Martes</th>
-          <th class="p-2">Miércoles</th>
-          <th class="p-2">Jueves</th>
-          <th class="p-2">Viernes</th>
+        <tr class="bg-gray-200 h-[40px]">
+          <th class="p-2 align-middle text-center">Franja</th>
+          <th class="p-2 align-middle text-center">Lunes</th>
+          <th class="p-2 align-middle text-center">Martes</th>
+          <th class="p-2 align-middle text-center">Miércoles</th>
+          <th class="p-2 align-middle text-center">Jueves</th>
+          <th class="p-2 align-middle text-center">Viernes</th>
         </tr>
       </thead>
+
       <tbody>
         {% for hour in range(7) %}
-          <tr style="height: {% if hour == 3 %}30px{% else %}60px{% endif %};">
-            <!-- Etiqueta de franja -->
-            <th class="p-1 bg-gray-50 border-r">
-              {% if hour == 3 %}
-                Recreo
-              {% else %}
-                {{ hour + 1 }}ª
-              {% endif %}
+          <!-- Altura fija por franja -->
+          <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
+            
+            <!-- Primera columna (gris + estrecha + centrado) -->
+            <th class="border bg-gray-100 align-middle text-center text-sm">
+              {% if hour == 3 %}Recreo{% else %}{{ hour + 1 }}ª{% endif %}
             </th>
 
+            <!-- Celdas L-V, centradas -->
             {% for day in range(5) %}
               {% set slot = schedule[hour][day] %}
-              <td class="align-top p-1 border text-xs">
+              <td class="border align-middle text-center text-xs">
                 {% if slot %}
                   {% if slot.type.name == "CLASS" %}
                     <div>{{ slot.group }}</div>
@@ -71,6 +80,7 @@
           </tr>
         {% endfor %}
       </tbody>
+
     </table>
   </div>
 {% endif %}
