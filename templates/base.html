@@ -49,73 +49,101 @@
 
 {# -------- NAV: solo si se permite y hay sesión -------- #}
 {% if show_nav and request.session and request.session.get('uid') %}
+<!-- Necesario para menú mixto click/hover -->
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
 <nav class="bg-gray-100 border-b relative z-50 select-none">
   <div class="max-w-7xl mx-auto px-4 py-2 flex gap-6 text-sm">
 
     <!-- 1. Inicio -->
     <a class="link px-2 py-1" href="/">Inicio</a>
 
-    <!-- TEMPLATE PARA MENÚ DESPLEGABLE MIXTO -->
-    {% macro dropdown(label, items) %}
+    <!-- 2. Importar -->
     <div class="relative group" x-data="{open:false}">
-      
-      <!-- BOTÓN (hover en desktop, click en móvil) -->
       <button 
         class="link px-2 py-1 block cursor-pointer"
         @mouseover="if(window.innerWidth>768){open=true}"
         @mouseleave="if(window.innerWidth>768){open=false}"
         @click="open=!open"
-      >
-        {{ label }}
-      </button>
+      >Importar</button>
 
-      <!-- BUFFER ANTI-CIERRE (permite bajar sin perder hover) -->
-      <div 
-        class="absolute left-0 top-full h-4 w-full hidden md:block"
-        @mouseover="open=true"
-      ></div>
+      <div class="absolute left-0 top-full h-4 w-full hidden md:block"
+           @mouseover="open=true"></div>
 
-      <!-- CONTENIDO DEL MENÚ -->
-      <div 
-        class="absolute left-0 mt-2 w-52 bg-white border rounded shadow-lg p-2 
-               hidden group-hover:block md:group-hover:block"
-        :class="{'block':open}"
-        @mouseleave="if(window.innerWidth>768){open=false}"
-        @click.away="open=false"
-      >
-        {{ items }}
+      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+           :class="{'block':open}"
+           @mouseleave="if(window.innerWidth>768){open=false}"
+           @click.away="open=false">
+
+        <a href="/imports/teachers" class="block px-2 py-1 link">Importar profesores</a>
+        <a href="/imports/guards"   class="block px-2 py-1 link">Importar guardias</a>
+        <a href="/imports/classes"  class="block px-2 py-1 link">Importar clases</a>
       </div>
-
     </div>
-    {% endmacro %}
 
-    <!-- 2. Importar -->
-    {{ dropdown("Importar",
-      '<a href="/imports/teachers" class="block px-2 py-1 link">Importar profesores</a>' ~
-      '<a href="/imports/guards" class="block px-2 py-1 link">Importar guardias</a>' ~
-      '<a href="/imports/classes" class="block px-2 py-1 link">Importar clases</a>'
-    )}}
+    <!-- 3. Profesores -->
+    <div class="relative group" x-data="{open:false}">
+      <button 
+        class="link px-2 py-1 block cursor-pointer"
+        @mouseover="if(window.innerWidth>768){open=true}"
+        @mouseleave="if(window.innerWidth>768){open=false}"
+        @click="open=!open"
+      >Profesores</button>
 
-    <!-- 3. Horario -->
-    <a classía</a>' ~
-      '<a href="/absences/categorize" class="block px-2 py-1 link">Catalogar ausencia</a>'
-    )}}
+      <div class="absolute left-0 top-full h-4 w-full hidden md:block"
+           @mouseover="open=true"></div>
 
-    <!--     '/leaves/newProfesor de baja</a>' ~
-      '/substitutions/newSustitución</a>' ~
-      '/leaves/closeFin de baja</a>'
-    )}}
+      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+           :class="{'block':open}"
+           @mouseleave="if(window.innerWidth>768){open=false}"
+           @click.away="open=false">
 
-    <!-- 6 y 7 Partes -->
-    /reports/dailyParte diario</a>
-    /reports/monthlyParte mensual</a>
-
-    <!-- DERECHA -->
-    <div class="ml-auto flex gap-4">
-      <a class="link" href="/me/password">Cambiar clave</a>
-      <a class="link" href="/admin/users">Usuarios</a>
-      <a class="link" href="/logout">Salir</a>
+        <a href="/schedule/view" class="block px-2 py-1 link">Horarios</a>
+        <a href="/teachers/list" class="block px-2 py-1 link">Listado</a>
+      </div>
     </div>
+
+    <!-- 4. Ausencias -->
+    <div class="relative group" x-data="{open:false}">
+      <button 
+        class="link px-2 py-1 block cursor-pointer"
+        @mouseover="if(window.innerWidth>768){open=true}"
+        @mouseleave="if(window.innerWidth>768){open=false}"
+        @click="open=!open"
+      >Ausencias</button>
+
+      <div class="absolute left-0 top-full h-4 w-full hidden md:block"
+           @mouseover="open=true"></div>
+
+      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+           :class="{'block':open}"
+           @mouseleave="if(window.innerWidth>768){open=false}"
+           @click.away="open=false">
+
+        <a href="/absences/new"      class="block px-2 py-1 link">Nueva ausencia</a>
+        <a href="/absences/manage"   class="block px-2 py-1 link">Ausencias del día</a>
+        <a href="/absences/categorize" class="block px-2 py-1 link">Catalogar ausencia</a>
+      </div>
+    </div>
+
+    <!-- 5. Bajas -->
+    <div class="relative group" x-data="{open:false}">
+      <button 
+        class="link px-2 py-1 block cursor-pointer"
+        @mouseover="if(window.innerWidth>768){open=true}"
+        @mouseleave="if(window.innerWidth>768){open=false}"
+        @click="open=!open"
+      >Bajas</button>
+
+      <div class="absolute left-0 top-full h-4 w-full hidden md:block"
+           @mouseover="open=true"></div>
+
+      <div class="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+           :class="{'block':open}"
+           @mouseleave="if(window.innerWidth>768){open=false}"
+           @click.away="open=false">
+
+        <a href="/leaves/new"        class="block px-2 py-1 link">Profesor deiv>
 
   </div>
 </nav>
@@ -134,6 +162,7 @@
   {% endif %}
 </body>
 </html>
+
 
 
 
