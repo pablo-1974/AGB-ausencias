@@ -1,80 +1,76 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-lg font-semibold mb-4">Horario de profesor</h1>
 
-<form method="get" action="/schedule/view" class="card space-y-3 max-w-xl mb-4">
-  <div>
+<h1 class="text-2xl font-bold mb-4">Horario</h1>
+
+<div class="max-w-md mb-6 card">
+
+  /schedule/view
     <label class="label">Profesor</label>
-    <select name="teacher_id" class="input">
-      <option value="">-- seleccionar --</option>
-      {% for t in teachers or [] %}
-        <option value="{{ t.id }}" {% if selected_teacher_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+    <select name="teacher_id" class="input" required>
+      <option value="">-- Selecciona profesor --</option>
+      {% for t in teachers %}
+        <option value="{{ t.id }}" {% if selected_id == t.id %}selected{% endif %}>
+          {{ t.name }}
+        </option>
       {% endfor %}
     </select>
-  </div>
-  <div class="flex gap-2">
-    <button class="btn-primary">Ver horario</button>
-    {% if selected_teacher_id %}
-      <a class="btn-muted" href="/schedule/{{ selected_teacher_id }}/pdf" target="_blank">PDF</a>
-    {% endif %}
-  </div>
-</form>
 
-{% if slots is defined %}
-  <div class="card">
-    <div class="font-semibold mb-2">Tabla de slots</div>
-    <table class="table">
+    <button class="btn-primary mt-3">Ver horario</button>
+  </form>
+
+</div>
+
+{% if schedule %}
+  <div class="mb-4 flex gap-4">
+    /schedule/edit/{{ selected_id }}Editar horario</a>
+    /schedule/print/{{ selected_id }}Imprimir horario</a>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="table text-center border">
       <thead>
-        <tr>
-          <th>Día</th><th>Hora</th><th>Tipo</th><th>Grupo</th><th>Aula</th><th>Asign.</th><th>Guardia</th><th></th>
+        <tr class="bg-gray-200">
+          <th class="p-2">Franja</th>
+          <th class="p-2">Lunes</th>
+          <th class="p-2">Martes</th>
+          <th class="p-2">Miércoles</th>
+          <th class="p-2">Jueves</th>
+          <th class="p-2">Viernes</th>
         </tr>
       </thead>
       <tbody>
-        {% for s in slots %}
-          <tr>
-            <td>{{ s.day_index }}</td>
-            <td>{{ s.hour_index }}</td>
-            <td>{{ s.type }}</td>
-            <td>{{ s.group or "" }}</td>
-            <td>{{ s.room or "" }}</td>
-            <td>{{ s.subject or "" }}</td>
-            <td>{{ s.guard_type or "" }}</td>
-            <td>
-              <form method="post" action="/schedule/delete-slot">
-                <input type="hidden" name="slot_id" value="{{ s.id }}">
-                <button class="btn-muted">Quitar</button>
-              </form>
-            </td>
+        {% for hour in range(7) %}
+          <tr style="height: {% if hour == 3 %}30px{% else %}60px{% endif %};">
+            <!-- Etiqueta de franja -->
+            <th class="p-1 bg-gray-50 border-r">
+              {% if hour == 3 %}
+                Recreo
+              {% else %}
+                {{ hour + 1 }}ª
+              {% endif %}
+            </th>
+
+            <!-- Casillas 5 días -->
+            {% for day in range(5) %}
+              {% set slot = schedule[hour][day] %}
+              <td class="align-top p-1 border">
+                {% if slot %}
+                  {% if slot.type.name == "CLASS" %}
+                    <div>{{ slot.group }}</div>
+                    <div>{{ slot.room }}</div>
+                    <div>{{ slot.subject }}</div>
+                  {% elif slot.type.name == "GUARD" %}
+                    <div class="text-purple-700 font-semibold">{{ slot.guard_type }}</div>
+                  {% endif %}
+                {% endif %}
+              </td>
+            {% endfor %}
           </tr>
         {% endfor %}
       </tbody>
     </table>
-
-    <div class="mt-4">
-      <div class="font-semibold mb-2">Añadir guardia manual</div>
-      <form method="post" action="/schedule/add-guard" class="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <input type="hidden" name="teacher_id" value="{{ selected_teacher_id }}">
-        <div>
-          <label class="label">Día (0=L, 4=V)</label>
-          <input class="input" type="number" name="day_index" min="0" max="4" required>
-        </div>
-        <div>
-          <label class="label">Hora (0=1ª..6=6ª)</label>
-          <input class="input" type="number" name="hour_index" min="0" max="6" required>
-        </div>
-        <div>
-          <label class="label">Tipo</label>
-          <select class="input" name="guard_type" required>
-            <option value="G AULA">G AULA</option>
-            <option value="G RECREO PATIO">G RECREO PATIO</option>
-            <option value="G RECREO PASILLO">G RECREO PASILLO</option>
-          </select>
-        </div>
-        <div class="flex items-end">
-          <button class="btn-primary">Añadir</button>
-        </div>
-      </form>
-    </div>
   </div>
 {% endif %}
+
 {% endblock %}
