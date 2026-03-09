@@ -62,6 +62,7 @@ def _alias_classes(df: pd.DataFrame) -> pd.DataFrame:
 # Excel esperado (tolerante en cabeceras):
 #   nombre, email
 # -----------------------------------------
+# services/imports.py  (sustituye SOLO esta función)
 async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
     df = pd.read_excel(path)
     df = _norm_cols(df)  # Permite 'Nombre'/'Email' etc.
@@ -69,24 +70,36 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
 
     cnt = 0
     for _, r in df.iterrows():
-        name = str(r["nombre"]).strip()
-        email = str(r["email"]).strip().lower()
-
+        name = str(r["nombre"]).strip() if pd.notna(r.get("nombre")) else ""
+        email = str(r["email"]).strip().lower() if pd.notna(r.get("email")) else ""
         if not name or not email:
             continue
 
-        existing = (
-            await session.execute(select(Teacher).where(Teacher.email == email))
-        ).scalar_one_or_none()
+        # alias en excel (opcional) o alias = name
+        alias = None
+        if "alias" in df.columns and pd.notna(r.get("alias")):
+            alias = str(r.get("alias")).strip()
+        if not alias:
+            alias = name
 
+        existing = (await session.execute(select(Teacher).where(Teacher.email == email))).scalar_one_or_none()
         if existing:
-            # opcional: actualizar nombre si cambió
+            changed = False
             if existing.name != name:
                 existing.name = name
-            # No contamos como insertado; no incrementamos cnt
+                changed = True
+            if hasattr(existing, "alias") and getattr(existing, "alias", None) != alias:
+                existing.alias = alias
+                changed = True
+            if changed:
+                cnt += 1  # si quieres contar updates; si no, quítalo
             continue
 
-        session.add(Teacher(name=name, email=email))
+        data = {"name": name, "email": email}
+        if hasattr(Teacher, "alias"):
+            data["alias"] = alias
+
+        session.add(Teacher(**data))
         cnt += 1
 
     await session.commit()
@@ -218,3 +231,4 @@ async def import_classes_from_excel(path: str, session: AsyncSession) -> int:
 
     await session.commit()
     return cnt
+
