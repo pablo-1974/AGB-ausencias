@@ -60,7 +60,7 @@ def generate_schedule_pdf(path, teacher_name, center_name, schedule):
     # --------------------------
 
     # Primera fila (cabecera)
-    data = [["Franja"] + days]
+    data = [["Hora"] + days]
 
     # Primera columna será más estrecha
     page_width, page_height = A4
