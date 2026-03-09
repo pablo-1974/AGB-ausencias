@@ -10,62 +10,80 @@
 </p>
 
 <form action="/schedule/edit/{{ teacher.id }}" method="post">
+
 <div class="overflow-x-auto">
-  <table class="table text-center border">
+  <table class="table table-fixed w-full text-center border border-gray-200">
+
+    <!-- Columnas: primera más estrecha -->
+    <colgroup>
+      <col style="width: 70px; background-color: #f3f4f6;">  <!-- gris -->
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+    </colgroup>
+
     <thead>
-      <tr class="bg-gray-200">
-        <th class="p-2">Franja</th>
-        <th class="p-2">Lunes</th>
-        <th class="p-2">Martes</th>
-        <th class="p-2">Miércoles</th>
-        <th class="p-2">Jueves</th>
-        <th class="p-2">Viernes</th>
+      <tr class="bg-gray-200 h-[40px]">
+        <th class="p-2 align-middle text-center">Franja</th>
+        <th class="p-2 align-middle text-center">Lunes</th>
+        <th class="p-2 align-middle text-center">Martes</th>
+        <th class="p-2 align-middle text-center">Miércoles</th>
+        <th class="p-2 align-middle text-center">Jueves</th>
+        <th class="p-2 align-middle text-center">Viernes</th>
       </tr>
     </thead>
 
     <tbody>
       {% for hour in range(7) %}
-      <tr style="height: {% if hour == 3 %}30px{% else %}70px{% endif %};">
-        <th class="bg-gray-50 border-r p-1">
-          {% if hour == 3 %} Recreo {% else %} {{ hour+1 }}ª {% endif %}
+      <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[70px]{% endif %}">
+
+        <!-- Primera columna (gris, centrada y estrecha) -->
+        <th class="border bg-gray-100 align-middle text-center text-sm">
+          {% if hour == 3 %}Recreo{% else %}{{ hour + 1 }}ª{% endif %}
         </th>
 
         {% for day in range(5) %}
           {% set slot = schedule[hour][day] %}
           {% set key = hour ~ "_" ~ day ~ "_" %}
-          <td class="border align-top p-1 text-xs">
+          
+          <td class="border align-middle text-center text-xs p-1">
 
-            <!-- Tipo -->
+            <!-- Selector del tipo de celda -->
             <select name="{{ key }}type"
-                    class="border rounded px-1 py-0.5 w-full bg-white text-xs">
-              <option value="NONE"
-                {% if not slot %}selected{% endif %}>–</option>
-              <option value="CLASS"
-                {% if slot and slot.type.name == "CLASS" %}selected{% endif %}>Clase</option>
-              <option value="GUARD"
-                {% if slot and slot.type.name == "GUARD" %}selected{% endif %}>Guardia</option>
+                    class="border rounded px-1 py-0.5 w-full bg-white text-xs mb-1 text-center">
+              <option value="NONE" {% if not slot %}selected{% endif %}>–</option>
+              <option value="CLASS" {% if slot and slot.type.name == "CLASS" %}selected{% endif %}>
+                Clase
+              </option>
+              <option value="GUARD" {% if slot and slot.type.name == "GUARD" %}selected{% endif %}>
+                Guardia
+              </option>
             </select>
 
             <!-- Datos de clase -->
-            <div class="mt-1 space-y-1">
+            <div class="space-y-1 mt-1">
               <input placeholder="Grupo"
                      name="{{ key }}group"
                      value="{{ slot.group if slot and slot.type.name=='CLASS' else '' }}"
-                     class="w-full border rounded px-1 text-xs">
+                     class="w-full border rounded px-1 text-xs text-center" />
+
               <input placeholder="Aula"
                      name="{{ key }}room"
                      value="{{ slot.room if slot and slot.type.name=='CLASS' else '' }}"
-                     class="w-full border rounded px-1 text-xs">
+                     class="w-full border rounded px-1 text-xs text-center" />
+
               <input placeholder="Materia"
                      name="{{ key }}subject"
                      value="{{ slot.subject if slot and slot.type.name=='CLASS' else '' }}"
-                     class="w-full border rounded px-1 text-xs">
+                     class="w-full border rounded px-1 text-xs text-center" />
             </div>
 
             <!-- Datos de guardia -->
             <div class="mt-1">
               <select name="{{ key }}guard_type"
-                      class="border rounded px-1 py-0.5 w-full text-xs bg-white">
+                      class="border rounded px-1 py-0.5 w-full bg-white text-xs text-center">
                 <option value="">(tipo)</option>
                 {% for g in GUARD_LABELS %}
                   <option value="{{ g }}"
@@ -81,7 +99,6 @@
       </tr>
       {% endfor %}
     </tbody>
-
   </table>
 </div>
 
