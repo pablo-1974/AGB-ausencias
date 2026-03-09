@@ -33,7 +33,7 @@
 
       <!-- Columnas: primera más estrecha -->
       <colgroup>
-        <col style="width: 70px; background-color: #f3f4f6;">  <!-- gris -->
+        <col style="width: 70px; background-color: #f3f4f6;">
         <col style="width: calc((100% - 70px) / 5);">
         <col style="width: calc((100% - 70px) / 5);">
         <col style="width: calc((100% - 70px) / 5);">
@@ -54,12 +54,13 @@
 
       <tbody>
         {% for hour in range(7) %}
-          <!-- Altura fija por franja -->
           <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
-            
-            <!-- Primera columna (gris + estrecha + centrado) -->
+            <!-- Primera columna (gris + centrado) -->
             <th class="border bg-gray-100 align-middle text-center text-sm">
-              {% if hour == 3 %}Recreo{% else %ntradas -->
+              {% if hour == 3 %}Recreo{% else %}{{ hour + 1 }}ª{% endif %}
+            </th>
+
+            <!-- Celdas L-V -->
             {% for day in range(5) %}
               {% set slot = schedule[hour][day] %}
               <td class="border align-middle text-center text-xs">
