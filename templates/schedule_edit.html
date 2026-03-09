@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-4">
+  Editar horario de {{ teacher.name }}
+</h1>
+
+<p class="text-sm text-gray-600 mb-4">
+  Modifica clases y guardias. Las casillas libres déjalas en “–”.
+</p>
+
+/schedule/edit/{{ teacher.id }}
+<div class="overflow-x-auto">
+  <table class="table text-center border">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="p-2">Franja</th>
+        <th class="p-2">Lunes</th>
+        <th class="p-2">Martes</th>
+        <th class="p-2">Miércoles</th>
+        <th class="p-2">Jueves</th>
+        <th class="p-2">Viernes</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for hour in range(7) %}
+      <tr style="height: {% if hour == 3 %}30px{% else %}70px{% endif %};">
+        <th class="bg-gray-50 border-r p-1">
+          {% if hour == 3 %} Recreo {% else %} {{ hour+1 }}ª {% endif %}
+        </th>
+
+        {% for day in range(5) %}
+          {% set slot = schedule[hour][day] %}
+          {% set key = hour ~ "_" ~ day ~ "_" %}
+          <td class="border align-top p-1 text-xs">
+
+            <!-- Tipo -->
+            <select name="{{ key }}type"
+                    class="border rounded px-1 py-0.5 w-full bg-white text-xs">
+              <option value="NONE"
+                {% if not slot %}selected{% endif %}>–</option>
+              <option value="CLASS"
+                {% if slot and slot.type.name == "CLASS" %}selected{% endif %}>
+                Clase
+              </option>
+              <option value="GUARD"
+                {% if slot and slot.type.name == "GUARD" %}selected{% endif %}>
+                Guardia
+              </option>
+            </select>
+
+            <!-- Datos de clase -->
+            <div class="mt-1 space-y-1">
+              <input placeholder="Grupo"
+                     name="{{ key }}group"
+                     value="{{ slot.group if slot and slot.type.name=='CLASS' else '' }}"
+                     class="w-full border rounded px-1 text-xs">
+              <input placeholder="Aula"
+                     name="{{ key }}room"
+                     value="{{ slot.room if slot and slot.type.name=='CLASS' else '' }}"
+                     class="w-full border rounded px-1 text-xs">
+              <input placeholder="Materia"
+                     name="{{ key }}subject"
+                     value="{{ slot.subject if slot and slot.type.name=='CLASS' else '' }}"
+                     class="w-full border rounded px-1 text-xs">
+            </div>
+
+            <!-- Datos de guardia -->
+            <div class="mt-1">
+              <select name="{{ key }}guard_type"
+                      class="border rounded px-1 py-0.5 w-full text-xs bg-white">
+                <option value="">(tipo)</option>
+                {% for g in GUARD_LABELS %}
+                  <option value="{{ g }}"
+                    {% if slot and slot.type.name=='GUARD' and slot.guard_type==g %}selected{% endif %}>
+                    {{ g }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+          </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<button class="btn-primary mt-4">Guardar cambios</button>
+</form>
+
+{% endblock %}
