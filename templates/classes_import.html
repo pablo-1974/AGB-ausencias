@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="max-w-2xl mx-auto card">
   <h1 class="text-xl font-semibold mb-2">Importar horas de clase</h1>
   <p class="text-slate-600 mb-4">
-    Sube un <b>.xlsx/.xls</b> con columnas:
-    <code>nombre</code>, <code>día</code>, <code>hora</code>, <code>grupo</code>, <code>aula</code>, <code>materia</code>.
+    Sube un fichero <b>.xlsx</b> (o <b>.xls</b>) con columnas:
+    <code>nombre</code>, <code>día</code>, <code>hora</code> (o <code>franja horaria</code>), <code>grupo</code>, <code>aula</code>, <code>materia</code>.
   </p>
 
   {% if error %}
@@ -14,16 +15,19 @@
     <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{{ info }}</div>
   {% endif %}
 
-/imports/classes
+  /imports/classes
     <div>
       <label class="label">Archivo Excel</label>
       <input type="file" name="file" accept=".xlsx,.xls" required class="input">
       <p class="text-xs text-gray-500 mt-1">
-        <b>día</b>: Lunes, Martes, Miércoles, Jueves, Viernes. &nbsp;
-        <b>hora</b>: 1ª, 2ª, 3ª, Recreo, 4ª, 5ª, 6ª. <br>
-        Nota: el profesor debe existir ya (se busca por <b>nombre</b>).
+        <b>día</b>: Lunes, Martes, Miércoles, Jueves, Viernes.
+        <b>hora</b> o <b>franja horaria</b>: 1ª, 2ª, 3ª, Recreo, 4ª, 5ª, 6ª.
+      </p>
+      <p class="text-xs text-gray-500 mt-1">
+        Si el profesor no existe, se creará automáticamente (con email <code>nombre@local</code> y <i>alias=nombre</i> si procede).
       </p>
     </div>
+
     <button class="btn-primary">Importar</button>
   </form>
 
@@ -31,4 +35,5 @@
     <div class="mt-4 text-sm">Clases importadas: <b>{{ imported }}</b></div>
   {% endif %}
 </div>
+
 {% endblock %}
