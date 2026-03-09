@@ -1,13 +1,16 @@
 # schedule_router.py
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Depends, Form
+import tempfile
+from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from starlette.responses import RedirectResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database import get_session
 from models import Teacher, ScheduleSlot, ScheduleType
 from config import settings
+from services.pdf_schedule import generate_schedule_pdf  # <-- requiere services/pdf_schedule.py
 
 router = APIRouter()
 
@@ -47,7 +50,7 @@ async def schedule_view(request: Request, session: AsyncSession = Depends(get_se
 
     return _templates(request).TemplateResponse(
         "schedule_view.html",
-        _ctx(request, teachers=teachers, selected_id=None, schedule=None)
+        _ctx(request, teachers=teachers, selected_id=None, schedule=None),
     )
 
 
@@ -84,7 +87,7 @@ async def schedule_view_post(
             teachers=teachers,
             selected_id=teacher_id,
             schedule=tabla,
-        )
+        ),
     )
 
 
@@ -109,9 +112,10 @@ async def schedule_edit(
 
     tabla = [[None for _ in range(5)] for _ in range(7)]
     for s in slots:
-        if s.hour_index <= 6 and s.day_index <= 4:
+        if 0 <= s.hour_index <= 6 and 0 <= s.day_index <= 4:
             tabla[s.hour_index][s.day_index] = s
 
+    # Valores de guardia admitidos (los usas también en import)
     from services.imports import GUARD_LABELS
 
     return _templates(request).TemplateResponse(
@@ -121,7 +125,7 @@ async def schedule_edit(
             teacher=teacher,
             schedule=tabla,
             GUARD_LABELS=sorted(list(GUARD_LABELS)),
-        )
+        ),
     )
 
 
@@ -135,23 +139,24 @@ async def schedule_edit_post(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    # Borrar slots existentes
+    # Borrar slots existentes del profesor
     await session.execute(
         ScheduleSlot.__table__.delete().where(ScheduleSlot.teacher_id == teacher_id)
     )
 
     form = await request.form()
 
-    # Recorrer celdas
+    # Recorrer celdas (7 franjas x 5 días)
     for hour in range(7):
         for day in range(5):
             prefix = f"{hour}_{day}_"
             tipo = form.get(prefix + "type")  # NONE / CLASS / GUARD
 
             if tipo == "CLASS":
-                group = form.get(prefix + "group", "").strip()
-                room = form.get(prefix + "room", "").strip()
-                subject = form.get(prefix + "subject", "").strip()
+                group = (form.get(prefix + "group") or "").strip()
+                room = (form.get(prefix + "room") or "").strip()
+                subject = (form.get(prefix + "subject") or "").strip()
+                # Guardamos una clase sólo si hay grupo y materia
                 if group and subject:
                     session.add(
                         ScheduleSlot(
@@ -167,7 +172,7 @@ async def schedule_edit_post(
                     )
 
             elif tipo == "GUARD":
-                guard_type = form.get(prefix + "guard_type", "").strip()
+                guard_type = (form.get(prefix + "guard_type") or "").strip()
                 if guard_type:
                     session.add(
                         ScheduleSlot(
@@ -179,7 +184,63 @@ async def schedule_edit_post(
                             source="manual",
                         )
                     )
+            # NONE => no insertamos nada
 
     await session.commit()
 
+    # Volver a la vista del horario (con selector)
     return RedirectResponse("/schedule/view", status_code=303)
+
+
+# ---------------------------------------------------------
+#  GET /schedule/print/{teacher_id} — Descargar PDF
+# ---------------------------------------------------------
+@router.get("/schedule/print/{teacher_id}")
+async def schedule_print(
+    teacher_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    teacher = await session.get(Teacher, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Profesor no encontrado")
+
+    # Slots del profesor
+    slots = (
+        await session.execute(
+            select(ScheduleSlot).where(ScheduleSlot.teacher_id == teacher_id)
+        )
+    ).scalars().all()
+
+    # Convertir a matriz 7x5 con estructura simple para el generador PDF
+    tabla = [[None for _ in range(5)] for _ in range(7)]
+    for s in slots:
+        if 0 <= s.hour_index <= 6 and 0 <= s.day_index <= 4:
+            if s.type == ScheduleType.CLASS:
+                tabla[s.hour_index][s.day_index] = {
+                    "type": "CLASS",
+                    "group": s.group or "",
+                    "room": s.room or "",
+                    "subject": s.subject or "",
+                }
+            elif s.type == ScheduleType.GUARD:
+                tabla[s.hour_index][s.day_index] = {
+                    "type": "GUARD",
+                    "guard_type": s.guard_type or "",
+                }
+
+    # Generar PDF temporal
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    generate_schedule_pdf(
+        path=tmp.name,
+        teacher_name=teacher.name,
+        center_name=settings.INSTITUTION_NAME or "",
+        schedule=tabla,
+    )
+
+    # Descargar
+    filename = f"Horario_{teacher.name}.pdf".replace(" ", "_")
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=filename,
+    )
