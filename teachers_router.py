@@ -2,6 +2,7 @@
 from __future__ import annotations
 from datetime import date
 from typing import Iterable, Dict, List, Tuple, Optional
+import unicodedata  # <-- para ordenar ignorando tildes
 
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from starlette.responses import FileResponse
@@ -41,6 +42,19 @@ def _ctx(request: Request, **extra):
     }
     base.update(extra or {})
     return base
+
+
+# ------- helper de ordenación sin tildes -------
+def _sort_key(name: str) -> str:
+    """
+    Clave de ordenación que ignora tildes/diacríticos y compara en minúsculas.
+    'Álvarez' -> 'alvarez'
+    """
+    if not name:
+        return ""
+    nf = unicodedata.normalize("NFD", name)
+    no_diacritics = "".join(ch for ch in nf if not unicodedata.combining(ch))
+    return no_diacritics.lower()
 
 
 # ------- helpers sustituciones -------
@@ -91,7 +105,7 @@ async def _compute_lists(session: AsyncSession):
 
     # Si no tenemos modelo de sustituciones aún → todo el mundo es “inicial” y “actual”, no hay “sustituidos”
     if Substitution is None:
-        names = sorted([t.name for t in teachers], key=lambda x: x.lower())
+        names = sorted([t.name for t in teachers], key=_sort_key)  # <-- sin tildes
         return names, names, []
 
     # Con modelo de sustituciones
@@ -108,7 +122,7 @@ async def _compute_lists(session: AsyncSession):
 
     # INICIAL: no sustitutos (nunca han sido substitute_id)
     initial_ids = [tid for tid in t_by_id.keys() if tid not in all_sub_ids]
-    initial_names = sorted([t_by_id[tid].name for tid in initial_ids], key=lambda x: x.lower())
+    initial_names = sorted([t_by_id[tid].name for tid in initial_ids], key=_sort_key)  # <-- sin tildes
 
     # ACTUAL (hoy)
     active_sub_to_rep = {sub: rep for sub, rep in active_pairs}
@@ -126,11 +140,14 @@ async def _compute_lists(session: AsyncSession):
             current_display.append(f"{t.name} ({rep_name})")
         else:
             current_display.append(t.name)
-    current_display = sorted(current_display, key=lambda x: x.lower())
+    current_display = sorted(current_display, key=_sort_key)  # <-- sin tildes
 
-    # SUSTITUIDOS (segunda lista en “Actual”)
+    # SUSTITUIDOS (segunda lista en “Actual”), ordenados por nombre del sustituido
     replaced_display: List[str] = []
-    for rep_id in sorted(list(active_rep_ids), key=lambda rid: t_by_id[rid].name.lower() if rid in t_by_id else ""):
+    for rep_id in sorted(
+        list(active_rep_ids),
+        key=lambda rid: _sort_key(t_by_id[rid].name) if rid in t_by_id else ""
+    ):
         rep_name = t_by_id.get(rep_id).name if rep_id in t_by_id else "—"
         sub_id = active_rep_to_sub.get(rep_id)
         sub_name = t_by_id.get(sub_id).name if sub_id in t_by_id else "—"
@@ -161,7 +178,9 @@ async def teachers_list_pdf(
         "replaced": "Profesores sustituidos (hoy)",
     }
     data_map = {"initial": initial, "current": current, "replaced": replaced}
-    items = data_map[view]
+
+    # Si quieres reforzar el orden sin tildes también en el PDF:
+    items = sorted(data_map[view], key=_sort_key)
 
     import tempfile
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
