@@ -3,9 +3,10 @@
 
 <h1 class="text-2xl font-bold mb-4">Horario</h1>
 
+<!-- Selector de profesor -->
 <div class="max-w-md mb-6 card">
 
-  /schedule/view
+  <form action="/schedule/view" method="post">
     <label class="label">Profesor</label>
     <select name="teacher_id" class="input" required>
       <option value="">-- Selecciona profesor --</option>
@@ -22,11 +23,13 @@
 </div>
 
 {% if schedule %}
+  <!-- Botones -->
   <div class="mb-4 flex gap-4">
-    /schedule/edit/{{ selected_id }}Editar horario</a>
-    /schedule/print/{{ selected_id }}Imprimir horario</a>
+    <a class="btn-muted" href="/schedule/edit/{{ selected_id }}">Editar horario</a>
+    <a class="btn-muted" href="/schedule/print/{{ selected_id }}">Imprimir horario</a>
   </div>
 
+  <!-- Tabla de horario -->
   <div class="overflow-x-auto">
     <table class="table text-center border">
       <thead>
@@ -51,10 +54,9 @@
               {% endif %}
             </th>
 
-            <!-- Casillas 5 días -->
             {% for day in range(5) %}
               {% set slot = schedule[hour][day] %}
-              <td class="align-top p-1 border">
+              <td class="align-top p-1 border text-xs">
                 {% if slot %}
                   {% if slot.type.name == "CLASS" %}
                     <div>{{ slot.group }}</div>
