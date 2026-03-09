@@ -15,7 +15,7 @@
     <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{{ info }}</div>
   {% endif %}
 
-  /imports/classes
+  <form action="/imports/classes" method="post" enctype="multipart/form-data" class="space-y-3">
     <div>
       <label class="label">Archivo Excel</label>
       <input type="file" name="file" accept=".xlsx,.xls" required class="input">
