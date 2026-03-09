@@ -191,7 +191,7 @@ async def import_guards_from_excel(path: str, session: AsyncSession) -> int:
 # -----------------------------------------
 async def import_classes_from_excel(path: str, session: AsyncSession) -> int:
     df = pd.read_excel(path)
-    df = _alias_classes(df)
+    df = _alias_classes(df)  # mapea 'franja horaria' -> 'hora' si hace falta
     require_columns(df, ["nombre", "día", "hora", "grupo", "aula", "materia"])
 
     cnt = 0
@@ -206,14 +206,24 @@ async def import_classes_from_excel(path: str, session: AsyncSession) -> int:
         subject = str(r["materia"]).strip()
 
         if day is None or hour is None:
+            # Día u hora no reconocidos -> omitimos fila
             continue
 
+        # Buscar profesor por nombre
         teacher = (
             await session.execute(select(Teacher).where(Teacher.name == name))
         ).scalar_one_or_none()
+
         if not teacher:
-            # En diseño actual exigimos que el profesor exista; si lo prefieres, se puede crear (como en guardias)
-            continue
+            # Crear profesor si no existe (igual que en guardias), con email ficticio predecible
+            email_fallback = f"{name.replace(' ', '_').lower()}@local"
+            # Si tu modelo Teacher tiene 'alias' NOT NULL, puedes usar alias=name
+            data = {"name": name, "email": email_fallback}
+            if hasattr(Teacher, "alias"):
+                data["alias"] = name
+            teacher = Teacher(**data)
+            session.add(teacher)
+            await session.flush()  # para obtener teacher.id
 
         session.add(
             ScheduleSlot(
@@ -231,4 +241,3 @@ async def import_classes_from_excel(path: str, session: AsyncSession) -> int:
 
     await session.commit()
     return cnt
-
