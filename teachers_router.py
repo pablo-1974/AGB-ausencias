@@ -165,12 +165,12 @@ async def teachers_list(request: Request, session: AsyncSession = Depends(get_se
         _ctx(request, initial_list=initial, current_list=current, replaced_list=replaced),
     )
 
-
 @router.get("/teachers/list/pdf")
 async def teachers_list_pdf(
     view: str = Query(..., pattern="^(initial|current|replaced)$"),
     session: AsyncSession = Depends(get_session),
 ):
+    from datetime import date
     initial, current, replaced = await _compute_lists(session)
     title_map = {
         "initial": "Profesorado Inicial (no sustitutos)",
@@ -179,8 +179,20 @@ async def teachers_list_pdf(
     }
     data_map = {"initial": initial, "current": current, "replaced": replaced}
 
-    # Si quieres reforzar el orden sin tildes también en el PDF:
+    # Mantén el mismo orden sin tildes, si ya añadiste _sort_key(name)
+    try:
+        from .teachers_router import _sort_key  # si está en otro módulo, ajusta import
+    except Exception:
+        _sort_key = lambda x: x.lower()
+
     items = sorted(data_map[view], key=_sort_key)
+
+    # fecha solo para "Profesorado Actual"
+    date_str = None
+    if view == "current":
+        # Formato: dd/mm/yyyy — cámbialo si prefieres otra máscara
+        d = date.today()
+        date_str = f"{d.day:02d}/{d.month:02d}/{d.year}"
 
     import tempfile
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
@@ -189,5 +201,6 @@ async def teachers_list_pdf(
         center_name=(settings.INSTITUTION_NAME or ""),
         title=title_map[view],
         items=items,
+        date_str=date_str,  # ← AÑADIDO
     )
     return FileResponse(tmp.name, media_type="application/pdf", filename=f"{view}_profesorado.pdf")
