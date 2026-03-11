@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1 class="text-lg font-semibold mb-4">Abrir baja</h1>
+<h1 class="text-lg font-semibold mb-4">Iniciar baja</h1>
 
 {% if error %}
   <div class="mb-4 p-3 rounded bg-red-100 text-red-700">{{ error }}</div>
@@ -45,7 +45,8 @@
     <input class="input" type="text" name="cause" placeholder="Describe la causa" required>
   </div>
 
-  <button class="btn-primary">Abrir baja</button>
+  <button class="btn-primary">Iniciar baja</button>
 </form>
 
 {% endblock %}
+
