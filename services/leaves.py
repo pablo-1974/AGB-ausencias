@@ -6,7 +6,7 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
-from models import Leave, Teacher, TeacherStatus
+from models import Leave, Teacher, TeacherStatus, ScheduleSlot
 from fastapi import HTTPException
 
 
@@ -134,29 +134,57 @@ async def set_substitution(
 
 async def close_leave(session: AsyncSession, teacher_id: int, end_date: date) -> Leave:
     """
-    Cierra la baja: fija fecha fin y devuelve al profesor a 'activo'.
-    (No se borra histórico ni se tocan estados del sustituto en esta fase.)
+    Cierra la baja: fija fecha fin, devuelve al profesor a 'activo' y
+    revierte la sustitución si existía:
+      - El sustituto pasa a 'exprofe'
+      - Se eliminan del sustituto los slots clonados (source='substitution:{teacher_id}')
+      - El sustituido conserva su horario (no lo tocamos)
     """
     if not isinstance(end_date, date):
         raise HTTPException(status_code=400, detail="Fecha de fin no válida.")
 
+    # 1) Baja abierta del profesor (sustituido)
     q = select(Leave).where(and_(Leave.teacher_id == teacher_id, Leave.end_date == None))
     lv = (await session.execute(q)).scalar_one_or_none()
     if not lv:
         raise HTTPException(status_code=404, detail="No hay baja abierta para este profesor.")
 
-    # Fin de baja
+    # 2) Cerrar baja
     lv.end_date = end_date
 
-    # Devolver status del profesor a 'activo'
+    # 3) Devolver status del sustituido a 'activo'
     teacher = (await session.execute(
         select(Teacher).where(Teacher.id == teacher_id)
     )).scalar_one_or_none()
     if teacher:
         teacher.status = TeacherStatus.activo
 
-    # Ya no tocamos 'active' del sustituto (ese campo no existe y las reglas están por definir)
+    # 4) Si hubo sustituto: pasarlo a 'exprofe' y limpiar sus slots clonados
+    if lv.substitute_teacher_id:
+        sub = (await session.execute(
+            select(Teacher).where(Teacher.id == lv.substitute_teacher_id)
+        )).scalar_one_or_none()
+
+        if sub:
+            # Status del sustituto -> exprofe
+            sub.status = TeacherStatus.exprofe
+
+            # Eliminar solo los slots que clonamos al iniciar sustitución
+            # (source="substitution:{teacher_id_sustituido}")
+            flag = f"substitution:{teacher_id}"
+            sub_slots = (await session.execute(
+                select(ScheduleSlot).where(
+                    and_(
+                        ScheduleSlot.teacher_id == sub.id,
+                        ScheduleSlot.source == flag
+                    )
+                )
+            )).scalars().all()
+
+            for s in sub_slots:
+                await session.delete(s)
+
+    # 5) Persistir cambios
     await session.commit()
     await session.refresh(lv)
     return lv
-
