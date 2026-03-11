@@ -93,3 +93,74 @@ async def leaves_finish(
             _ctx(request, open_items=open_items, error=str(e)),
             status_code=400,
         )
+
+# --- NUEVO: Iniciar baja ---
+
+from services.leaves import open_leave  # ya importaste close_leave arriba; añadimos open_leave
+from fastapi import HTTPException
+
+@router.get("/leaves/new")
+async def leaves_new_form(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),  # <-- ajusta si no debe requerir admin
+):
+    """
+    Muestra el formulario de apertura de baja con el listado de profesores.
+    """
+    # Cargar profesores (si quieres solo activos, filtra por status)
+    q = select(Teacher).order_by(Teacher.name.asc())
+    # Si solo quieres 'activos':
+    # q = q.where(Teacher.status == TeacherStatus.activo)
+    teachers = (await session.execute(q)).scalars().all()
+
+    return _templates(request).TemplateResponse(
+        "leaves_new.html",
+        _ctx(request, title="Iniciar baja", teachers=teachers),
+    )
+
+@router.post("/leaves/new")
+async def leaves_new_create(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),  # <-- ajusta si no debe requerir admin
+    teacher_id: int = Form(...),
+    start_date: date = Form(...),
+    leave_type: str = Form("baja"),  # por si luego añades selector ('baja' | 'excedencia')
+    cause: str = Form("Baja"),
+):
+    """
+    Procesa el formulario e inicia la baja usando services.leaves.open_leave.
+    """
+    # Mapear leave_type -> Enum
+    lt = TeacherStatus.baja if leave_type == "baja" else TeacherStatus.excedencia
+
+    try:
+        await open_leave(
+            session=session,
+            teacher_id=teacher_id,
+            start_date=start_date,
+            leave_type=lt,
+            cause=cause or "Baja",
+        )
+        # Redirige a una vista tras crear. Si aún no tienes listado, puedes volver al close o al dashboard.
+        # Si crearás /leaves (listado), cámbialo a "/leaves".
+        return RedirectResponse("/leaves/close", status_code=303)
+    except HTTPException as he:
+        # Re-pintar el form con error de validación del servicio
+        q = select(Teacher).order_by(Teacher.name.asc())
+        teachers = (await session.execute(q)).scalars().all()
+        return _templates(request).TemplateResponse(
+            "leaves_new.html",
+            _ctx(request, title="Iniciar baja", teachers=teachers, error=he.detail),
+            status_code=he.status_code,
+        )
+    except Exception as e:
+        # Error genérico
+        q = select(Teacher).order_by(Teacher.name.asc())
+        teachers = (await session.execute(q)).scalars().all()
+        return _templates(request).TemplateResponse(
+            "leaves_new.html",
+            _ctx(request, title="Iniciar baja", teachers=teachers, error=str(e)),
+            status_code=400,
+        )
