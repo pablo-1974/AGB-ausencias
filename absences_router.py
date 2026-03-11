@@ -1,13 +1,14 @@
 # absences_router.py
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from typing import Optional, List, Tuple
 
 from fastapi import APIRouter, Depends, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, exists, not_
 from sqlalchemy.ext.asyncio import AsyncSession
+import calendar
 
 from database import get_session
 from config import settings
@@ -151,15 +152,11 @@ async def absences_manage(
             },
         ),
     )
+
+
 # =====================================
 # ==== CATALOGAR AUSENCIAS ============
 # =====================================
-from typing import Optional
-from datetime import date, timedelta
-import calendar
-from sqlalchemy import select, and_, or_
-
-# Catálogo de categorías (código -> descripción)
 ABSENCE_CATEGORIES = [
     ("A", "Enfermedad de duración superior a tres días"),
     ("B", "Matrimonio"),
@@ -246,8 +243,7 @@ async def absences_categorize_post(
     valid_codes = {code for code, _ in ABSENCE_CATEGORIES}
     category = (category or "").strip().upper()
     if category not in valid_codes:
-        # Redibujar con error (recuperar filtros de next si llegan)
-        # Fallback a lista “pendientes” si no hay next
+        # Volver con filtros (o fallback a pendientes)
         url = next_url or "/absences/categorize?scope=pending"
         return RedirectResponse(url, status_code=303)
 
@@ -262,26 +258,29 @@ async def absences_categorize_post(
     # Volver a la lista de catalogación manteniendo filtros
     return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
 
+
 # ==================================
 # NUEVA AUSENCIA (GET/POST)
 # ==================================
 def _teachers_active_on(session: AsyncSession, target: date):
     """
-    Devuelve un select para profes con status=activo y SIN leave que cubra 'target'.
+    Devuelve un SELECT con profes con status=activo y SIN leave que cubra 'target'.
     """
-    # Un leave que cubra esa fecha: start <= target <= end (o end NULL)
+    # Leave que cubra esa fecha: start <= target AND (end IS NULL OR end >= target)
     leave_cover = and_(
         Leave.teacher_id == Teacher.id,
         Leave.start_date <= target,
         or_(Leave.end_date.is_(None), Leave.end_date >= target),
     )
-    # Profes activos y sin leave ese día
+    # EXISTS (SELECT 1 FROM leaves WHERE leave_cover)
+    leave_exists = exists().where(leave_cover)
+
     return (
         select(Teacher)
         .where(
             and_(
                 Teacher.status == TeacherStatus.activo,
-                ~select(Leave.id).where(leave_cover).exists()
+                not_(leave_exists),
             )
         )
         .order_by(Teacher.name.asc())
@@ -295,7 +294,6 @@ async def absences_new_form(
     d: Optional[str] = Query(None),  # fecha seleccionada en el form (para recalcular activos)
 ):
     target = date.fromisoformat(d) if d else date.today()
-
     teachers = (await session.execute(_teachers_active_on(session, target))).scalars().all()
 
     return _templates(request).TemplateResponse(
@@ -372,5 +370,5 @@ async def absences_new_create(
 
     await session.commit()
 
-    # Volver a Ver Ausencias filtrando por ese mismo día
+    # Volver a Ver Ausencias filtrando por ese mismo día (usar '&', NO '&amp;' en Python)
     return RedirectResponse(f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}", status_code=303)
