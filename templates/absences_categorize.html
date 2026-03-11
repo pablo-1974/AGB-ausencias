@@ -11,7 +11,7 @@
 {% endif %}
 
 <!-- Filtros -->
-/absences/categorize
+<form method="get" action="/absences/categorize">
   <div class="grid md:grid-cols-4 gap-3 items-end card mb-4">
     <div>
       <label class="label">Ámbito</label>
@@ -30,14 +30,14 @@
     </div>
     <div class="flex gap-2">
       <button class="btn-primary">Filtrar</button>
-      /absences/categorizeQuitar filtros</a>
+      <a class="btn-muted inline-flex items-center" href="/absences/categorize">Quitar filtros</a>
     </div>
   </div>
 </form>
 
 <!-- CTA Nueva ausencia -->
 <div class="mb-3">
-  /absences/new?d={{ filters.from }}Nueva ausencia</a>
+  <a class="btn-primary inline-flex items-center" href="/absences/new?d={{ filters.from }}">Nueva ausencia</a>
 </div>
 
 <div class="card overflow-x-auto">
@@ -59,13 +59,13 @@
         <td>{{ it.hours_str }}</td>
         <td>{{ it.cause }}</td>
         <td class="text-right">
-          <button class="btn-muted" @click="open = !open">
+          <button type="button" class="btn-muted" @click="open = !open">
             {% if it.category %}Cambiar{% else %}Catalogar{% endif %}
           </button>
 
           <!-- Panel de catalogación -->
           <div x-show="open" x-cloak class="mt-2 border rounded p-2 text-left inline-block">
-            /absences/categorize
+            <form method="post" action="/absences/categorize" class="space-y-2">
               <input type="hidden" name="absence_id" value="{{ it.id }}">
               <input type="hidden" name="next"
                      value="/absences/categorize?scope={{ filters.scope }}&from={{ filters.from }}&to={{ filters.to }}">
@@ -79,7 +79,7 @@
                 {% endfor %}
               </div>
 
-              <div class="text-right mt-2">
+              <div class="text-right">
                 <button class="btn-primary">Confirmar</button>
               </div>
             </form>
