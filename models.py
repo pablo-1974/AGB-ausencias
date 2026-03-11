@@ -153,7 +153,8 @@ class Leave(Base):
     )
     start_date: Mapped[Date] = mapped_column(Date)
     end_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
-
+    cause: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    
     # Profesor sustituto (si lo hay) mientras dure la baja.
     substitute_teacher_id: Mapped[int | None] = mapped_column(
         ForeignKey("teachers.id"),
@@ -210,4 +211,5 @@ class Absence(Base):
 #
 # NOTA: si usas este modelo, recuerda crear su migración Alembic y adaptar los routers
 # que lean sustituciones (por ejemplo, /teachers/list “Profesorado Actual”).
+
 
