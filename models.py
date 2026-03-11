@@ -56,11 +56,12 @@ class TeacherStatus(str, enum.Enum):
     - activo: está en el centro en activo
     - baja: en situación de baja
     - excedencia: en situación de excedencia
+    - exprofe: ex-profesor (histórico, no operativo)
     """
     activo = "activo"
     baja = "baja"
     excedencia = "excedencia"
-
+    exprofe = "exprofe"
 
 # ---------------------------------------------------------
 # MODELOS
@@ -209,3 +210,4 @@ class Absence(Base):
 #
 # NOTA: si usas este modelo, recuerda crear su migración Alembic y adaptar los routers
 # que lean sustituciones (por ejemplo, /teachers/list “Profesorado Actual”).
+
