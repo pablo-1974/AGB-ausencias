@@ -19,6 +19,7 @@
       <option value="all"  {{ 'selected' if (current_filters.status == 'all')  else '' }}>Todas</option>
     </select>
   </div>
+
   <div>
     <label class="label">Sustituto</label>
     <select name="with_sub" class="input">
@@ -27,6 +28,7 @@
       <option value="false" {{ 'selected' if (current_filters.with_sub == 'false') else '' }}>Sin sustituto</option>
     </select>
   </div>
+
   <div>
     <label class="label">Orden</label>
     <select name="order" class="input">
@@ -34,6 +36,7 @@
       <option value="desc" {{ 'selected' if (current_filters.order == 'desc') else '' }}>Inicio ↓</option>
     </select>
   </div>
+
   <div class="flex gap-2">
     <button class="btn-primary">Aplicar</button>
     <a class="btn-muted inline-flex items-center" href="/leaves">Quitar filtros</a>
@@ -58,9 +61,9 @@
       <tr x-data="{ finalizar:false }">
         <td>{{ it.start_date }}</td>
         <td>{{ it.teacher_name }}</td>
-        <td>{{ it.sub_start_date or "" }}</td>
-        <td>{{ it.sub_name or "" }}</td>
-        <td>{{ it.sub_end_date or "" }}</td>
+        <td>{{ it.sub_start_date or '' }}</td>
+        <td>{{ it.sub_name or '' }}</td>
+        <td>{{ it.sub_end_date or '' }}</td>
 
         <td class="text-right">
           {% if it.sub_name and not it.sub_end_date %}
@@ -72,11 +75,13 @@
               <form method="post" action="/leaves/finish" class="inline-flex gap-2 items-center">
                 <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
                 <input class="input !w-auto" type="date" name="end_date" required>
-                <!-- Si quieres conservar los filtros al volver, puedes enviar un parámetro 'next' -->
-                <input type="hidden" name="next" value="/leaves?status={{ current_filters.status }}{% if current_filters.with_sub %}&with_sub={{ current_filters.with_sub }}{% endif %}&order={{ current_filters.order }}">
-                <button
-                  class="btn-primary"
-                  onclick="return confirm('¿Confirmas cerrar la sustitución y la baja?')">
+
+                <!-- Volver a la lista con los filtros actuales -->
+                <input type="hidden" name="next"
+                       value="/leaves?status={{ current_filters.status }}{% if current_filters.with_sub %}&with_sub={{ current_filters.with_sub }}{% endif %}&order={{ current_filters.order }}">
+
+                <button class="btn-primary"
+                        onclick="return confirm('¿Confirmas cerrar la sustitución y la baja?')">
                   Confirmar
                 </button>
               </form>
@@ -89,7 +94,9 @@
 
       {% else %}
       <tr>
-        <td colspan="6" class="text-center py-6 text-gray-500">No hay bajas que cumplan el filtro.</td>
+        <td colspan="6" class="text-center py-6 text-gray-500">
+          No hay bajas que cumplan el filtro.
+        </td>
       </tr>
       {% endfor %}
     </tbody>
