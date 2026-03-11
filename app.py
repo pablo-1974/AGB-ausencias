@@ -18,6 +18,8 @@ from schedule_router import router as schedule_router
 from teachers_router import router as teachers_router  # NEW
 # router de bajas
 from leaves_router import router as leaves_router
+# router de ausencias
+from absences_router import router as absences_router
 
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
@@ -80,6 +82,7 @@ app.include_router(schedule_import_router)    # importar guardias y clases
 app.include_router(schedule_router)           # ver/editar/imprimir horario
 app.include_router(teachers_router)           # listados de profesorado
 app.include_router(leaves_router)
+app.include_router(absences_router)
 
 # ------------------------------------------------------------
 # Contexto común
@@ -152,3 +155,4 @@ for r in app.routes:
     except Exception:
         print(r)
 print("==============")
+
