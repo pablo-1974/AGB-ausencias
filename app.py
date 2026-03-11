@@ -144,3 +144,11 @@ async def internal_error(request: Request, exc):
         status_code=500
     )
 
+# app.py (al final, después de app.include_router(...))
+print("=== ROUTES ===")
+for r in app.routes:
+    try:
+        print(r.methods, r.path)
+    except Exception:
+        print(r)
+print("==============")
