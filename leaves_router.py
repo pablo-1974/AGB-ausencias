@@ -336,39 +336,67 @@ async def substitutions_new_create(
     )
 
 # VER BAJAS
+from fastapi import Query
 from sqlalchemy.orm import aliased
-from fastapi.responses import HTMLResponse
 
 @router.get("/leaves", response_class=HTMLResponse)
 async def leaves_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),  # cuando hablemos de roles lo afinamos
+    admin=Depends(admin_required),
+    status: str = Query("open", pattern="^(open|all)$"),
+    with_sub: str | None = Query(None, pattern="^(true|false)$"),
+    order: str = Query("asc", pattern="^(asc|desc)$"),
 ):
-    # Left join al sustituto para mostrar su nombre
     Sub = aliased(Teacher)
+
+    # Base: join al titular y left join al sustituto
     q = (
         select(Leave, Teacher, Sub)
         .join(Teacher, Teacher.id == Leave.teacher_id)
         .outerjoin(Sub, Sub.id == Leave.substitute_teacher_id)
-        # Puedes listar solo abiertas o todas. Por ahora: solo bajas abiertas o con sustitución activa
-        .where(Leave.end_date.is_(None))
-        .order_by(Leave.start_date.asc(), Teacher.name.asc())
     )
+
+    # Filtro por estado de la baja
+    if status == "open":
+        q = q.where(Leave.end_date.is_(None))
+
+    # Filtro por si tiene sustituto o no (en curso o ya cerrado)
+    if with_sub == "true":
+        q = q.where(Leave.substitute_teacher_id.is_not(None))
+    elif with_sub == "false":
+        q = q.where(Leave.substitute_teacher_id.is_(None))
+
+    # Orden
+    if order == "desc":
+        q = q.order_by(Leave.start_date.desc(), Teacher.name.asc())
+    else:
+        q = q.order_by(Leave.start_date.asc(), Teacher.name.asc())
+
     rows = (await session.execute(q)).all()
 
     items = []
     for lv, t, sub in rows:
         items.append({
             "leave_id": lv.id,
-            "start_date": lv.start_date,
+            "teacher_id": t.id,                # para /leaves/finish
             "teacher_name": t.name,
-            "sub_start_date": lv.substitute_start_date,
-            "sub_end_date": lv.substitute_end_date,
+            "start_date": lv.start_date,
+            "sub_start_date": getattr(lv, "substitute_start_date", None),
+            "sub_end_date": getattr(lv, "substitute_end_date", None),
             "sub_name": sub.name if sub else None,
-            "teacher_id": t.id,  # para el formulario de finalizar
         })
 
+    # Pasamos los filtros actuales para poder reconstruir enlaces en la plantilla si quieres
+    return _templates(request).TemplateResponse(
+        "leaves_list.html",
+        _ctx(
+            request,
+            title="Bajas (ver)",
+            items=items,
+            current_filters={"status": status, "with_sub": with_sub, "order": order},
+        ),
+    )
     return _templates(request).TemplateResponse(
         "leaves_list.html",
         _ctx(request, title="Bajas (ver)", items=items),
