@@ -108,10 +108,8 @@ async def leaves_new_form(
     """
     Muestra el formulario de apertura de baja con el listado de profesores.
     """
-    # Cargar profesores (si quieres solo activos, filtra por status)
-    q = select(Teacher).order_by(Teacher.name.asc())
-    # Si solo quieres 'activos':
-    # q = q.where(Teacher.status == TeacherStatus.activo)
+    # Cargar profesores (solo activos, filtra por status)
+    q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
     teachers = (await session.execute(q)).scalars().all()
 
     return _templates(request).TemplateResponse(
