@@ -160,6 +160,10 @@ class Leave(Base):
         ForeignKey("teachers.id"),
         nullable=True
     )
+    
+    # fechas de sustitución
+    substitute_start_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
+    substitute_end_date:   Mapped[Date | None] = mapped_column(Date, nullable=True)
 
 
 class Absence(Base):
@@ -211,5 +215,6 @@ class Absence(Base):
 #
 # NOTA: si usas este modelo, recuerda crear su migración Alembic y adaptar los routers
 # que lean sustituciones (por ejemplo, /teachers/list “Profesorado Actual”).
+
 
 
