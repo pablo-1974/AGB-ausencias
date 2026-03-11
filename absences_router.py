@@ -212,8 +212,11 @@ async def absences_categorize(
         "teacher_name": t.name,
         "hours_str": mask_to_human(a.hours_mask or 0),
         "cause": (a.note or "").strip(),
-        "category": a.category or "",
+        "category": (a.category or "").strip(),
     } for (a, t) in rows]
+
+    # Diccionario para tooltip: código -> descripción (para la "pill" en la plantilla)
+    categories_map = {code: label for code, label in ABSENCE_CATEGORIES}
 
     info = None
     if not items:
@@ -226,6 +229,7 @@ async def absences_categorize(
             title="Catalogar ausencias",
             items=items,
             categories=ABSENCE_CATEGORIES,
+            categories_map=categories_map,  # <-- añadido para la etiqueta y tooltip
             filters={"scope": scope, "from": d_from.isoformat(), "to": d_to.isoformat()},
             info=info,
         ),
@@ -370,5 +374,5 @@ async def absences_new_create(
 
     await session.commit()
 
-    # Volver a Ver Ausencias filtrando por ese mismo día (usar '&', NO '&amp;' en Python)
+    # Volver a Ver Ausencias filtrando por ese mismo día (usar '&', no entidades HTML en Python)
     return RedirectResponse(f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}", status_code=303)
