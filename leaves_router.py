@@ -71,27 +71,12 @@ async def leaves_finish(
         # Cierra la baja + revertir sustitución (estados y horario), y fija substitute_end_date
         await close_leave(session, teacher_id=teacher_id, end_date=end_date)
 
-        # Si nos pasaron 'next', volvemos a la lista (por ejemplo /leaves?status=open&...)
+        # ✅ Si nos pasaron 'next', volvemos a la lista con filtros
         if next_url:
             return RedirectResponse(next_url, status_code=303)
 
-        # Si no hay 'next', mantenemos tu flujo previo: mostrar el form de "Finalizar baja"
-        res = await session.execute(
-            select(Leave, Teacher)
-            .join(Teacher, Teacher.id == Leave.teacher_id)
-            .where(Leave.end_date.is_(None))
-            .order_by(Teacher.name.asc())
-        )
-        rows = res.all()
-        open_items = [
-            {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
-            for (l, t) in rows
-        ]
-
-        return _templates(request).TemplateResponse(
-            "leaves_close.html",
-            _ctx(request, open_items=open_items, info="Baja finalizada correctamente."),
-        )
+        # ✅ Si no hay 'next', volver a Ver Bajas por defecto
+        return RedirectResponse("/leaves", status_code=303)
 
     except Exception as e:
         # Si hay error, re-pintamos el formulario con el mensaje de error
@@ -163,9 +148,9 @@ async def leaves_new_create(
             leave_type=lt,
             cause=cause or "Baja",
         )
-        # Redirige a una vista tras crear. Si aún no tienes listado, puedes volver al close o al dashboard.
-        # Si crearás /leaves (listado), cámbialo a "/leaves".
-        return RedirectResponse("/leaves/close", status_code=303)
+        # ✅ Tras crear, volver siempre a Ver Bajas
+        return RedirectResponse("/leaves", status_code=303)
+
     except HTTPException as he:
         # Re-pintar el form con error de validación del servicio
         q = select(Teacher).order_by(Teacher.name.asc())
@@ -366,16 +351,14 @@ async def substitutions_new_create(
             effective_from=start_date
         )
     except Exception as e:
-        # No impedimos la sustitución por fallo de horario, pero informamos
+        # (Puedes decidir también redirigir a /leaves con un sistema de mensajes flash)
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
             _ctx(request, info="Sustitución creada, pero hubo un problema heredando el horario: " + str(e)),
         )
 
-    return _templates(request).TemplateResponse(
-        "substitutions_new.html",
-        _ctx(request, info="Sustitución creada correctamente."),
-    )
+    # ✅ Tras crear sustitución, volver a Ver Bajas
+    return RedirectResponse("/leaves", status_code=303)
 
 # VER BAJAS
 from fastapi import Query
