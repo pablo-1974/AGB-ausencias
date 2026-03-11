@@ -1,39 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-lg font-semibold mb-4">Ausencias del día</h1>
 
-<form method="get" action="/absences/manage" class="card space-y-2 max-w-md mb-4">
-  <div>
-    <label class="label">Fecha</label>
-    <input class="input" type="date" name="date" value="{{ date_value or '' }}" required>
+<h1 class="text-lg font-semibold mb-4">Ver Ausencias</h1>
+
+{% if error %}
+  <div class="mb-4 p-3 rounded bg-red-100 text-red-700">{{ error }}</div>
+{% endif %}
+{% if info %}
+  <div class="mb-4 p-3 rounded bg-blue-50 text-blue-700">{{ info }}</div>
+{% endif %}
+
+<div class="mb-3 flex items-end gap-3">
+  <!-- Filtros -->
+  /absences/manage
+    <div>
+      <label class="label">Desde</label>
+      <input type="date" class="input" name="from" value="{{ filters.from }}">
+    </div>
+    <div>
+      <label class="label">Hasta</label>
+      <input type="date" class="input" name="to" value="{{ filters.to }}">
+    </div>
+    <div class="pt-6">
+      <button class="btn-primary">Filtrar</button>
+    </div>
+  </form>
+
+  <!-- Nueva ausencia -->
+  <div class="ml-auto pt-6">
+    /absences/new?d={{ filters.from }}Nueva ausencia</a>
   </div>
-  <button class="btn-primary">Ver</button>
-</form>
+</div>
 
-{% if absences is defined %}
+<div class="card overflow-x-auto">
   <table class="table">
     <thead>
       <tr>
-        <th>Profesor</th><th>Fecha</th><th>Horas</th><th>Nota</th><th>Causa</th><th></th>
+        <th>Día</th>
+        <th>Profesor</th>
+        <th>Horas</th>
+        <th>Causa</th>
       </tr>
     </thead>
     <tbody>
-      {% for a in absences %}
-        <tr>
-          <td>{{ a.teacher_name }}</td>
-          <td>{{ a.date }}</td>
-          <td>{{ a.hours_text }}</td>
-          <td>{{ a.note or '' }}</td>
-          <td>{{ a.category or '' }}</td>
-          <td class="whitespace-nowrap">
-            <a class="btn-muted" href="/absences/{{ a.id }}/edit">Modificar</a>
-            <form class="inline" method="post" action="/absences/{{ a.id }}/delete" onsubmit="return confirm('¿Borrar ausencia?')">
-              <button class="btn-muted">Borrar</button>
-            </form>
-          </td>
-        </tr>
+      {% for it in items %}
+      <tr>
+        <td>{{ it.day }}</td>
+        <td>{{ it.teacher_name }}</td>
+        <td>{{ it.hours_str }}</td>
+        <td>{{ it.cause }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="text-center py-6 text-gray-500">
+          No hay ausencias para las fechas seleccionadas.
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
-{% endif %}
+</div>
+
 {% endblock %}
