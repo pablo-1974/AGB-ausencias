@@ -1,6 +1,7 @@
 # leaves_router.py
 from __future__ import annotations
 from fastapi import APIRouter, Depends, Request, Form
+from starlette.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
@@ -58,12 +59,19 @@ async def leaves_finish(
     request: Request,
     teacher_id: int = Form(...),
     end_date: date = Form(...),
+    next_url: str | None = Form(None, alias="next"),   # ⬅ recoge 'next' si viene del formulario
     session: AsyncSession = Depends(get_session),
     admin=Depends(admin_required),
 ):
     try:
+        # Cierra la baja + revertir sustitución (estados y horario), y fija substitute_end_date
         await close_leave(session, teacher_id=teacher_id, end_date=end_date)
-        # Recargar la lista para que desaparezca la que acabas de cerrar
+
+        # Si nos pasaron 'next', volvemos a la lista (por ejemplo /leaves?status=open&...)
+        if next_url:
+            return RedirectResponse(next_url, status_code=303)
+
+        # Si no hay 'next', mantenemos tu flujo previo: mostrar el form de "Finalizar baja"
         res = await session.execute(
             select(Leave, Teacher)
             .join(Teacher, Teacher.id == Leave.teacher_id)
@@ -71,14 +79,18 @@ async def leaves_finish(
             .order_by(Teacher.name.asc())
         )
         rows = res.all()
-        open_items = [{"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date} for (l, t) in rows]
+        open_items = [
+            {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
+            for (l, t) in rows
+        ]
 
         return _templates(request).TemplateResponse(
             "leaves_close.html",
             _ctx(request, open_items=open_items, info="Baja finalizada correctamente."),
         )
+
     except Exception as e:
-        # Volver a pintar el form con el error
+        # Si hay error, re-pintamos el formulario con el mensaje de error
         res = await session.execute(
             select(Leave, Teacher)
             .join(Teacher, Teacher.id == Leave.teacher_id)
@@ -86,13 +98,17 @@ async def leaves_finish(
             .order_by(Teacher.name.asc())
         )
         rows = res.all()
-        open_items = [{"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date} for (l, t) in rows]
+        open_items = [
+            {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
+            for (l, t) in rows
+        ]
 
         return _templates(request).TemplateResponse(
             "leaves_close.html",
             _ctx(request, open_items=open_items, error=str(e)),
             status_code=400,
         )
+
 
 # --- NUEVO: Iniciar baja ---
 
