@@ -361,6 +361,7 @@ async def substitutions_new_create(
     return RedirectResponse("/leaves", status_code=303)
 
 # VER BAJAS
+from typing import Optional
 from fastapi import Query
 from sqlalchemy.orm import aliased
 
@@ -371,7 +372,7 @@ async def leaves_list(
     session: AsyncSession = Depends(get_session),
     admin=Depends(admin_required),
     status: str = Query("open", pattern="^(open|all)$"),
-    with_sub: str | None = Query(None, pattern="^(true|false)$"),
+    with_sub: Optional[str] = Query(None),
     order: str = Query("asc", pattern="^(asc|desc)$"),
 ):
     Sub = aliased(Teacher)
