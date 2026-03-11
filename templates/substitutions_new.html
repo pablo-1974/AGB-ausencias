@@ -34,6 +34,7 @@
   </div>
 
   <!-- Modo sustituto -->
+
   <div x-data="{ mode: '' }" class="space-y-3">
     <label class="label">Profesor sustituto</label>
 
@@ -42,7 +43,6 @@
         <input type="radio" name="sub_mode" value="exprof" x-model="mode" required>
         <span>Elegir exprofe</span>
       </label>
-
       <label class="flex items-center gap-2">
         <input type="radio" name="sub_mode" value="new" x-model="mode" required>
         <span>Profesor nuevo</span>
@@ -52,7 +52,11 @@
     <!-- Exprofes -->
     <div x-show="mode === 'exprof'" x-cloak>
       <label class="label">Selecciona exprofe</label>
-      <select name="exprof_teacher_id" class="input" :required="mode==='exprof'">
+      <select
+        class="input"
+        x-bind:name="mode === 'exprof' ? 'exprof_teacher_id' : null"
+        :disabled="mode !== 'exprof'"
+        :required="mode === 'exprof'">
         <option value="">-- seleccionar exprofe --</option>
         {% for t in exprofes %}
           <option value="{{ t.id }}">{{ t.name }}{% if t.alias %} ({{ t.alias }}){% endif %}</option>
@@ -64,18 +68,31 @@
     <div x-show="mode === 'new'" x-cloak class="grid md:grid-cols-3 gap-3">
       <div>
         <label class="label">Nombre completo</label>
-        <input class="input" type="text" name="new_name" :required="mode==='new'">
+        <input class="input"
+               type="text"
+               x-bind:name="mode === 'new' ? 'new_name' : null"
+               :disabled="mode !== 'new'"
+               :required="mode === 'new'">
       </div>
       <div>
         <label class="label">Email</label>
-        <input class="input" type="email" name="new_email" :required="mode==='new'">
+        <input class="input"
+               type="email"
+               x-bind:name="mode === 'new' ? 'new_email' : null"
+               :disabled="mode !== 'new'"
+               :required="mode === 'new'">
       </div>
       <div>
         <label class="label">Alias</label>
-        <input class="input" type="text" name="new_alias" :required="mode==='new'">
+        <input class="input"
+               type="text"
+               x-bind:name="mode === 'new' ? 'new_alias' : null"
+               :disabled="mode !== 'new'"
+               :required="mode === 'new'">
       </div>
     </div>
   </div>
+
 
   <div>
     <button class="btn-primary">Iniciar sustitución</button>
@@ -83,3 +100,4 @@
 </form>
 
 {% endblock %}
+
