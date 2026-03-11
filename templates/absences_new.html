@@ -1,39 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-lg font-semibold mb-4">Añadir ausencia</h1>
 
-<form method="post" action="/absences/new" class="card space-y-4 max-w-2xl">
-  <div>
-    <label class="label">Profesor</label>
-    <select name="teacher_id" class="input">
-      <option value="">-- seleccionar --</option>
-      {% for t in teachers or [] %}
-        <option value="{{ t.id }}">{{ t.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div>
-    <label class="label">Fecha</label>
-    <input class="input" type="date" name="date" required>
-  </div>
-  <div>
-    <label class="label">Horas</label>
-    <div class="grid grid-cols-8 gap-2">
-      <label class="flex items-center gap-1"><input type="checkbox" name="all" value="1"> Todas</label>
-      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="1"> 1</label>
-      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="2"> 2</label>
-      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="3"> 3</label>
-      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="4"> 4</label>
-      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="5"> 5</label>
-      <label class="flex items-center gap-1"><input type="checkbox" name="hours" value="6"> 6</label>
+<h1 class="text-lg font-semibold mb-4">Nueva ausencia</h1>
+
+{% if error %}
+  <div class="mb-4 p-3 rounded bg-red-100 text-red-700">{{ error }}</div>
+{% endif %}
+{% if info %}
+  <div class="mb-4 p-3 rounded bg-green-100 text-green-700">{{ info }}</div>
+{% endif %}
+
+<div class="card max-w-xl">
+  /absences/new
+    <div>
+      <label class="label">Fecha</label>
+      <input
+        type="date"
+        class="input"
+        name="day"
+        value="{{ target.isoformat() }}"
+        required
+        onchange="window.location='?d='+this.value"
+        title="Cambia la fecha para recalcular los profesores activos"
+      >
     </div>
-    <p class="text-xs text-gray-500">Se pueden marcar varias, salvo que elijas “Todas”.</p>
-  </div>
-  <div>
-    <label class="label">Explicación</label>
-    <textarea class="input" name="note" rows="2" placeholder="Opcional"></textarea>
-  </div>
-  <button class="btn-primary">Guardar</button>
-</form>
+
+    <div class="mt-3">
+      <label class="label">Profesor (activos en la fecha)</label>
+      <select name="teacher_id" class="input" required>
+        <option value="">— seleccionar —</option>
+        {% for t in teachers %}
+          <option value="{{ t.id }}">{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mt-3" x-data="{mode: 'all'}">
+      <label class="label">Horas</label>
+
+      <div class="flex items-center gap-6 mb-2">
+        <label class="flex items-center gap-2">
+          <input type="radio" name="hours_mode" value="all" x-model="mode" checked>
+          <span>Todas</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="radio" name="hours_mode" value="range" x-model="mode">
+          <span>Desde / Hasta</span>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3" x-show="mode==='range'" x-cloak>
+        <div>
+          <label class="label">Desde</label>
+          <select class="input" x-bind:name="mode==='range' ? 'hour_from' : null" :required="mode==='range'">
+            <option value="">—</option>
+            <option value="0">1ª</option>
+            <option value="1">2ª</option>
+            <option value="2">3ª</option>
+            <option value="3">4ª</option>
+            <option value="4">5ª</option>
+            <option value="5">6ª</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Hasta</label>
+          <select class="input" x-bind:name="mode==='range' ? 'hour_to' : null" :required="mode==='range'">
+            <option value="">—</option>
+            <option value="0">1ª</option>
+            <option value="1">2ª</option>
+            <option value="2">3ª</option>
+            <option value="3">4ª</option>
+            <option value="4">5ª</option>
+            <option value="5">6ª</option>
+          </select>
+        </div>
+        <p class="col-span-2 text-xs text-gray-500">
+          Ejemplos: 1ª a 1ª → falta solo 1ª. 3ª a 6ª → falta 3ª, (recreo), 4ª, 5ª, 6ª.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <label class="label">Causa</label>
+      <input type="text" class="input" name="cause" placeholder="Motivo de la ausencia" required>
+    </div>
+
+    <div class="mt-4">
+      <button class="btn-primary">Confirmar</button>
+    </div>
+  </form>
+</div>
+
 {% endblock %}
-``
