@@ -16,6 +16,8 @@ from imports_schedule import router as schedule_import_router
 from schedule_router import router as schedule_router
 # router de listados de profesorado (pantalla + PDFs)
 from teachers_router import router as teachers_router  # NEW
+# router de bajas
+from leaves_router import router as leaves_router
 
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
@@ -77,6 +79,7 @@ app.include_router(teachers_import_router)    # importar profesores
 app.include_router(schedule_import_router)    # importar guardias y clases
 app.include_router(schedule_router)           # ver/editar/imprimir horario
 app.include_router(teachers_router)           # listados de profesorado
+app.include_router(leaves_router)
 
 # ------------------------------------------------------------
 # Contexto común
@@ -140,3 +143,4 @@ async def internal_error(request: Request, exc):
         tpl(request, message="Error interno. Intenta más tarde."),
         status_code=500
     )
+
