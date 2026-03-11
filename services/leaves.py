@@ -127,6 +127,7 @@ async def set_substitution(
         substitute_teacher_id = exists.id
 
     lv.substitute_teacher_id = substitute_teacher_id
+    lv.substitute_start_date = start_date
     await session.commit()
     await session.refresh(lv)
     return lv
@@ -184,7 +185,12 @@ async def close_leave(session: AsyncSession, teacher_id: int, end_date: date) ->
             for s in sub_slots:
                 await session.delete(s)
 
+
+        # Fin de sustitución = fecha de cierre de la baja
+        lv.substitute_end_date = end_date
+    
     # 5) Persistir cambios
     await session.commit()
     await session.refresh(lv)
     return lv
+
