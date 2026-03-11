@@ -3,6 +3,41 @@
 
 <h1 class="text-2xl font-bold mb-4">Horario</h1>
 
+<!-- Estilos locales SOLO para esta vista -->
+<style>
+  /* Centrado local para la tabla de horario, sin afectar a otras tablas */
+  .schedule-table td { vertical-align: middle; text-align: center; }
+  .schedule-cell {
+    /* Caja flexible para centrar el contenido en ambas direcciones */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Altura mínima coherente con la fila normal */
+    min-height: 60px; /* coincide con h-[60px] */
+  }
+  .schedule-cell--recreo {
+    min-height: 32px; /* coincide con h-[32px] */
+  }
+  .schedule-badge {
+    border: 1px solid #e5e7eb;   /* gray-200 */
+    border-radius: 0.375rem;     /* rounded-md */
+    padding: 0.25rem 0.5rem;     /* p-1 px-2 */
+  }
+  .schedule-badge.class {
+    background-color: #eef2ff;   /* indigo-50 */
+    color: #3730a3;              /* indigo-800 */
+    border-color: #c7d2fe;       /* indigo-200 */
+  }
+  .schedule-badge.guard {
+    background-color: #fffbeb;   /* amber-50 */
+    color: #92400e;              /* amber-800 */
+    border-color: #fde68a;       /* amber-300 */
+    font-weight: 600;
+  }
+  .schedule-line { line-height: 1.1; } /* leading-tight */
+  .schedule-muted { font-size: 0.75rem; color: #6b7280; } /* text-xs text-gray-500 */
+</style>
+
 <!-- Selector de profesor -->
 <div class="max-w-md mb-6 card">
   <form action="/schedule/view" method="post">
@@ -29,7 +64,7 @@
 
   <!-- Tabla del horario -->
   <div class="overflow-x-auto">
-    <table class="table table-fixed w-full text-center border border-gray-200">
+    <table class="table table-fixed w-full text-center border border-gray-200 schedule-table">
 
       <!-- Columnas: primera más estrecha -->
       <colgroup>
@@ -64,17 +99,26 @@
             {% for day in range(5) %}
               {% set slot = schedule[hour][day] %}
               <td class="border align-middle text-center text-xs">
-                {% if slot %}
-                  {% if slot.type.name == "CLASS" %}
-                    <div class="text-center">
-                      <div>{{ slot.group }}</div>
-                      <div>{{ slot.room }}</div>
-                      <div>{{ slot.subject }}</div>
-                    </div>
-                  {% elif slot.type.name == "GUARD" %}
-                    <div class="text-purple-700 font-semibold">{{ slot.guard_type }}</div>
+                <div class="schedule-cell {% if hour == 3 %}schedule-cell--recreo{% endif %}">
+                  {% if slot %}
+                    {% if slot.type and slot.type.name == "CLASS" %}
+                      <div class="schedule-badge class">
+                        <div class="schedule-line">{{ slot.subject or 'Clase' }}</div>
+                        <div class="schedule-muted">
+                          {{ slot.group or '' }}{% if slot.group and slot.room %} · {% endif %}{{ slot.room or '' }}
+                        </div>
+                      </div>
+                    {% elif slot.type and slot.type.name == "GUARD" %}
+                      <div class="schedule-badge guard">
+                        {{ slot.guard_type or 'Guardia' }}
+                      </div>
+                    {% else %}
+                      <div class="schedule-line text-gray-300">—</div>
+                    {% endif %}
+                  {% else %}
+                    <div class="schedule-line text-gray-300">—</div>
                   {% endif %}
-                {% endif %}
+                </div>
               </td>
             {% endfor %}
           </tr>
