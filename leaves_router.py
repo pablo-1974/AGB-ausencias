@@ -6,6 +6,7 @@ from starlette.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
+from typing import Optional
 
 from database import get_session
 from config import settings
@@ -251,10 +252,12 @@ async def substitutions_new_create(
     teacher_id: int = Form(...),        # sustituido
     start_date: date = Form(...),
     sub_mode: str = Form(...),          # 'exprof' | 'new'
-    exprof_teacher_id: int | None = Form(None),
-    new_name: str | None = Form(None),
-    new_email: str | None = Form(None),
-    new_alias: str | None = Form(None),
+    # ARREGLO B: aceptar string opcional, tolerar "" y convertir a int con control
+    exprof_teacher_id: Optional[str] = Form(None),
+    # Datos de nuevo profesor
+    new_name: Optional[str] = Form(None),
+    new_email: Optional[str] = Form(None),
+    new_alias: Optional[str] = Form(None),
 ):
     # Validaciones de selección
     if sub_mode not in ("exprof", "new"):
@@ -283,17 +286,28 @@ async def substitutions_new_create(
         )
 
     # Resolver el ID del sustituto
-    substitute_teacher_id: int | None = None
+    substitute_teacher_id: Optional[int] = None
 
     if sub_mode == "exprof":
+        # ARREGLO B: tolerar cadena vacía y convertir a int de forma segura
+        exprof_teacher_id = (exprof_teacher_id or "").strip()
         if not exprof_teacher_id:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
                 _ctx(request, error="Debes seleccionar un exprofesor para la sustitución."),
                 status_code=400,
             )
+        try:
+            exprof_id = int(exprof_teacher_id)
+        except ValueError:
+            return _templates(request).TemplateResponse(
+                "substitutions_new.html",
+                _ctx(request, error="Identificador de exprofesor no válido."),
+                status_code=400,
+            )
+
         # Activar al exprof como 'activo'
-        sub_t = (await session.execute(select(Teacher).where(Teacher.id == exprof_teacher_id))).scalar_one_or_none()
+        sub_t = (await session.execute(select(Teacher).where(Teacher.id == exprof_id))).scalar_one_or_none()
         if not sub_t:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
@@ -345,7 +359,12 @@ async def substitutions_new_create(
 
     # HEREDAR HORARIO: clona el horario del sustituido al sustituto desde start_date
     try:
-        await clone_teacher_schedule(session, source_teacher_id=teacher_id, target_teacher_id=substitute_teacher_id, effective_from=start_date)
+        await clone_teacher_schedule(
+            session,
+            source_teacher_id=teacher_id,
+            target_teacher_id=substitute_teacher_id,
+            effective_from=start_date
+        )
     except Exception as e:
         # No impedimos la sustitución por fallo de horario, pero informamos
         return _templates(request).TemplateResponse(
