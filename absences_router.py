@@ -151,7 +151,116 @@ async def absences_manage(
             },
         ),
     )
+# =====================================
+# ==== CATALOGAR AUSENCIAS ============
+# =====================================
+from typing import Optional
+from datetime import date, timedelta
+import calendar
+from sqlalchemy import select, and_, or_
 
+# Catálogo de categorías (código -> descripción)
+ABSENCE_CATEGORIES = [
+    ("A", "Enfermedad de duración superior a tres días"),
+    ("B", "Matrimonio"),
+    ("C", "Embarazo"),
+    ("D", "Licencia por estudios"),
+    ("E", "Asuntos propios"),
+    ("F", "Actividades de perfeccionamiento"),
+    ("G", "Nacimiento de un hijo, enfermedad de un familiar"),
+    ("H", "Traslado de domicilio, funciones sindicales, c. exámenes …"),
+    ("I", "Deber inexcusable de carácter público o personal"),
+    ("J", "Asistencia a consulta médica"),
+    ("K", "Enfermedad de 1 a tres días"),
+    ("L", "\"Moscosos\" y otros motivos"),
+    ("Z", "Actividad del CENTRO"),
+]
+
+def _first_day_of_month(d: date) -> date:
+    return date(d.year, d.month, 1)
+
+def _last_day_of_month(d: date) -> date:
+    last = calendar.monthrange(d.year, d.month)[1]
+    return date(d.year, d.month, last)
+
+@router.get("/absences/categorize", response_class=HTMLResponse)
+async def absences_categorize(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),
+    scope: str = Query("pending", pattern="^(pending|all)$"),  # pending = sin catalogar (por defecto)
+    since: Optional[str] = Query(None, alias="from"),
+    until: Optional[str] = Query(None, alias="to"),
+):
+    today = date.today()
+    d_from = date.fromisoformat(since) if since else _first_day_of_month(today)
+    d_to = date.fromisoformat(until) if until else _last_day_of_month(today)
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+
+    q = (
+        select(Absence, Teacher)
+        .join(Teacher, Teacher.id == Absence.teacher_id)
+        .where(and_(Absence.date >= d_from, Absence.date <= d_to))
+    )
+    if scope == "pending":
+        q = q.where(or_(Absence.category.is_(None), Absence.category == ""))
+
+    q = q.order_by(Absence.date.asc(), Teacher.name.asc())
+    rows = (await session.execute(q)).all()  # (Absence, Teacher)
+
+    items = [{
+        "id": a.id,
+        "day": a.date,
+        "teacher_name": t.name,
+        "hours_str": mask_to_human(a.hours_mask or 0),
+        "cause": (a.note or "").strip(),
+        "category": a.category or "",
+    } for (a, t) in rows]
+
+    info = None
+    if not items:
+        info = "No hay ausencias para los filtros seleccionados."
+
+    return _templates(request).TemplateResponse(
+        "absences_categorize.html",
+        _ctx(
+            request,
+            title="Catalogar ausencias",
+            items=items,
+            categories=ABSENCE_CATEGORIES,
+            filters={"scope": scope, "from": d_from.isoformat(), "to": d_to.isoformat()},
+            info=info,
+        ),
+    )
+
+@router.post("/absences/categorize")
+async def absences_categorize_post(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),
+    absence_id: int = Form(...),
+    category: str = Form(...),
+    next_url: Optional[str] = Form(None, alias="next"),
+):
+    valid_codes = {code for code, _ in ABSENCE_CATEGORIES}
+    category = (category or "").strip().upper()
+    if category not in valid_codes:
+        # Redibujar con error (recuperar filtros de next si llegan)
+        # Fallback a lista “pendientes” si no hay next
+        url = next_url or "/absences/categorize?scope=pending"
+        return RedirectResponse(url, status_code=303)
+
+    a = await session.get(Absence, absence_id)
+    if not a:
+        url = next_url or "/absences/categorize?scope=pending"
+        return RedirectResponse(url, status_code=303)
+
+    a.category = category
+    await session.commit()
+
+    # Volver a la lista de catalogación manteniendo filtros
+    return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
 
 # ==================================
 # NUEVA AUSENCIA (GET/POST)
