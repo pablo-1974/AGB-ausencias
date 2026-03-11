@@ -2,7 +2,6 @@
 {% block content %}
 <h1 class="text-lg font-semibold mb-4">Abrir baja</h1>
 
-{# Mensajes de error/éxito opcionales #}
 {% if error %}
   <div class="mb-4 p-3 rounded bg-red-100 text-red-700">{{ error }}</div>
 {% endif %}
@@ -10,7 +9,7 @@
   <div class="mb-4 p-3 rounded bg-green-100 text-green-700">{{ info }}</div>
 {% endif %}
 
-<form method="post" action="/leaves/new" class="card space-y-3 max-w-xl">
+/leaves/new
   <div>
     <label class="label">Profesor</label>
     <select name="teacher_id" class="input" required>
@@ -28,10 +27,16 @@
 
   <div>
     <label class="label">Tipo</label>
-    <select name="leave_type" class="input" required>
-      <option value="baja">Baja</option>
-      <option value="excedencia">Excedencia</option>
-    </select>
+    <div class="flex items-center gap-6">
+      <label class="flex items-center gap-2">
+        <input type="radio" name="leave_type" value="baja" required>
+        <span>Baja</span>
+      </label>
+      <label class="flex items-center gap-2">
+        <input type="radio" name="leave_type" value="excedencia" required>
+        <span>Excedencia</span>
+      </label>
+    </div>
   </div>
 
   <div>
