@@ -9,7 +9,7 @@
   <div class="mb-4 p-3 rounded bg-green-100 text-green-700">{{ info }}</div>
 {% endif %}
 
-/leaves/new
+<form method="post" action="/leaves/new" class="card space-y-3 max-w-xl">
   <div>
     <label class="label">Profesor</label>
     <select name="teacher_id" class="input" required>
@@ -46,4 +46,5 @@
 
   <button class="btn-primary">Abrir baja</button>
 </form>
+
 {% endblock %}
