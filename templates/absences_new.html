@@ -11,7 +11,7 @@
 {% endif %}
 
 <div class="card max-w-xl">
-  /absences/new
+  <form method="post" action="/absences/new">
     <div>
       <label class="label">Fecha</label>
       <input
@@ -52,7 +52,9 @@
       <div class="grid grid-cols-2 gap-3" x-show="mode==='range'" x-cloak>
         <div>
           <label class="label">Desde</label>
-          <select class="input" x-bind:name="mode==='range' ? 'hour_from' : null" :required="mode==='range'">
+          <select class="input"
+                  x-bind:name="mode==='range' ? 'hour_from' : null"
+                  :required="mode==='range'">
             <option value="">—</option>
             <option value="0">1ª</option>
             <option value="1">2ª</option>
@@ -64,7 +66,9 @@
         </div>
         <div>
           <label class="label">Hasta</label>
-          <select class="input" x-bind:name="mode==='range' ? 'hour_to' : null" :required="mode==='range'">
+          <select class="input"
+                  x-bind:name="mode==='range' ? 'hour_to' : null"
+                  :required="mode==='range'">
             <option value="">—</option>
             <option value="0">1ª</option>
             <option value="1">2ª</option>
