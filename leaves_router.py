@@ -34,6 +34,7 @@ def _ctx(request: Request, **extra):
     base.update(extra or {})
     return base
 
+#### router GET /leaves/close #####
 @router.get("/leaves/close")
 async def leaves_close_form(
     request: Request,
@@ -55,6 +56,7 @@ async def leaves_close_form(
         _ctx(request, open_items=open_items, title="Finalizar baja"),
     )
 
+#### router POST /leaves/finish #####
 @router.post("/leaves/finish")
 async def leaves_finish(
     request: Request,
@@ -116,6 +118,7 @@ async def leaves_finish(
 from services.leaves import open_leave  # ya importaste close_leave arriba; añadimos open_leave
 from fastapi import HTTPException
 
+#### router GET /leaves/new #####
 @router.get("/leaves/new")
 async def leaves_new_form(
     request: Request,
@@ -134,6 +137,7 @@ async def leaves_new_form(
         _ctx(request, title="Iniciar baja", teachers=teachers),
     )
 
+#### router POST /leaves/new #####
 @router.post("/leaves/new")
 async def leaves_new_create(
     request: Request,
@@ -186,6 +190,7 @@ from sqlalchemy import and_, or_, exists
 from services.leaves import set_substitution
 from services.schedule import clone_teacher_schedule  # <-- te doy esta función más abajo
 
+#### router GET /substitutions/new #####
 @router.get("/substitutions/new")
 async def substitutions_new_form(
     request: Request,
@@ -237,6 +242,7 @@ async def substitutions_new_form(
         _ctx(request, title="Iniciar sustitución", open_leaves=open_leaves, exprofes=exprofes),
     )
 
+#### router POST /substitutions/new #####
 @router.post("/substitutions/new")
 async def substitutions_new_create(
     request: Request,
@@ -356,6 +362,7 @@ async def substitutions_new_create(
 from fastapi import Query
 from sqlalchemy.orm import aliased
 
+#### router GET /leaves #####
 @router.get("/leaves", response_class=HTMLResponse)
 async def leaves_list(
     request: Request,
