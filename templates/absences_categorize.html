@@ -51,6 +51,7 @@
         <th class="text-right">Catalogar</th>
       </tr>
     </thead>
+
     <tbody>
       {% for it in items %}
       <tr x-data="{ open: false }">
@@ -58,60 +59,59 @@
         <td>{{ it.teacher_name }}</td>
         <td>{{ it.hours_str }}</td>
         <td>{{ it.cause }}</td>
+
         <td class="text-right">
-
           {% if it.category %}
-              <!-- Categoría ya seleccionada: NO mostrar botón -->
-              <span class="font-semibold text-base px-2 py-1 inline-block">
-                {{ it.category }}
-              </span>
-
+            <!-- Ya catalogada: muestra la categoría, sin botón ni panel -->
+            <span class="font-semibold text-base px-2 py-1 inline-block">
+              {{ it.category }}
+            </span>
           {% else %}
-              <!-- Botón Catalogar en rojo -->
-              <button type="button"
-                      class="px-2 py-1 rounded text-red-600 hover:text-red-800 font-semibold"
-                      @click="open = !open">
-                Catalogar
-              </button>
+            <!-- Botón Catalogar en rojo (abre/cierra el panel) -->
+            <button
+              type="button"
+              class="px-2 py-1 rounded text-red-600 hover:text-red-800 font-semibold"
+              @click="open = !open">
+              Catalogar
+            </button>
 
-              <!-- Panel de catalogación -->
-              <div x-show="open" x-cloak class="mt-2 border rounded p-2 text-left inline-block">
-                <form method="post" action="/absences/categorize" class="space-y-2">
-                  
-                  <input type="hidden" name="absence_id" value="{{ it.id }}">
-                  <input type="hidden" name="next"
-                         value="/absences/categorize?scope={{ filters.scope }}&from={{ filters.from }}&to={{ filters.to }}">
+            <!-- Panel de catalogación -->
+            <div x-show="open" x-cloak class="mt-2 border rounded p-2 text-left inline-block">
+              <form method="post" action="/absences/categorize" class="space-y-2">
+                <input type="hidden" name="absence_id" value="{{ it.id }}">
+                <input type="hidden" name="next"
+                       value="/absences/categorize?scope={{ filters.scope }}&from={{ filters.from }}&to={{ filters.to }}">
 
-                  <!-- Lista de categorías (una sola columna) -->
-                  <div class="space-y-2 max-w-2xl">
-                    {% for code, label in categories %}
-                      <label class="flex items-start gap-2">
-                        <!-- radio (círculo blanco) -->
-                        <input type="radio"
-                               name="category"
-                               value="{{ code }}"
-                               {% if it.category == code %}checked{% endif %}
-                               required>
+                <!-- Opciones: letra + explicación en la misma línea -->
+                <div class="space-y-2 max-w-2xl">
+                  {% for code, label in categories %}
+                    <label class="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="category"
+                        value="{{ code }}"
+                        required
+                      >
+                      <span class="flex items-baseline gap-2">
+                        <span class="font-semibold text-base">{{ code }}</span>
+                        <span class="text-sm text-gray-600">{{ label }}</span>
+                      </span>
+                    </label>
+                  {% endfor %}
+                </div>
 
- 
-                        <!-- letra y explicación en la MISMA línea -->
-                        <span class="flex items-baseline gap-2">                       
-                          <span class="font-semibold text-base">{{ code }}</span>
-                          <span class="text-sm text-gray-600">{{ label }}</span>
-                        </span>
-
-                      </label>
-                    {% endfor %}
-                  </div>
-
-                  <div class="text-right">
-                    <button class="btn-primary">Confirmar</button>
-                  </div>
-
-                </form>
-              </div>
+                <!-- Acciones -->
+                <div class="flex justify-end gap-2 pt-2">
+                  <a
+                    href="/absences/categorize?scope={{ filters.scope }}&from={{ filters.from }}&to={{ filters.to }}"
+                    class="btn-muted inline-flex items-center">
+                    Cancelar
+                  </a>
+                  <button class="btn-primary">Confirmar</button>
+                </div>
+              </form>
+            </div>
           {% endif %}
-
         </td>
       </tr>
       {% else %}
@@ -122,8 +122,8 @@
       </tr>
       {% endfor %}
     </tbody>
+
   </table>
 </div>
 
 {% endblock %}
-
