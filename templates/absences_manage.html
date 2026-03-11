@@ -10,27 +10,27 @@
   <div class="mb-4 p-3 rounded bg-blue-50 text-blue-700">{{ info }}</div>
 {% endif %}
 
-<div class="mb-3 flex items-end gap-3">
-  <!-- Filtros -->
-  /absences/manage
-    <div>
-      <label class="label">Desde</label>
-      <input type="date" class="input" name="from" value="{{ filters.from }}">
-    </div>
-    <div>
-      <label class="label">Hasta</label>
-      <input type="date" class="input" name="to" value="{{ filters.to }}">
-    </div>
-    <div class="pt-6">
-      <button class="btn-primary">Filtrar</button>
-    </div>
-  </form>
-
-  <!-- Nueva ausencia -->
-  <div class="ml-auto pt-6">
-    /absences/new?d={{ filters.from }}Nueva ausencia</a>
+<!-- Filtros (GET) -->
+<form method="get" action="/absences/manage" class="card mb-4 grid md:grid-cols-4 gap-3 items-end">
+  <div>
+    <label class="label">Desde</label>
+    <input type="date" class="input" name="from" value="{{ filters.from }}">
   </div>
-</div>
+  <div>
+    <label class="label">Hasta</label>
+    <input type="date" class="input" name="to" value="{{ filters.to }}">
+  </div>
+
+  <div class="flex gap-2 pt-6">
+    <button class="btn-primary">Filtrar</button>
+    <a class="btn-muted inline-flex items-center" href="/absences/manage">Quitar filtros</a>
+  </div>
+
+  <!-- CTA Nueva ausencia (usa la fecha 'Desde' del filtro) -->
+  <div class="pt-6 text-right">
+    <a href="/absences/new?d={{ filters.from }}" class="btn-primary inline-block">Nueva ausencia</a>
+  </div>
+</form>
 
 <div class="card overflow-x-auto">
   <table class="table">
@@ -55,10 +55,4 @@
         <td colspan="4" class="text-center py-6 text-gray-500">
           No hay ausencias para las fechas seleccionadas.
         </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-{% endblock %}
+     
