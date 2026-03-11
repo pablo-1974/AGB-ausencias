@@ -70,20 +70,35 @@
               <input type="hidden" name="next"
                      value="/absences/categorize?scope={{ filters.scope }}&from={{ filters.from }}&to={{ filters.to }}">
 
-              <div class="grid md:grid-cols-2 gap-2 max-w-2xl">
+              <!-- 🔥 NUEVO BLOQUE EN UNA SOLA COLUMNA -->
+              <div class="space-y-2 max-w-2xl">
                 {% for code, label in categories %}
                   <label class="flex items-start gap-2">
-                    <input type="radio" name="category" value="{{ code }}" {% if it.category == code %}checked{% endif %} required>
-                    <span><strong>{{ code }}.</strong> {{ label }}</span>
+                    
+                    <!-- radio: círculo blanco -->
+                    <input type="radio"
+                           name="category"
+                           value="{{ code }}"
+                           {% if it.category == code %}checked{% endif %}
+                           required>
+
+                    <!-- Código grande + descripción pequeña -->
+                    <span class="leading-tight">
+                      <span class="font-semibold text-base">{{ code }}</span>
+                      <span class="text-sm text-gray-600 block ml-6">{{ label }}</span>
+                    </span>
+
                   </label>
                 {% endfor %}
               </div>
+              <!-- 🔥 FIN DEL BLOQUE MODIFICADO -->
 
               <div class="text-right">
                 <button class="btn-primary">Confirmar</button>
               </div>
             </form>
           </div>
+
         </td>
       </tr>
       {% else %}
