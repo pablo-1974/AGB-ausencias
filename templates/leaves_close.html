@@ -1,20 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-lg font-semibold mb-4">Cerrar baja</h1>
-<form method="post" action="/leaves/close" class="card space-y-3 max-w-xl">
+
+<h1 class="text-2xl font-bold mb-4">Finalizar baja</h1>
+
+{% if error %}
+  <div class="mb-3 p-3 rounded border border-red-200 bg-red-50 text-red-800 text-sm">{{ error }}</div>
+{% endif %}
+{% if info %}
+  <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{{ info }}</div>
+{% endif %}
+
+<form action="/leaves/finish" method="post" class="card space-y-3 max-w-xl">
   <div>
-    <label class="label">Profesor de baja</label>
-    <select name="teacher_id" class="input">
-      <option value="">-- seleccionar --</option>
-      {% for t in leaves_teachers or [] %}
-        <option value="{{ t.id }}">{{ t.name }}</option>
+    <label class="label">Profesor con baja/excedencia abierta</label>
+    <select name="teacher_id" class="input" required>
+      <option value="" selected hidden>— Selecciona —</option>
+      {% for it in open_items %}
+        <option value="{{ it.teacher_id }}">
+          {{ it.teacher_name }} (inicio: {{ it.start_date }})
+        </option>
       {% endfor %}
     </select>
+    {% if not open_items or open_items|length == 0 %}
+      <p class="text-xs text-slate-600 mt-1">No hay bajas abiertas.</p>
+    {% endif %}
   </div>
+
   <div>
-    <label class="label">Fecha fin</label>
-    <input class="input" type="date" name="end_date" required>
+    <label class="label">Fecha de fin</label>
+    <input type="date" name="end_date" class="input" required>
   </div>
-  <button class="btn-primary">Cerrar baja</button>
+
+  <button class="btn-primary">Finalizar baja</button>
 </form>
+
 {% endblock %}
