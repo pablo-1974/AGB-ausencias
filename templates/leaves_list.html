@@ -39,7 +39,7 @@
             </button>
 
             <div x-show="finalizar" x-cloak class="mt-2">
-              /leaves/finish
+              <form method="post" action="/leaves/finish" class="inline-flex gap-2 items-center">
                 <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
                 <input class="input !w-auto" type="date" name="end_date" required>
                 <button class="btn-primary"
