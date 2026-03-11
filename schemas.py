@@ -2,7 +2,7 @@
 from datetime import date
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from models import Role, ScheduleType
+from models import Role, ScheduleType, TeacherStatus
 
 
 # ---------------------------
@@ -43,6 +43,8 @@ class PasswordReset(BaseModel):
 class TeacherBase(BaseModel):
     name: str
     email: EmailStr
+    # Nuevo: estado del profesor. Si no se envía, por defecto 'activo'.
+    status: Optional[TeacherStatus] = TeacherStatus.activo
 
 
 class TeacherCreate(TeacherBase):
@@ -51,8 +53,8 @@ class TeacherCreate(TeacherBase):
 
 class TeacherOut(TeacherBase):
     id: int
-    active: bool
-
+    status: TeacherStatus
+    
     class Config:
         orm_mode = True
 
@@ -133,3 +135,4 @@ class SubstitutionCreate(BaseModel):
     teacher_id: int            # profesor de baja
     start_date: date           # inicio sustitución
     substitute_name: str       # nombre del sustituto si no existe
+
