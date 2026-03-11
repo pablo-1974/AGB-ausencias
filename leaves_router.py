@@ -425,6 +425,7 @@ async def leaves_list(
             "teacher_id": t.id,                # para /leaves/finish
             "teacher_name": t.name,
             "start_date": lv.start_date,
+            "cause": lv.cause or "",
             "sub_start_date": getattr(lv, "substitute_start_date", None),
             "sub_end_date": getattr(lv, "substitute_end_date", None),
             "sub_name": sub.name if sub else None,
