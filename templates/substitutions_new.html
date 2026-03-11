@@ -9,74 +9,75 @@
   <div class="mb-4 p-3 rounded bg-green-100 text-green-700">{{ info }}</div>
 {% endif %}
 
-/substitutions/new
-  <div class="grid gap-4 max-w-2xl">
-    <div>
-      <label class="label">Profesor a sustituir</label>
-      <select name="teacher_id" class="input" required>
-        <option value="">-- seleccionar --</option>
-        {% for item in open_leaves or [] %}
-          {# item: {teacher_id, teacher_name, start_date} #}
-          <option value="{{ item.teacher_id }}">
-            {{ item.teacher_name }} (desde {{ item.start_date }})
-          </option>
+<form method="post" action="/substitutions/new" class="grid gap-4 max-w-2xl">
+
+  <div>
+    <label class="label">Profesor a sustituir</label>
+    <select name="teacher_id" class="input" required>
+      <option value="">-- seleccionar --</option>
+      {% for item in open_leaves or [] %}
+        <option value="{{ item.teacher_id }}">
+          {{ item.teacher_name }} (desde {{ item.start_date }})
+        </option>
+      {% endfor %}
+    </select>
+    <p class="text-xs text-gray-500 mt-1">
+      Lista: profes en Baja/Excedencia sin sustituto.
+    </p>
+  </div>
+
+  <div>
+    <label class="label">Fecha de inicio de la sustitución</label>
+    <input class="input" type="date" name="start_date" required>
+  </div>
+
+  <div x-data="{ mode: '' }" class="space-y-3">
+    <label class="label">Profesor sustituto</label>
+
+    <div class="flex items-center gap-6">
+      <label class="flex items-center gap-2">
+        <input type="radio" name="sub_mode" value="exprof" x-model="mode" required>
+        <span>Elegir de exprofes</span>
+      </label>
+      <label class="flex items-center gap-2">
+        <input type="radio" name="sub_mode" value="new" x-model="mode" required>
+        <span>Profesor nuevo</span>
+      </label>
+    </div>
+
+    <!-- Exprofes -->
+    <div x-show="mode === 'exprof'" x-cloak>
+      <select name="exprof_teacher_id" class="input" :required="mode==='exprof'">
+        <option value="">-- seleccionar exprof --</option>
+        {% for t in exprofes or [] %}
+          <option value="{{ t.id }}">{{ t.name }}{% if t.alias %} ({{ t.alias }}){% endif %}</option>
         {% endfor %}
       </select>
-      <p class="text-xs text-gray-500 mt-1">Lista: profes en Baja/Excedencia sin sustituto.</p>
+      <p class="text-xs text-gray-500 mt-1">
+        Al confirmar, el exprofe pasa automáticamente a estado Activo.
+      </p>
     </div>
 
-    <div>
-      <label class="label">Fecha de inicio de la sustitución</label>
-      <input class="input" type="date" name="start_date" required>
-    </div>
-
-    <div x-data="{ mode: '' }" class="space-y-3">
-      <label class="label">Profesor sustituto</label>
-
-      <div class="flex items-center gap-6">
-        <label class="flex items-center gap-2">
-          <input type="radio" name="sub_mode" value="exprof" x-model="mode" required>
-          <span>Elegir de exprofes</span>
-        </label>
-        <label class="flex items-center gap-2">
-          <input type="radio" name="sub_mode" value="new" x-model="mode" required>
-          <span>Profesor nuevo</span>
-        </label>
+    <!-- Nuevo profesor -->
+    <div x-show="mode === 'new'" x-cloak class="grid md:grid-cols-3 gap-3">
+      <div>
+        <label class="label">Nombre completo</label>
+        <input type="text" class="input" name="new_name" :required="mode==='new'">
       </div>
-
-      <!-- Exprofes -->
-      <div x-show="mode === 'exprof'" x-cloak>
-        <select name="exprof_teacher_id" class="input" :required="mode==='exprof'">
-          <option value="">-- seleccionar exprof --</option>
-          {% for t in exprofes or [] %}
-            <option value="{{ t.id }}">{{ t.name }}{% if t.alias %} ({{ t.alias }}){% endif %}</option>
-          {% endfor %}
-        </select>
-        <p class="text-xs text-gray-500 mt-1">
-          Exprofes: antiguos docentes disponibles. Al confirmar pasarán a estado Activo.
-        </p>
+      <div>
+        <label class="label">Email</label>
+        <input type="email" class="input" name="new_email" :required="mode==='new'">
       </div>
-
-      <!-- Nuevo profesor -->
-      <div x-show="mode === 'new'" x-cloak class="grid md:grid-cols-3 gap-3">
-        <div>
-          <label class="label">Nombre completo</label>
-          <input type="text" class="input" name="new_name" :required="mode==='new'">
-        </div>
-        <div>
-          <label class="label">Email</label>
-          <input type="email" class="input" name="new_email" :required="mode==='new'">
-        </div>
-        <div>
-          <label class="label">Alias</label>
-          <input type="text" class="input" name="new_alias" :required="mode==='new'">
-        </div>
+      <div>
+        <label class="label">Alias</label>
+        <input type="text" class="input" name="new_alias" :required="mode==='new'">
       </div>
-    </div>
-
-    <div>
-      <button class="btn-primary">Iniciar sustitución</button>
     </div>
   </div>
+
+  <div>
+    <button class="btn-primary">Iniciar sustitución</button>
+  </div>
+
 </form>
 {% endblock %}
