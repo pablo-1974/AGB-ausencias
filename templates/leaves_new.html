@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="text-lg font-semibold mb-4">Abrir baja</h1>
+<h1 class="text-lg font-semibold mb-4">Bajas</h1>
 
 {% if error %}
   <div class="mb-4 p-3 rounded bg-red-100 text-red-700">{{ error }}</div>
@@ -9,42 +9,50 @@
   <div class="mb-4 p-3 rounded bg-green-100 text-green-700">{{ info }}</div>
 {% endif %}
 
-<form method="post" action="/leaves/new" class="card space-y-3 max-w-xl">
-  <div>
-    <label class="label">Profesor</label>
-    <select name="teacher_id" class="input" required>
-      <option value="">-- seleccionar --</option>
-      {% for t in teachers or [] %}
-        <option value="{{ t.id }}">{{ t.name }}</option>
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Inicio</th>
+        <th>Profesor de baja</th>
+        <th>Inicio sustitución</th>
+        <th>Sustituto</th>
+        <th>Fin sustitución</th>
+        <th class="text-right">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+      <tr x-data="{ open: false }">
+        <td>{{ it.start_date }}</td>
+        <td>{{ it.teacher_name }}</td>
+        <td>{{ it.sub_start_date or "" }}</td>
+        <td>{{ it.sub_name or "" }}</td>
+        <td>{{ it.sub_end_date or "" }}</td>
+        <td class="text-right">
+          {% if it.sub_name and not it.sub_end_date %}
+            <!-- Botón para mostrar el formulario de cierre -->
+            <button class="btn-muted" @click="open = !open">Finalizar sustitución</button>
+            <div x-show="open" x-cloak class="mt-2 flex items-center gap-2 justify-end">
+              <form method="post" action="/leaves/finish" class="flex items-center gap-2">
+                <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
+                <input type="date" name="end_date" class="input !w-auto" required>
+                <button class="btn-primary" onclick="return confirm('¿Confirmar finalización de sustitución y baja?')">
+                  Confirmar
+                </button>
+              </form>
+            </div>
+          {% else %}
+            <span class="text-gray-400 text-sm">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-gray-500 py-6">No hay bajas en curso.</td>
+      </tr>
       {% endfor %}
-    </select>
-  </div>
-
-  <div>
-    <label class="label">Fecha de inicio</label>
-    <input class="input" type="date" name="start_date" required>
-  </div>
-
-  <div>
-    <label class="label">Tipo</label>
-    <div class="flex items-center gap-6">
-      <label class="flex items-center gap-2">
-        <input type="radio" name="leave_type" value="baja" required>
-        <span>Baja</span>
-      </label>
-      <label class="flex items-center gap-2">
-        <input type="radio" name="leave_type" value="excedencia" required>
-        <span>Excedencia</span>
-      </label>
-    </div>
-  </div>
-
-  <div>
-    <label class="label">Causa (obligatoria)</label>
-    <input class="input" type="text" name="cause" placeholder="Describe la causa" required>
-  </div>
-
-  <button class="btn-primary">Abrir baja</button>
-</form>
-
+    </tbody>
+  </table>
+</div>
 {% endblock %}
