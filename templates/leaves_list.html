@@ -17,6 +17,7 @@
         <th>Inicio</th>
         <th>Profesor de baja</th>
         <th>Inicio sustitución</th>
+        <th>Causa</th>
         <th>Sustituto</th>
         <th>Fin sustitución</th>
         <th class="text-right">Acciones</th>
@@ -28,6 +29,7 @@
       <tr x-data="{ finalizar:false }">
         <td>{{ it.start_date }}</td>
         <td>{{ it.teacher_name }}</td>
+        <td>{{ it.cause }}</td>
         <td>{{ it.sub_start_date or '' }}</td>
         <td>{{ it.sub_name or '' }}</td>
         <td>{{ it.sub_end_date or '' }}</td>
