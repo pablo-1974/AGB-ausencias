@@ -86,15 +86,18 @@
                   <div class="space-y-2 max-w-2xl">
                     {% for code, label in categories %}
                       <label class="flex items-start gap-2">
-                        
+                        <!-- radio (círculo blanco) -->
                         <input type="radio"
                                name="category"
                                value="{{ code }}"
+                               {% if it.category == code %}checked{% endif %}
                                required>
 
-                        <span class="leading-tight">
+ 
+                        <!-- letra y explicación en la MISMA línea -->
+                        <span class="flex items-baseline gap-2">                       
                           <span class="font-semibold text-base">{{ code }}</span>
-                          <span class="text-sm text-gray-600 block ml-6">{{ label }}</span>
+                          <span class="text-sm text-gray-600">{{ label }}</span>
                         </span>
 
                       </label>
@@ -123,3 +126,4 @@
 </div>
 
 {% endblock %}
+
