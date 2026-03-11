@@ -389,9 +389,10 @@ async def leaves_list(
         q = q.where(Leave.end_date.is_(None))
 
     # Filtro por si tiene sustituto o no (en curso o ya cerrado)
-    if with_sub == "true":
+    ws = (with_sub or "").strip().lower()
+    if ws == "true":
         q = q.where(Leave.substitute_teacher_id.is_not(None))
-    elif with_sub == "false":
+    elif ws == "false":
         q = q.where(Leave.substitute_teacher_id.is_(None))
 
     # Orden
