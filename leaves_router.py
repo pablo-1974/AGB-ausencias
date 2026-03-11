@@ -414,7 +414,3 @@ async def leaves_list(
             current_filters={"status": status, "with_sub": with_sub, "order": order},
         ),
     )
-    return _templates(request).TemplateResponse(
-        "leaves_list.html",
-        _ctx(request, title="Bajas (ver)", items=items),
-    )
