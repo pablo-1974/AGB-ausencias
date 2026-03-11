@@ -334,3 +334,42 @@ async def substitutions_new_create(
         "substitutions_new.html",
         _ctx(request, info="Sustitución creada correctamente."),
     )
+
+# VER BAJAS
+from sqlalchemy.orm import aliased
+from fastapi.responses import HTMLResponse
+
+@router.get("/leaves", response_class=HTMLResponse)
+async def leaves_list(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),  # cuando hablemos de roles lo afinamos
+):
+    # Left join al sustituto para mostrar su nombre
+    Sub = aliased(Teacher)
+    q = (
+        select(Leave, Teacher, Sub)
+        .join(Teacher, Teacher.id == Leave.teacher_id)
+        .outerjoin(Sub, Sub.id == Leave.substitute_teacher_id)
+        # Puedes listar solo abiertas o todas. Por ahora: solo bajas abiertas o con sustitución activa
+        .where(Leave.end_date.is_(None))
+        .order_by(Leave.start_date.asc(), Teacher.name.asc())
+    )
+    rows = (await session.execute(q)).all()
+
+    items = []
+    for lv, t, sub in rows:
+        items.append({
+            "leave_id": lv.id,
+            "start_date": lv.start_date,
+            "teacher_name": t.name,
+            "sub_start_date": lv.substitute_start_date,
+            "sub_end_date": lv.substitute_end_date,
+            "sub_name": sub.name if sub else None,
+            "teacher_id": t.id,  # para el formulario de finalizar
+        })
+
+    return _templates(request).TemplateResponse(
+        "leaves_list.html",
+        _ctx(request, title="Bajas (ver)", items=items),
+    )
