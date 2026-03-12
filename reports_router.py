@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
+from typing import Optional, Any, Dict
 
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, Query
 from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import tempfile
@@ -12,7 +12,7 @@ import tempfile
 from database import get_session
 from config import settings
 from auth import admin_required
-from services.pdf_daily import build_daily_report_pdf
+from services.pdf_daily import build_daily_report_pdf, build_daily_report_data
 
 router = APIRouter(tags=["reports"])
 
@@ -40,16 +40,13 @@ def _ctx(request: Request, **extra):
 
 
 # ==================================
-# PARTE DIARIO (GET/POST)
+# PARTE DIARIO (GET form)
 # ==================================
 @router.get("/reports/daily", response_class=HTMLResponse)
 async def reports_daily_form(
     request: Request,
     admin=Depends(admin_required),
 ):
-    """
-    Muestra la planilla del parte diario con la fecha de hoy por defecto.
-    """
     today_str = date.today().isoformat()
     return _templates(request).TemplateResponse(
         "reports_daily.html",
@@ -57,6 +54,38 @@ async def reports_daily_form(
     )
 
 
+# ==================================
+# PARTE DIARIO (GET vista en pantalla)
+# ==================================
+@router.get("/reports/daily/view", response_class=HTMLResponse)
+async def reports_daily_view(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),
+    fecha: date = Query(...),
+    observaciones: Optional[str] = Query(None),
+):
+    # Construimos los datos reutilizando la lógica del PDF
+    preview = await build_daily_report_data(
+        session=session,
+        the_date=fecha,
+        observaciones_usuario=(observaciones or "").strip() or None,
+    )
+    return _templates(request).TemplateResponse(
+        "reports_daily.html",
+        _ctx(
+            request,
+            title="Parte diario de ausencias",
+            today=fecha.isoformat(),
+            preview=preview,  # <-- la plantilla pintará la tabla si viene esto
+            observaciones_prefill=(observaciones or ""),
+        ),
+    )
+
+
+# ==================================
+# PARTE DIARIO (POST PDF)
+# ==================================
 @router.post("/reports/daily")
 async def reports_daily_generate(
     request: Request,
@@ -65,12 +94,8 @@ async def reports_daily_generate(
     fecha: date = Form(...),
     observaciones: Optional[str] = Form(None),
 ):
-    """
-    Genera el PDF del parte diario y lo devuelve como archivo descargable.
-    """
-    # Crear archivo temporal para el PDF
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    tmp.close()  # Cerramos handle para que ReportLab pueda escribir
+    tmp.close()
 
     await build_daily_report_pdf(
         session=session,
@@ -81,7 +106,7 @@ async def reports_daily_generate(
 
     filename = f"parte_diario_{fecha.isoformat()}.pdf"
     return FileResponse(
-        path=tmp.name,
+        tmp.name,
         media_type="application/pdf",
         filename=filename,
     )
