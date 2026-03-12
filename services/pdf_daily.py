@@ -96,7 +96,7 @@ async def build_daily_report_pdf(
 
             if not slot:
                 # No hay info de clase/guardia
-                row_prof.append(tname); row_grp.append(""); row_room.append(""); row_subj.append("")
+                continue # No mostrar en el parte
             else:
                 if slot.type == ScheduleType.CLASS:
                     row_prof.append(tname)
@@ -247,7 +247,7 @@ async def build_daily_report_data(
             tname = name_by_id.get(tid, f"ID {tid}")
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
             if not slot:
-                row_prof.append(tname); row_grp.append(""); row_room.append(""); row_subj.append("")
+                continue # No mostrar en el parte
             else:
                 if slot.type == ScheduleType.CLASS:
                     row_prof.append(tname)
@@ -295,6 +295,7 @@ async def build_daily_report_data(
         "rows": data_rows,
         "obs_text": obs_text,
     }
+
 
 
 
