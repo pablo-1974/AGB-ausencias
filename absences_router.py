@@ -338,14 +338,14 @@ async def absences_new_create(
     if hours_mode == "all":
         mask = make_mask_all()
     else:
-        # Deben venir hour_from y hour_to (0..5)
+        # Deben venir hour_from y hour_to (0..6)
         try:
             fi = int(hour_from) if hour_from is not None else None
             ti = int(hour_to) if hour_to is not None else None
         except Exception:
             fi, ti = None, None
 
-        if fi is None or ti is None or not (0 <= fi <= 5) or not (0 <= ti <= 5):
+        if fi is None or ti is None or not (0 <= fi <= 6) or not (0 <= ti <= 6):
             teachers = (await session.execute(_teachers_active_on(session, day))).scalars().all()
             return _templates(request).TemplateResponse(
                 "absences_new.html",
