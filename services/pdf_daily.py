@@ -49,7 +49,7 @@ async def _teachers_absent_that_day(session: AsyncSession, the_date: date) -> Tu
     )
     leaves = (await session.execute(q_leave)).scalars().all()
 
-    FULL_MASK = (1 << 7) - 1
+    FULL_MASK = make_mask_all()  # 127 real
 
     for lv in leaves:
         absent_ids.add(lv.teacher_id)
@@ -357,4 +357,5 @@ async def build_daily_report_data(
         "rows": rows,
         "obs_text": obs_text,
     }
+
 
