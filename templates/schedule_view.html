@@ -3,70 +3,126 @@
 
 <h1 class="text-2xl font-bold mb-4">Horario</h1>
 
-<!-- Estilos locales SOLO para esta vista -->
+<!-- Estilos locales -->
 <style>
-  /* Centrado local para la tabla de horario, sin afectar a otras tablas */
   .schedule-table td { vertical-align: middle; text-align: center; }
   .schedule-cell {
-    /* Caja flexible para centrar el contenido en ambas direcciones */
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Altura mínima coherente con la fila normal */
-    min-height: 60px; /* coincide con h-[60px] */
+    min-height: 60px;
   }
-  .schedule-cell--recreo {
-    min-height: 32px; /* coincide con h-[32px] */
-  }
+  .schedule-cell--recreo { min-height: 32px; }
   .schedule-badge {
-    border: 1px solid #e5e7eb;   /* gray-200 */
-    border-radius: 0.375rem;     /* rounded-md */
-    padding: 0.25rem 0.5rem;     /* p-1 px-2 */
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
   }
   .schedule-badge.class {
-    background-color: #eef2ff;   /* indigo-50 */
-    color: #3730a3;              /* indigo-800 */
-    border-color: #c7d2fe;       /* indigo-200 */
+    background-color: #eef2ff;
+    color: #3730a3;
+    border-color: #c7d2fe;
   }
   .schedule-badge.guard {
-    background-color: #fffbeb;   /* amber-50 */
-    color: #92400e;              /* amber-800 */
-    border-color: #fde68a;       /* amber-300 */
+    background-color: #fffbeb;
+    color: #92400e;
+    border-color: #fde68a;
     font-weight: 600;
   }
-  .schedule-line { line-height: 1.1; } /* leading-tight */
-  .schedule-muted { font-size: 0.75rem; color: #6b7280; } /* text-xs text-gray-500 */
+  .schedule-line { line-height: 1.1; }
+  .schedule-muted { font-size: 0.75rem; color: #6b7280; }
 </style>
 
-<!-- Selector de profesor -->
+<!-- Selector de profesor + navegación -->
 <div class="max-w-md mb-6 card">
-  <form action="/schedule/view" method="post">
-    <label class="label" for="teacher_id">Profesor</label>
-    <select id="teacher_id" name="teacher_id" class="input" required>
-      <option value="">-- Selecciona profesor --</option>
-      {% for t in teachers %}
-        <option value="{{ t.id }}" {% if selected_id == t.id %}selected{% endif %}>
-          {{ t.name }}
-        </option>
-      {% endfor %}
-    </select>
+  <form id="form-schedule" action="/schedule/view" method="post">
 
-    <button type="submit" class="btn-primary mt-3">Ver horario</button>
+    <label class="label" for="teacher_id">Profesor</label>
+
+    <div class="flex items-center gap-2">
+
+      <!-- Botón anterior -->
+      <button
+        type="button"
+        id="prev-teacher"
+        class="btn-muted border border-gray-400 px-3 py-1"
+        title="Horario anterior">
+        –
+      </button>
+
+      <!-- Select -->
+      <select id="teacher_id" name="teacher_id" class="input w-full" required>
+        <option value="">-- Selecciona profesor --</option>
+        {% for t in teachers %}
+          <option value="{{ t.id }}" {% if selected_id == t.id %}selected{% endif %}>
+            {{ t.name }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <!-- Botón siguiente -->
+      <button
+        type="button"
+        id="next-teacher"
+        class="btn-muted border border-gray-400 px-3 py-1"
+        title="Horario siguiente">
+        +
+      </button>
+
+    </div>
+
   </form>
 </div>
 
+<!-- JS para auto-carga y navegación -->
+<script>
+  const sel = document.getElementById("teacher_id");
+  const form = document.getElementById("form-schedule");
+
+  // Al seleccionar profesor → cargar automáticamente
+  sel.addEventListener("change", () => {
+    if (sel.value) form.submit();
+  });
+
+  // Navegación anterior
+  document.getElementById("prev-teacher").addEventListener("click", () => {
+    if (sel.selectedIndex > 1) {  // índice 0 es "-- seleccionar --"
+      sel.selectedIndex--;
+      sel.dispatchEvent(new Event("change"));
+    }
+  });
+
+  // Navegación siguiente
+  document.getElementById("next-teacher").addEventListener("click", () => {
+    if (sel.selectedIndex < sel.options.length - 1) {
+      sel.selectedIndex++;
+      sel.dispatchEvent(new Event("change"));
+    }
+  });
+</script>
+
 {% if schedule %}
-  <!-- Acciones -->
+  <!-- Acciones (EDITAR e IMPRIMIR) -->
   <div class="mb-4 flex gap-4">
-    <a class="link" href="/schedule/edit/{{ selected_id }}">Editar horario</a>
-    <a class="link" href="/schedule/print/{{ selected_id }}">Imprimir horario</a>
+
+    <a
+      class="btn-primary border border-gray-400 px-4 py-2"
+      href="/schedule/edit/{{ selected_id }}">
+      Editar horario
+    </a>
+
+    <a
+      class="btn-primary border border-gray-400 px-4 py-2"
+      href="/schedule/print/{{ selected_id }}">
+      Imprimir horario
+    </a>
+
   </div>
 
   <!-- Tabla del horario -->
   <div class="overflow-x-auto">
     <table class="table table-fixed w-full text-center border border-gray-200 schedule-table">
 
-      <!-- Columnas: primera más estrecha -->
       <colgroup>
         <col style="width: 70px; background-color: #f3f4f6;">
         <col style="width: calc((100% - 70px) / 5);">
@@ -90,37 +146,39 @@
       <tbody>
         {% for hour in range(7) %}
           <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
-            <!-- Primera columna (gris + centrado) -->
+
             <th class="border bg-gray-100 align-middle text-center text-sm">
               {% if hour == 3 %}Recreo{% else %}{{ hour + 1 }}ª{% endif %}
             </th>
 
-            <!-- Celdas L-V -->
             {% for day in range(5) %}
               {% set slot = schedule[hour][day] %}
               <td class="border align-middle text-center text-xs">
                 <div class="schedule-cell {% if hour == 3 %}schedule-cell--recreo{% endif %}">
+
                   {% if slot %}
-                    {% if slot.type and slot.type.name == "CLASS" %}
-                      <div class="schedule-badge class">
-                        <div class="schedule-line">{{ slot.subject or 'Clase' }}</div>
-                        <div class="schedule-muted">
+                    {% if slot      <div class="schedule-muted">
                           {{ slot.group or '' }}{% if slot.group and slot.room %} · {% endif %}{{ slot.room or '' }}
                         </div>
                       </div>
+
                     {% elif slot.type and slot.type.name == "GUARD" %}
                       <div class="schedule-badge guard">
                         {{ slot.guard_type or 'Guardia' }}
                       </div>
+
                     {% else %}
                       <div class="schedule-line text-gray-300">—</div>
                     {% endif %}
+
                   {% else %}
                     <div class="schedule-line text-gray-300">—</div>
                   {% endif %}
+
                 </div>
               </td>
             {% endfor %}
+
           </tr>
         {% endfor %}
       </tbody>
