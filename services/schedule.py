@@ -46,8 +46,8 @@ async def list_teachers_on_guard(
     )
     res = (await session.execute(q)).all()
     # Excluir ausentes
-    names = [t.name for slot, t in res if t.id not in absent_teacher_ids]
-    return sorted(names)
+    ids = [t.id for slot, t in res if t.id not in absent_teacher_ids]
+    return sorted(ids)
 
 
 # ---------------------------------
@@ -171,3 +171,4 @@ async def clone_teacher_schedule(
 
     await session.commit()
     return created
+
