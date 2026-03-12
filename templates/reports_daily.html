@@ -17,16 +17,15 @@
   </div>
 
   <div class="flex gap-2">
-    <!-- Ver en pantalla -->
-    <button
-      type="submit"
-      class="btn-muted"
-      formmethod="get"
-      formaction="/reports/daily/view">
+    <!-- Ver en pantalla (GET) -->
+    <button type="submit"
+            class="btn-muted"
+            formmethod="get"
+            formaction="/reports/daily/view">
       Ver en pantalla
     </button>
 
-    <!-- Generar PDF -->
+    <!-- Generar PDF (POST) -->
     <button class="btn-primary">Generar PDF</button>
   </div>
 </form>
