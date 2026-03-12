@@ -12,6 +12,7 @@ from sqlalchemy import select, and_, or_
 
 from models import Absence, Leave, Teacher, ScheduleType
 from .schedule import get_teacher_slot, list_teachers_on_guard
+from absences_router import make_mask_all
 
 
 # Mapeos
@@ -357,5 +358,6 @@ async def build_daily_report_data(
         "rows": rows,
         "obs_text": obs_text,
     }
+
 
 
