@@ -11,11 +11,13 @@
 
   <div>
     <label class="label">Observaciones</label>
-    <input class="input" type="text" name="observaciones" value="{{ observaciones_prefill or '' }}" placeholder="Opcional: añade aquí un texto">
+    <input class="input" type="text" name="observaciones"
+           value="{{ observaciones_prefill or '' }}"
+           placeholder="Opcional: añade aquí un texto">
   </div>
 
   <div class="flex gap-2">
-    <!-- Ver en pantalla (GET) -->
+    <!-- Ver en pantalla -->
     <button
       type="submit"
       class="btn-muted"
@@ -24,10 +26,11 @@
       Ver en pantalla
     </button>
 
-    <!-- Generar PDF (POST) -->
+    <!-- Generar PDF -->
     <button class="btn-primary">Generar PDF</button>
   </div>
 </form>
+
 
 {% if preview %}
   <div class="mt-6 card overflow-x-auto">
