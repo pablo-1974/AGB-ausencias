@@ -30,7 +30,18 @@
 {% if preview %}
   <div class="mt-6 card overflow-x-auto">
     <div class="mb-2 font-semibold">{{ preview.title }}</div>
-    <div class="mb-3 text-sm"><strong>Observaciones:</strong> {{ preview.obs_text or '—' }}</div>
+    <div class="mb-3 text-sm">
+      <strong>Observaciones:</strong> {{ preview.obs_text or '—' }}
+    </div>
+
+    <!-- Botón Generar PDF desde la vista -->
+    <div class="mb-4 flex justify-end">
+      <form method="post" action="/reports/daily">
+        <input type="hidden" name="fecha" value="{{ preview.date_str }}">
+        <input type="hidden" name="observaciones" value="{{ observaciones_prefill }}">
+        <button class="btn-primary">Generar PDF</button>
+      </form>
+    </div>
 
     <table class="table">
       <thead>
@@ -52,4 +63,3 @@
     </table>
   </div>
 {% endif %}
-{% endblock %}
