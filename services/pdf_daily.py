@@ -126,12 +126,23 @@ async def build_daily_report_pdf(
         # Profesores en guardia (NO ausentes)
         guard_ids = await list_teachers_on_guard(session, weekday_py, hour_idx, absent_ids)
 
-        # 💥 Alias en vez de nombre
         guard_aliases = []
         for tid in guard_ids:
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+        
+            # Si no tiene slot o el slot NO es guardia → no mostrar
+            if not slot or slot.type != ScheduleType.GUARD:
+                continue
+        
+            # Si es guardia de RECREO → NO mostrar tampoco
+            gtext = (slot.guard_type or "").upper()
+            if "RECREO" in gtext:
+                continue
+        
+            # Guardia normal → añadir alias
             t = await session.get(Teacher, tid)
             guard_aliases.append(t.alias or t.name)
-
+        
         row_guard = guard_aliases
 
         def crush(xs: List[str]) -> str:
@@ -277,12 +288,23 @@ async def build_daily_report_data(
         # Profes en guardia (NO ausentes)
         guard_ids = await list_teachers_on_guard(session, weekday_py, hour_idx, absent_ids)
 
-        # 💥 usar alias también en HTML
         guard_aliases = []
         for tid in guard_ids:
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+        
+            # Si no tiene slot o el slot NO es guardia → no mostrar
+            if not slot or slot.type != ScheduleType.GUARD:
+                continue
+        
+            # Si es guardia de RECREO → NO mostrar tampoco
+            gtext = (slot.guard_type or "").upper()
+            if "RECREO" in gtext:
+                continue
+        
+            # Guardia normal → añadir alias
             t = await session.get(Teacher, tid)
             guard_aliases.append(t.alias or t.name)
-
+        
         row_guard = guard_aliases
 
         def crush(xs: List[str]):
@@ -315,3 +337,4 @@ async def build_daily_report_data(
         "rows": data_rows,
         "obs_text": obs_text,
     }
+
