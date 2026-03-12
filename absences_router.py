@@ -45,10 +45,10 @@ def _ctx(request: Request, **extra):
 # Utilidades de horas (mask 6 bits)
 #  bit0..bit5 -> 1ª..6ª
 # -----------------------------
-HOUR_LABELS = ["1ª", "2ª", "3ª", "4ª", "5ª", "6ª"]
+HOUR_LABELS = ["1ª", "2ª", "3ª", "Recreo", "4ª", "5ª", "6ª"]
 
-def make_mask_all() -> int:
-    return (1 << 6) - 1  # 0b111111 -> 63
+def make_mask_all():
+    return (1 << 7) - 1   # 127 = franjas 0..6
 
 def make_mask_range(from_idx: int, to_idx: int) -> int:
     """from_idx / to_idx: 0..5 inclusivo"""
