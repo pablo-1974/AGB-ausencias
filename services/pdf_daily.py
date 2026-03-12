@@ -20,8 +20,8 @@ HOUR_ROWS = [("1ª", 0), ("2ª", 1), ("3ª", 2), ("RECREO", 3), ("4ª", 4), ("5�
 DAYS = {0: "lunes", 1: "martes", 2: "miércoles", 3: "jueves", 4: "viernes", 5: "sábado", 6: "domingo"}
 
 
-def _bit_on(mask: int, hour_one_based: int) -> bool:
-    return (mask & (1 << (hour_one_based - 1))) != 0
+def _bit_on(mask:int, idx:int):
+    return (mask & (1 << idx)) != 0
 
 def _is_absent(mask: int, hour_idx: int) -> bool:
     return (mask & (1 << hour_idx)) != 0
@@ -295,6 +295,7 @@ async def build_daily_report_data(
         "rows": data_rows,
         "obs_text": obs_text,
     }
+
 
 
 
