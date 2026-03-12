@@ -17,7 +17,6 @@ from models import Teacher, TeacherStatus, Leave, Absence
 
 router = APIRouter()
 
-
 # -----------------------------
 # Helpers de plantillas/contexto
 # -----------------------------
@@ -42,41 +41,54 @@ def _ctx(request: Request, **extra):
 
 
 # -----------------------------
-# Utilidades de horas (mask 6 bits)
-#  bit0..bit5 -> 1ª..6ª
+# Sistema de 7 franjas (0..6)
+# 0=1ª, 1=2ª, 2=3ª, 3=Recreo, 4=4ª, 5=5ª, 6=6ª
 # -----------------------------
 HOUR_LABELS = ["1ª", "2ª", "3ª", "Recreo", "4ª", "5ª", "6ª"]
 
 def make_mask_all():
-    return (1 << 7) - 1   # 127 = franjas 0..6
+    """Mask con TODAS las 7 franjas ON."""
+    return (1 << 7) - 1   # 0b1111111 = 127
 
 def make_mask_range(from_idx: int, to_idx: int) -> int:
-    """from_idx / to_idx: 0..5 inclusivo"""
+    """Construye una máscara desde/hasta para franjas 0..6."""
+
     if from_idx > to_idx:
         from_idx, to_idx = to_idx, from_idx
+
     mask = 0
     for i in range(from_idx, to_idx + 1):
         mask |= (1 << i)
     return mask
 
 def mask_to_human(mask: int) -> str:
-    """Convierte mask a texto humano: 'Todas' o '1ª-3ª' o '1ª, 3ª'."""
+    """Convierte mask en texto humano, usando las 7 franjas."""
+
     if mask <= 0:
         return "—"
+
     if mask == make_mask_all():
         return "Todas"
+
+    # AHORA: 7 franjas reales (0..6)
     on = [i for i in range(7) if (mask >> i) & 1]
-    # Comprimir a rangos
+
+    if not on:
+        return "—"
+
+    # Comprimir a rangos consecutivos
     ranges: List[Tuple[int, int]] = []
     start = on[0]
     prev = on[0]
+
     for i in on[1:]:
         if i == prev + 1:
             prev = i
         else:
             ranges.append((start, prev))
-            start, prev = i, i
+            start = prev = i
     ranges.append((start, prev))
+
     parts = []
     for a, b in ranges:
         if a == b:
@@ -94,7 +106,6 @@ async def absences_manage(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin=Depends(admin_required),
-    # Por defecto: hoy–hoy
     since: Optional[str] = Query(None, alias="from"),
     until: Optional[str] = Query(None, alias="to"),
 ):
@@ -108,23 +119,16 @@ async def absences_manage(
     except Exception:
         d_to = today
 
-    # Normalizar orden (from <= to)
     if d_from > d_to:
         d_from, d_to = d_to, d_from
 
-    # Consultar ausencias entre fechas (incluido)
     res = await session.execute(
         select(Absence, Teacher)
         .join(Teacher, Teacher.id == Absence.teacher_id)
-        .where(
-            and_(
-                Absence.date >= d_from,
-                Absence.date <= d_to,
-            )
-        )
+        .where(and_(Absence.date >= d_from, Absence.date <= d_to))
         .order_by(Absence.date.asc(), Teacher.name.asc())
     )
-    rows = res.all()  # (Absence, Teacher)
+    rows = res.all()
 
     items = [{
         "day": a.date,
@@ -134,7 +138,6 @@ async def absences_manage(
         "teacher_id": t.id,
     } for (a, t) in rows]
 
-    # Mensaje si no hay resultados
     info = None
     if not items:
         info = "No hay ausencias para el rango seleccionado."
@@ -146,16 +149,13 @@ async def absences_manage(
             title="Ver Ausencias",
             items=items,
             info=info,
-            filters={
-                "from": d_from.isoformat(),
-                "to": d_to.isoformat(),
-            },
+            filters={"from": d_from.isoformat(), "to": d_to.isoformat()},
         ),
     )
 
 
 # =====================================
-# ==== CATALOGAR AUSENCIAS ============
+# CATALOGAR AUSENCIAS
 # =====================================
 ABSENCE_CATEGORIES = [
     ("A", "Enfermedad de duración superior a tres días"),
@@ -185,13 +185,14 @@ async def absences_categorize(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin=Depends(admin_required),
-    scope: str = Query("pending", pattern="^(pending|all)$"),  # pending = sin catalogar (por defecto)
+    scope: str = Query("pending", pattern="^(pending|all)$"),
     since: Optional[str] = Query(None, alias="from"),
     until: Optional[str] = Query(None, alias="to"),
 ):
     today = date.today()
     d_from = date.fromisoformat(since) if since else _first_day_of_month(today)
     d_to = date.fromisoformat(until) if until else _last_day_of_month(today)
+
     if d_from > d_to:
         d_from, d_to = d_to, d_from
 
@@ -203,8 +204,7 @@ async def absences_categorize(
     if scope == "pending":
         q = q.where(or_(Absence.category.is_(None), Absence.category == ""))
 
-    q = q.order_by(Absence.date.asc(), Teacher.name.asc())
-    rows = (await session.execute(q)).all()  # (Absence, Teacher)
+    rows = (await session.execute(q.order_by(Absence.date.asc(), Teacher.name.asc()))).all()
 
     items = [{
         "id": a.id,
@@ -215,7 +215,6 @@ async def absences_categorize(
         "category": (a.category or "").strip(),
     } for (a, t) in rows]
 
-    # Diccionario para tooltip: código -> descripción (para la "pill" en la plantilla)
     categories_map = {code: label for code, label in ABSENCE_CATEGORIES}
 
     info = None
@@ -229,7 +228,7 @@ async def absences_categorize(
             title="Catalogar ausencias",
             items=items,
             categories=ABSENCE_CATEGORIES,
-            categories_map=categories_map,  # <-- añadido para la etiqueta y tooltip
+            categories_map=categories_map,
             filters={"scope": scope, "from": d_from.isoformat(), "to": d_to.isoformat()},
             info=info,
         ),
@@ -246,20 +245,17 @@ async def absences_categorize_post(
 ):
     valid_codes = {code for code, _ in ABSENCE_CATEGORIES}
     category = (category or "").strip().upper()
+
     if category not in valid_codes:
-        # Volver con filtros (o fallback a pendientes)
-        url = next_url or "/absences/categorize?scope=pending"
-        return RedirectResponse(url, status_code=303)
+        return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
 
     a = await session.get(Absence, absence_id)
     if not a:
-        url = next_url or "/absences/categorize?scope=pending"
-        return RedirectResponse(url, status_code=303)
+        return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
 
     a.category = category
     await session.commit()
 
-    # Volver a la lista de catalogación manteniendo filtros
     return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
 
 
@@ -267,83 +263,66 @@ async def absences_categorize_post(
 # NUEVA AUSENCIA (GET/POST)
 # ==================================
 def _teachers_active_on(session: AsyncSession, target: date):
-    """
-    Devuelve un SELECT con profes con status=activo y SIN leave que cubra 'target'.
-    """
-    # Leave que cubra esa fecha: start <= target AND (end IS NULL OR end >= target)
     leave_cover = and_(
         Leave.teacher_id == Teacher.id,
         Leave.start_date <= target,
         or_(Leave.end_date.is_(None), Leave.end_date >= target),
     )
-    # EXISTS (SELECT 1 FROM leaves WHERE leave_cover)
     leave_exists = exists().where(leave_cover)
 
     return (
         select(Teacher)
-        .where(
-            and_(
-                Teacher.status == TeacherStatus.activo,
-                not_(leave_exists),
-            )
-        )
+        .where(and_(Teacher.status == TeacherStatus.activo, not_(leave_exists)))
         .order_by(Teacher.name.asc())
     )
+
 
 @router.get("/absences/new", response_class=HTMLResponse)
 async def absences_new_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin=Depends(admin_required),
-    d: Optional[str] = Query(None),  # fecha seleccionada en el form (para recalcular activos)
+    d: Optional[str] = Query(None),
 ):
     target = date.fromisoformat(d) if d else date.today()
     teachers = (await session.execute(_teachers_active_on(session, target))).scalars().all()
 
     return _templates(request).TemplateResponse(
         "absences_new.html",
-        _ctx(
-            request,
-            title="Nueva ausencia",
-            target=target,
-            teachers=teachers,
-        ),
+        _ctx(request, title="Nueva ausencia", target=target, teachers=teachers),
     )
+
 
 @router.post("/absences/new")
 async def absences_new_create(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin=Depends(admin_required),
-    # Campos del formulario
     day: date = Form(...),
     teacher_id: int = Form(...),
-    hours_mode: str = Form(...),     # 'all' | 'range'
+    hours_mode: str = Form(...),
     hour_from: Optional[int] = Form(None),
     hour_to: Optional[int] = Form(None),
     cause: str = Form(...),
 ):
-    # Validaciones mínimas
     cause = (cause or "").strip()
     if not cause:
-        # Volver al form con error
         teachers = (await session.execute(_teachers_active_on(session, day))).scalars().all()
         return _templates(request).TemplateResponse(
             "absences_new.html",
-            _ctx(request, title="Nueva ausencia", target=day, teachers=teachers, error="La causa es obligatoria."),
+            _ctx(request, title="Nueva ausencia", target=day, teachers=teachers,
+                 error="La causa es obligatoria."),
             status_code=400,
         )
 
-    # Construir mask de horas
     if hours_mode == "all":
         mask = make_mask_all()
     else:
-        # Deben venir hour_from y hour_to (0..6)
         try:
             fi = int(hour_from) if hour_from is not None else None
             ti = int(hour_to) if hour_to is not None else None
-        except Exception:
-            fi, ti = None, None
+        except ValueError:
+            fi = ti = None
 
         if fi is None or ti is None or not (0 <= fi <= 6) or not (0 <= ti <= 6):
             teachers = (await session.execute(_teachers_active_on(session, day))).scalars().all()
@@ -353,9 +332,9 @@ async def absences_new_create(
                      error="Selecciona un rango válido de horas."),
                 status_code=400,
             )
+
         mask = make_mask_range(fi, ti)
 
-    # Insertar o actualizar ausencia (por unique uq_teacher_date)
     existing = (await session.execute(
         select(Absence).where(and_(Absence.teacher_id == teacher_id, Absence.date == day))
     )).scalar_one_or_none()
@@ -364,15 +343,13 @@ async def absences_new_create(
         existing.hours_mask = mask
         existing.note = cause
     else:
-        ins = Absence(
+        session.add(Absence(
             teacher_id=teacher_id,
             date=day,
             hours_mask=mask,
             note=cause,
-        )
-        session.add(ins)
+        ))
 
     await session.commit()
 
-    # Volver a Ver Ausencias filtrando por ese mismo día (usar '&', no entidades HTML en Python)
     return RedirectResponse(f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}", status_code=303)
