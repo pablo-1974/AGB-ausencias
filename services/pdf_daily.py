@@ -241,7 +241,7 @@ async def build_daily_report_data(
 
         for tid in sorted(absent_ids):
             mask = hours_by_teacher.get(tid, 0)
-            is_abs_now = (_bit_on(mask, hour_idx + 1) if hour_idx != recreo_index else True)
+            is_abs_now = _is_absent(mask, hour_idx)
             if not is_abs_now:
                 continue
             tname = name_by_id.get(tid, f"ID {tid}")
@@ -295,4 +295,5 @@ async def build_daily_report_data(
         "rows": data_rows,
         "obs_text": obs_text,
     }
+
 
