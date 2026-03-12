@@ -23,6 +23,8 @@ DAYS = {0: "lunes", 1: "martes", 2: "miércoles", 3: "jueves", 4: "viernes", 5: 
 def _bit_on(mask: int, hour_one_based: int) -> bool:
     return (mask & (1 << (hour_one_based - 1))) != 0
 
+def _is_absent(mask: int, hour_idx: int) -> bool:
+    return (mask & (1 << hour_idx)) != 0
 
 async def _teachers_absent_that_day(session: AsyncSession, the_date: date) -> Tuple[Set[int], Dict[int, int]]:
     """
@@ -85,7 +87,7 @@ async def build_daily_report_pdf(
         for tid in sorted(absent_ids):
             mask = hours_by_teacher.get(tid, 0)
             # En manual, el RECREO suele no marcarse; en baja sin sustituto asumimos todo el día
-            is_abs_now = (_bit_on(mask, hour_idx + 1) if hour_idx != recreo_index else True)
+            is_abs_now = _is_absent(mask, hour_idx)
             if not is_abs_now:
                 continue
 
@@ -293,3 +295,4 @@ async def build_daily_report_data(
         "rows": data_rows,
         "obs_text": obs_text,
     }
+
