@@ -65,7 +65,7 @@ def mask_to_human(mask: int) -> str:
         return "—"
     if mask == make_mask_all():
         return "Todas"
-    on = [i for i in range(6) if (mask >> i) & 1]
+    on = [i for i in range(7) if (mask >> i) & 1]
     # Comprimir a rangos
     ranges: List[Tuple[int, int]] = []
     start = on[0]
