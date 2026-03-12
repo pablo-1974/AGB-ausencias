@@ -41,16 +41,13 @@ DAYS = {
 }
 
 
-# -------------------------------------------------------------
-# AUSENTE EN FRANJA
-# -------------------------------------------------------------
 def _is_absent(mask: int, hour_idx: int) -> bool:
     return (mask & (1 << hour_idx)) != 0
 
 
-# -------------------------------------------------------------
-# CARGA DE AUSENTES DEL DÍA
-# -------------------------------------------------------------
+# ======================================================================
+#   AUSENTES DEL DÍA
+# ======================================================================
 async def _teachers_absent_that_day(
     session: AsyncSession, the_date: date
 ) -> Tuple[Set[int], Dict[int, int]]:
@@ -87,9 +84,8 @@ async def _teachers_absent_that_day(
     return absent_ids, hours_by_teacher
 
 
-
 # ======================================================================
-#  PDF
+#   PDF
 # ======================================================================
 async def build_daily_report_pdf(
     session: AsyncSession,
@@ -108,7 +104,6 @@ async def build_daily_report_pdf(
         name_by_id = {}
 
     styles = getSampleStyleSheet()
-
     head = ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"]
     data = [head]
 
@@ -117,18 +112,22 @@ async def build_daily_report_pdf(
     weekday_name = DAYS.get(weekday_py)
 
 
-    # ----------------------------------------------------------
-    #  GENERAR FILAS
-    # ----------------------------------------------------------
+    # ===================================================================
+    #   CONSTRUCCIÓN DE FILAS DEL PARTE
+    # ===================================================================
     for label, hour_idx in HOUR_ROWS:
+
+        # Fila RECREO — SPAN TOTAL
+        if hour_idx == recreo_index:
+            data.append(["RECREO"] + [""] * 6)
+            continue
 
         row_prof, row_grp, row_room, row_subj = [], [], [], []
 
-        # -------------------
-        # AUSENTES
-        # -------------------
+        # ------------------------
+        #     AUSENTES
+        # ------------------------
         for tid in sorted(absent_ids):
-
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
                 continue
@@ -136,8 +135,8 @@ async def build_daily_report_pdf(
             prof_name = name_by_id.get(tid)
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
 
+            # No clase / no guardia → no aparece
             if not slot:
-                # AUSENTE pero sin clase/guardia → no mostrar
                 continue
 
             if slot.type == ScheduleType.CLASS:
@@ -145,32 +144,25 @@ async def build_daily_report_pdf(
                 row_grp.append(slot.group or "")
                 row_room.append(slot.room or "")
                 row_subj.append(slot.subject or "")
-
             else:
                 gtext = (slot.guard_type or "").upper()
-
-                # NO meter guardia de recreo en observaciones
                 if "RECREO" in gtext:
-                    # Solo fila RECREO lo mostrará, NO obs
-                    row_prof.append(prof_name)
-                    row_grp.append("")
-                    row_room.append("")
-                    row_subj.append("")
+                    # Guardias de recreo → OBSERVACIONES
+                    obs_lines.append(prof_name)
                 else:
                     row_prof.append(prof_name)
                     row_grp.append("guardia")
                     row_room.append("guardia")
                     row_subj.append("guardia")
 
-        # -------------------
-        # GUARDIAS NO AUSENTES
-        # -------------------
+        # ------------------------
+        #   GUARDIAS (NO AUSENTES)
+        # ------------------------
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
 
         guard_aliases = []
-
         for tid in guard_ids:
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
             if not slot or slot.type != ScheduleType.GUARD:
@@ -186,22 +178,19 @@ async def build_daily_report_pdf(
         def crush(xs: List[str]) -> str:
             return "\n".join([str(s) for s in xs if str(s).strip()])
 
-        data.append(
-            [
-                label,
-                crush(row_prof),
-                crush(row_grp),
-                crush(row_room),
-                crush(row_subj),
-                "",
-                crush(guard_aliases),
-            ]
-        )
+        data.append([
+            label,
+            crush(row_prof),
+            crush(row_grp),
+            crush(row_room),
+            crush(row_subj),
+            "",
+            crush(guard_aliases)
+        ])
 
-
-    # =====================================================================
-    #  PDF MAQUETACIÓN
-    # =====================================================================
+# ===================================================================
+    #   MAQUETACIÓN PDF
+    # ===================================================================
     doc = SimpleDocTemplate(
         path_out,
         pagesize=A4,
@@ -222,9 +211,12 @@ async def build_daily_report_pdf(
     elements.append(Spacer(1, 6))
 
 
-    # ----------------------------------------------------------
-    #  OBSERVACIONES — cuadro del mismo ancho que la tabla
-    # ----------------------------------------------------------
+    # =======================================================
+    #   OBSERVACIONES (fuera de la tabla)
+    # =======================================================
+    row_h = 72     # fila normal (25% más alta)
+    recreo_h = 44  # fila recreo (25% más alta que antes)
+
     obs_text = ""
     if obs_lines or observaciones_usuario:
         parts = []
@@ -234,94 +226,84 @@ async def build_daily_report_pdf(
             parts.append(observaciones_usuario)
         obs_text = "; ".join(parts)
 
-    # ancho de tabla
     total_width = A4[0] - doc.leftMargin - doc.rightMargin
 
-    row_h = 58      # altura estándar
-    recreo_h = 35   # altura recreo
-
     obs_table = Table(
-        [
-            [
-                Paragraph(
-                    f"<b>Observaciones:</b><br/>{obs_text or '—'}",
-                    styles["Normal"],
-                )
-            ]
-        ],
+        [[Paragraph(f"<b>Observaciones:</b><br/>{obs_text or '—'}", styles["Normal"])]],
         colWidths=[total_width],
         rowHeights=[row_h],
     )
 
-    obs_table.setStyle(
-        TableStyle(
-            [
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ]
-        )
-    )
+    obs_table.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.black),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING", (0,0), (-1,-1), 2),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+    ]))
 
     elements.append(obs_table)
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1,8))
 
 
-    # ----------------------------------------------------------
-    #  TABLA PRINCIPAL
-    # ----------------------------------------------------------
-
+    # =======================================================
+    #   TABLA DEL PARTE (la principal)
+    # =======================================================
     col_widths = [
         1.0 * cm,            # HORA
         total_width * 0.32,  # PROFESOR
         total_width * 0.10,  # GRUPO
         total_width * 0.10,  # AULA
-        total_width * 0.10,  # ASIGN
+        total_width * 0.10,  # ASIGN.
         total_width * 0.18,  # FIRMAS
         total_width * 0.20,  # GUARDIA
     ]
 
-    # recreo = fila 1 (cabecera) + 3 = índice 4
     row_heights = [16] + [
-        (recreo_h if i == 3 else row_h) for i in range(len(HOUR_ROWS))
+        (recreo_h if idx == 3 else row_h)
+        for idx in range(len(HOUR_ROWS))
     ]
 
     table = Table(data, colWidths=col_widths, rowHeights=row_heights)
 
-    ts = TableStyle(
-        [
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 9),
+    ts = TableStyle([
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,0), 9),
 
-            ("ALIGN", (0, 0), (0, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (0,0), (0,-1), "CENTER"),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
 
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.black),
 
-            # RECREO en gris → índice 4
-            ("BACKGROUND", (0, 4), (-1, 4), colors.lightgrey),
+        # RECREO en gris
+        ("BACKGROUND", (0,4), (-1,4), colors.lightgrey),
 
-            ("FONTSIZE", (0, 1), (-1, -1), 8),
+        ("FONTSIZE", (0,1), (-1,-1), 8),
 
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]
-    )
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING", (0,0), (-1,-1), 2),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+    ])
+
+    # ================================
+    #   SPAN para fila RECREO
+    # ================================
+    recreo_row_index = 1 + recreo_index  # header (0) + fila del índice (3) = 4
+
+    ts.add("SPAN", (0, recreo_row_index), (-1, recreo_row_index))
+    ts.add("ALIGN", (0, recreo_row_index), (-1, recreo_row_index), "CENTER")
+    ts.add("VALIGN", (0, recreo_row_index), (-1, recreo_row_index), "MIDDLE")
+    ts.add("FONTSIZE", (0, recreo_row_index), (-1, recreo_row_index), 12)
 
     table.setStyle(ts)
 
     elements.append(table)
     doc.build(elements)
 
-
-
 # ======================================================================
-# HTML PREVIEW
+#   HTML PREVIEW (se mantiene simple)
 # ======================================================================
 async def build_daily_report_data(
     session: AsyncSession,
@@ -345,11 +327,22 @@ async def build_daily_report_data(
 
     obs_lines: List[str] = []
 
+
     for label, hour_idx in HOUR_ROWS:
+
+        # FILA RECREO → igual que en PDF (SPAN en HTML lo hará la plantilla)
+        if hour_idx == recreo_index:
+            rows.append([
+                "RECREO",
+                "", "", "", "", "", ""
+            ])
+            continue
 
         row_prof, row_grp, row_room, row_subj = [], [], [], []
 
+        # ========= AUSENTES =========
         for tid in sorted(absent_ids):
+
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
                 continue
@@ -357,6 +350,7 @@ async def build_daily_report_data(
             prof_name = name_by_id.get(tid)
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
 
+            # No clase / no guardia → no aparece
             if not slot:
                 continue
 
@@ -365,19 +359,19 @@ async def build_daily_report_data(
                 row_grp.append(slot.group or "")
                 row_room.append(slot.room or "")
                 row_subj.append(slot.subject or "")
+
             else:
                 gtext = (slot.guard_type or "").upper()
                 if "RECREO" in gtext:
-                    row_prof.append(prof_name)
-                    row_grp.append("")
-                    row_room.append("")
-                    row_subj.append("")
+                    # Guardias de recreo → OBSERVACIONES
+                    obs_lines.append(prof_name)
                 else:
                     row_prof.append(prof_name)
                     row_grp.append("guardia")
                     row_room.append("guardia")
                     row_subj.append("guardia")
 
+        # ========= GUARDIAS (NO AUSENTES) =========
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
@@ -399,18 +393,17 @@ async def build_daily_report_data(
         def crush(xs: List[str]):
             return "\n".join([x for x in xs if x.strip()])
 
-        rows.append(
-            [
-                label,
-                crush(row_prof),
-                crush(row_grp),
-                crush(row_room),
-                crush(row_subj),
-                "",
-                crush(guard_aliases),
-            ]
-        )
+        rows.append([
+            label,
+            crush(row_prof),
+            crush(row_grp),
+            crush(row_room),
+            crush(row_subj),
+            "",
+            crush(guard_aliases),
+        ])
 
+    # ======== OBSERVACIONES =========
     obs_text = ""
     if obs_lines or observaciones_usuario:
         parts = []
