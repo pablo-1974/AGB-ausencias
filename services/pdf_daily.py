@@ -49,7 +49,7 @@ async def _teachers_absent_that_day(session: AsyncSession, the_date: date) -> Tu
              or_(Leave.substitute_teacher_id == None, Leave.substitute_teacher_id == 0))
     )
     leaves = (await session.execute(q_leave)).scalars().all()
-    FULL_MASK = (1 << 6) - 1
+    FULL_MASK = (1 << 7) - 1
     for lv in leaves:
         absent_ids.add(lv.teacher_id)
         hours_by_teacher[lv.teacher_id] = hours_by_teacher.get(lv.teacher_id, 0) | FULL_MASK
@@ -295,5 +295,6 @@ async def build_daily_report_data(
         "rows": data_rows,
         "obs_text": obs_text,
     }
+
 
 
