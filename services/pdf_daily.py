@@ -155,7 +155,7 @@ async def build_daily_report_pdf(
             guard_aliases.append(t.alias or t.name)
 
         def crush(xs: List[str]) -> str:
-            return "\n".join([s for s in xs if s.strip()])
+            return "\n".join([str(s) for s in xs if s and str(s).strip()])
 
         data.append([
             label,
@@ -357,3 +357,4 @@ async def build_daily_report_data(
         "rows": rows,
         "obs_text": obs_text,
     }
+
