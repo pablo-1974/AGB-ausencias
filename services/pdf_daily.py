@@ -196,3 +196,100 @@ async def build_daily_report_pdf(
 
     elements.append(table)
     doc.build(elements)
+
+# --- añade al final de services/pdf_daily.py (o cerca de build_daily_report_pdf) ---
+
+async def build_daily_report_data(
+    session: AsyncSession,
+    the_date: date,
+    observaciones_usuario: str | None = None,
+    recreo_index: int = 3,
+):
+    """
+    Devuelve una estructura de datos para pintar el parte en HTML:
+    {
+      "title": "...",
+      "weekday_name": "...",
+      "date_str": "YYYY-MM-DD",
+      "head": [ ... ],
+      "rows": [ [col1..col7], ... ],
+      "obs_text": "…"
+    }
+    Reutiliza la misma lógica de _teachers_absent_that_day y de construcción de filas.
+    """
+    absent_ids, hours_by_teacher = await _teachers_absent_that_day(session, the_date)
+
+    # Nombres
+    if absent_ids:
+        q_teachers = select(Teacher.id, Teacher.name).where(Teacher.id.in_(absent_ids))
+        name_by_id = {tid: tname for tid, tname in (await session.execute(q_teachers)).all()}
+    else:
+        name_by_id = {}
+
+    head = ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"]
+    data_rows = []
+
+    weekday_py = the_date.weekday()
+    weekday_name = DAYS.get(weekday_py, "")
+
+    obs_lines: List[str] = []
+
+    for label, hour_idx in HOUR_ROWS:
+        row_prof, row_grp, row_room, row_subj, row_guard = [], [], [], [], []
+
+        for tid in sorted(absent_ids):
+            mask = hours_by_teacher.get(tid, 0)
+            is_abs_now = (_bit_on(mask, hour_idx + 1) if hour_idx != recreo_index else True)
+            if not is_abs_now:
+                continue
+            tname = name_by_id.get(tid, f"ID {tid}")
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+            if not slot:
+                row_prof.append(tname); row_grp.append(""); row_room.append(""); row_subj.append("")
+            else:
+                if slot.type == ScheduleType.CLASS:
+                    row_prof.append(tname)
+                    row_grp.append(slot.group or ""); row_room.append(slot.room or ""); row_subj.append(slot.subject or "")
+                else:
+                    gtext = (slot.guard_type or "").upper()
+                    if "RECREO" in gtext:
+                        obs_lines.append(f"{tname}: {gtext.replace('G ', '').lower()}")
+                        row_prof.append(tname); row_grp.append(""); row_room.append(""); row_subj.append("")
+                    else:
+                        row_prof.append(tname); row_grp.append("guardia"); row_room.append("guardia"); row_subj.append("guardia")
+
+        # Profes disponibles en guardia (no ausentes)
+        guard_names = await list_teachers_on_guard(session, weekday_py, hour_idx, absent_ids)
+        row_guard = guard_names
+
+        def crush(xs: List[str]) -> str:
+            return "\n".join([s for s in xs if s and s.strip()])
+
+        data_rows.append([
+            label,
+            crush(row_prof),
+            crush(row_grp),
+            crush(row_room),
+            crush(row_subj),
+            "",
+            crush(row_guard),
+        ])
+
+    # Observaciones combinadas
+    obs_text = ""
+    if obs_lines or observaciones_usuario:
+        parts = []
+        if obs_lines:
+            parts.append("; ".join(obs_lines))
+        if observaciones_usuario:
+            parts.append(observaciones_usuario.strip())
+        obs_text = "; ".join(parts)
+
+    return {
+        "title": f"Ausencias del día ({weekday_name} {the_date.strftime('%d/%m/%Y')})",
+        "weekday_name": weekday_name,
+        "date_str": the_date.isoformat(),
+        "head": head,
+        "rows": data_rows,
+        "obs_text": obs_text,
+    }
