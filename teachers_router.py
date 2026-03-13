@@ -185,3 +185,48 @@ async def teachers_list_pdf(
         media_type="application/pdf",
         filename=f"{tipo}_profesorado.pdf",
     )
+
+# ---------------------------------------------------------
+# IMPRIMIR LISTADO DE PROFESORES
+# ---------------------------------------------------------
+from services.pdf_teachers import generate_teachers_list_pdf
+import tempfile
+from datetime import date
+from fastapi.responses import FileResponse
+
+
+@router.get("/teachers/print")
+async def teachers_print(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    # Cargamos profesores ordenados por nombre
+    teachers = (
+        await session.execute(
+            select(Teacher).order_by(Teacher.name.asc())
+        )
+    ).scalars().all()
+
+    items = [t.name for t in teachers]
+
+    # Generar PDF temporal
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp.close()
+
+    today_str = date.today().strftime("%d/%m/%Y")
+
+    generate_teachers_list_pdf(
+        path=tmp.name,
+        center_name=settings.INSTITUTION_NAME,
+        title="Listado de Profesorado",
+        items=items,
+        date_str=f"Fecha: {today_str}",
+    )
+
+    filename = "Listado_Profesorado.pdf"
+
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=filename,
+    )
