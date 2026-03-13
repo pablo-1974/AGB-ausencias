@@ -1,11 +1,11 @@
 # teachers_router.py
 from __future__ import annotations
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 import unicodedata
 
 from fastapi import APIRouter, Depends, Request, Query
-from starlette.responses import FileResponse
+from fastapi.responses import FileResponse
 from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,6 @@ from models import Teacher, TeacherStatus, Leave
 from services.pdf_teachers import generate_teachers_list_pdf
 
 router = APIRouter()
-
 
 # ======================================================
 #   Helpers plantillas
@@ -45,32 +44,18 @@ def _ctx(request: Request, **extra):
 #   Helpers ordenación sin tildes
 # ======================================================
 def _normalize_name(name: str) -> str:
-    """Orden alfabético: Álvarez -> alvarez"""
     nf = unicodedata.normalize("NFD", name)
     return "".join(ch for ch in nf if not unicodedata.combining(ch)).lower()
 
 
 # ======================================================
-#   Obtener Profes Actual / Titular / Sustituto
+#   PROFESORADO ACTUAL: ACTIVO + BAJA SIN SUSTITUTO
 # ======================================================
 async def _get_profesorado_actual(session: AsyncSession):
-    """
-    PROFESORADO ACTUAL:
-      1) Activos
-      2) En baja/excedencia sin sustituto → bloque aparte
-    """
-
-    # -------------------------------
-    # 1) Profes activos
-    # -------------------------------
     q_activos = select(Teacher).where(Teacher.status == TeacherStatus.activo)
     activos = (await session.execute(q_activos)).scalars().all()
     activos = sorted(activos, key=lambda t: _normalize_name(t.name))
 
-    # -------------------------------
-    # 2) Profes en baja/excedencia sin sustituto
-    # -------------------------------
-    # tenemos que buscar leaves activas y sin substitute_teacher_id
     q_bajas = (
         select(Teacher)
         .join(Leave, Leave.teacher_id == Teacher.id)
@@ -87,7 +72,9 @@ async def _get_profesorado_actual(session: AsyncSession):
     )
 
     ausentes_sin_sustituto = (await session.execute(q_bajas)).scalars().all()
-    ausentes_sin_sustituto = sorted(ausentes_sin_sustituto, key=lambda t: _normalize_name(t.name))
+    ausentes_sin_sustituto = sorted(
+        ausentes_sin_sustituto, key=lambda t: _normalize_name(t.name)
+    )
 
     return activos, ausentes_sin_sustituto
 
@@ -113,16 +100,15 @@ async def teachers_list(
     tipo: str = Query("actual", pattern="^(actual|titular|sustituto)$"),
     session: AsyncSession = Depends(get_session),
 ):
-
     if tipo == "actual":
-        activos, ausentes_sin_sustituto = await _get_profesorado_actual(session)
+        activos, ausentes = await _get_profesorado_actual(session)
         return _templates(request).TemplateResponse(
             "teachers_list.html",
             _ctx(
                 request,
                 tipo="actual",
                 activos=activos,
-                ausentes_sin_sustituto=ausentes_sin_sustituto,
+                ausentes_sin_sustituto=ausentes,
             ),
         )
 
@@ -142,91 +128,77 @@ async def teachers_list(
 
 
 # ======================================================
-#   PDF
+#   FUNCIÓN AUXILIAR PARA GENERAR PDFs
 # ======================================================
-@router.get("/teachers/list/pdf")
-async def teachers_list_pdf(
-    tipo: str = Query("actual", pattern="^(actual|titular|sustituto)$"),
-    session: AsyncSession = Depends(get_session),
-):
-
-    if tipo == "actual":
-        activos, ausentes = await _get_profesorado_actual(session)
-        items = activos + ausentes
-        title = "Profesorado Actual"
-
-    elif tipo == "titular":
-        items = await _get_profesorado_titular(session)
-        title = "Profesorado Titular"
-
-    elif tipo == "sustituto":
-        items = await _get_profesorado_sustituto(session)
-        title = "Profesorado Sustituto"
-
-    # Para PDF convertimos objetos Teacher -> nombres
-    items_pdf = [t.name for t in items]
-
-    # Ordenar sin tildes
-    items_pdf = sorted(items_pdf, key=_normalize_name)
-
+def _make_pdf(items, filename, title, center_name):
     import tempfile
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp.close()
 
     generate_teachers_list_pdf(
         path=tmp.name,
-        center_name=(settings.INSTITUTION_NAME or ""),
+        center_name=center_name,
         title=title,
-        items=items_pdf,
-        date_str=None,
+        items=items,
+        date_str=date.today().strftime("%d/%m/%Y"),
+        logo_path=settings.LOGO_PATH,
     )
 
-    return FileResponse(
-        tmp.name,
-        media_type="application/pdf",
-        filename=f"{tipo}_profesorado.pdf",
-    )
-
-# ---------------------------------------------------------
-# IMPRIMIR LISTADO DE PROFESORES
-# ---------------------------------------------------------
-from services.pdf_teachers import generate_teachers_list_pdf
-import tempfile
-from datetime import date
-from fastapi.responses import FileResponse
+    return FileResponse(tmp.name, media_type="application/pdf", filename=filename)
 
 
-@router.get("/teachers/print")
-async def teachers_print(
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    # Cargamos profesores ordenados por nombre
-    teachers = (
+# ======================================================
+#   MENÚ COMPLETO DE PDFS
+# ======================================================
+@router.get("/teachers/print/all")
+async def teachers_print_all(session: AsyncSession = Depends(get_session)):
+    rows = (
         await session.execute(
             select(Teacher).order_by(Teacher.name.asc())
         )
     ).scalars().all()
 
-    items = [t.name for t in teachers]
+    items = [{"name": t.name, "email": t.email or ""} for t in rows]
+    return _make_pdf(items, "Profesores_Todos.pdf", "Listado completo", settings.INSTITUTION_NAME)
 
-    # Generar PDF temporal
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    tmp.close()
 
-    today_str = date.today().strftime("%d/%m/%Y")
+@router.get("/teachers/print/activos")
+async def teachers_print_activos(session: AsyncSession = Depends(get_session)):
+    rows = (
+        await session.execute(
+            select(Teacher)
+            .where(Teacher.status == TeacherStatus.activo)
+            .order_by(Teacher.name.asc())
+        )
+    ).scalars().all()
 
-    generate_teachers_list_pdf(
-        path=tmp.name,
-        center_name=settings.INSTITUTION_NAME,
-        title="Listado de Profesorado",
-        items=items,
-        date_str=f"Fecha: {today_str}",
-    )
+    items = [{"name": t.name, "email": t.email or ""} for t in rows]
+    return _make_pdf(items, "Profesores_Activos.pdf", "Profesorado Activo", settings.INSTITUTION_NAME)
 
-    filename = "Listado_Profesorado.pdf"
 
-    return FileResponse(
-        tmp.name,
-        media_type="application/pdf",
-        filename=filename,
-    )
+@router.get("/teachers/print/bajas")
+async def teachers_print_bajas(session: AsyncSession = Depends(get_session)):
+    rows = (
+        await session.execute(
+            select(Teacher)
+            .where(Teacher.status.in_([TeacherStatus.baja, TeacherStatus.excedencia]))
+            .order_by(Teacher.name.asc())
+        )
+    ).scalars().all()
+
+    items = [{"name": t.name, "email": t.email or ""} for t in rows]
+    return _make_pdf(items, "Profesores_Bajas.pdf", "Profesores en Baja o Excedencia", settings.INSTITUTION_NAME)
+
+
+@router.get("/teachers/print/exprofes")
+async def teachers_print_exprofes(session: AsyncSession = Depends(get_session)):
+    rows = (
+        await session.execute(
+            select(Teacher)
+            .where(Teacher.status == TeacherStatus.exprofe)
+            .order_by(Teacher.name.asc())
+        )
+    ).scalars().all()
+
+    items = [{"name": t.name, "email": t.email or ""} for t in rows]
+    return _make_pdf(items, "Exprofesorado.pdf", "Exprofesorado", settings.INSTITUTION_NAME)
