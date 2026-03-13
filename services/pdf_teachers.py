@@ -93,10 +93,10 @@ def generate_teachers_list_pdf(
     # Ancho total
     page_w, _ = A4
     usable_w = page_w - (doc.leftMargin + doc.rightMargin)
-
-    num_w = 14 * mm      # nº fijo
-    email_w = 45 * mm    # email fijo
-    name_w = usable_w - num_w - email_w
+    
+    num_w = 14 * mm                       # mantiene tu alineación de números
+    name_w = usable_w * 0.60              # 60% para nombres
+    email_w = usable_w * 0.40             # 40% para emails
 
     table = Table(data, colWidths=[num_w, name_w, email_w])
 
