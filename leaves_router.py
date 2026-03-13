@@ -128,46 +128,60 @@ async def leaves_new_form(
 async def leaves_new_create(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),  # <-- ajusta si no debe requerir admin
+    admin=Depends(admin_required),
     teacher_id: int = Form(...),
     start_date: date = Form(...),
-    leave_type: str = Form("baja"),  # por si luego añades selector ('baja' | 'excedencia')
+    leave_type: str = Form("baja"),    # 'baja' | 'excedencia'
     cause: str = Form("Baja"),
+    category: str = Form(...),         # ⬅⬅⬅ NUEVO (obligatorio)
 ):
     """
     Procesa el formulario e inicia la baja usando services.leaves.open_leave.
     """
-    # Mapear leave_type -> Enum
+
+    # ----------- Mapeo del tipo de baja -----------
     lt = TeacherStatus.baja if leave_type == "baja" else TeacherStatus.excedencia
 
+    # ----------- VALIDACIÓN DE CATEGORÍA A–L -----------
+    if category not in list("ABCDEFGHIJKL"):
+        # Recargar profesores activos para repintar la plantilla
+        q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
+        teachers = (await session.execute(q)).scalars().all()
+
+        return _templates(request).TemplateResponse(
+            "leaves_new.html",
+            _ctx(
+                request,
+                title="Iniciar baja",
+                teachers=teachers,
+                error="Debe seleccionar una categoría válida (A–L)."
+            ),
+            status_code=400
+        )
+
     try:
+        # ----------- CREAR LA BAJA CON CATEGORÍA -----------
         await open_leave(
             session=session,
             teacher_id=teacher_id,
             start_date=start_date,
             leave_type=lt,
             cause=cause or "Baja",
+            category=category,    # ⬅⬅⬅ NUEVO
         )
-        # ✅ Tras crear, volver siempre a Ver Bajas
+
+        # ✔ Tras crear → volvemos a listado de bajas
         return RedirectResponse("/leaves", status_code=303)
 
-    except HTTPException as he:
-        # Re-pintar el form con error de validación del servicio
-        q = select(Teacher).order_by(Teacher.name.asc())
-        teachers = (await session.execute(q)).scalars().all()
-        return _templates(request).TemplateResponse(
-            "leaves_new.html",
-            _ctx(request, title="Iniciar baja", teachers=teachers, error=he.detail),
-            status_code=he.status_code,
-        )
     except Exception as e:
-        # Error genérico
-        q = select(Teacher).order_by(Teacher.name.asc())
+        # Recargar profesores activos para repintar plantilla con error
+        q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
         teachers = (await session.execute(q)).scalars().all()
+
         return _templates(request).TemplateResponse(
             "leaves_new.html",
             _ctx(request, title="Iniciar baja", teachers=teachers, error=str(e)),
-            status_code=400,
+            status_code=400
         )
 
 # --- SUSTITUCIONES ---
