@@ -7,14 +7,28 @@
   .schedule-table td { vertical-align: middle; text-align: center; }
   .schedule-cell { display: flex; align-items: center; justify-content: center; min-height: 60px; }
   .schedule-cell--recreo { min-height: 32px; }
-  .schedule-badge { border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 0.25rem 0.5rem; }
-  .schedule-badge.class { background-color: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
-  .schedule-badge.guard { background-color: #fffbeb; color: #92400e; border-color: #fde68a; font-weight: 600; }
+  .schedule-badge {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .schedule-badge.class {
+    background-color: #eef2ff;
+    color: #3730a3;
+    border-color: #c7d2fe;
+  }
+  .schedule-badge.guard {
+    background-color: #fffbeb;
+    color: #92400e;
+    border-color: #fde68a;
+    font-weight: 600;
+  }
   .schedule-line { line-height: 1.1; }
   .schedule-muted { font-size: 0.75rem; color: #6b7280; }
 </style>
 
-<!-- FORMULARIO REAL (NECESARIO PARA SUBMIT AUTOMÁTICO) -->
+
+<!-- FORMULARIO CORRECTO (POST) -->
 <form id="form-schedule" action="/schedule/view" method="post" class="max-w-md mb-6 card">
 
   <label class="label" for="teacher_id">Profesor</label>
@@ -30,7 +44,7 @@
       –
     </button>
 
-    <!-- Select -->
+    <!-- Selector -->
     <select id="teacher_id" name="teacher_id" class="input w-full" required>
       <option value="">-- Selecciona profesor --</option>
       {% for t in teachers %}
@@ -53,16 +67,16 @@
 
 </form>
 
+
+<!-- JS para navegación y carga automática -->
 <script>
   const sel = document.getElementById("teacher_id");
   const form = document.getElementById("form-schedule");
 
-  // Al seleccionar profesor → cargar automáticamente
   sel.addEventListener("change", () => {
     if (sel.value) form.submit();
   });
 
-  // Navegación anterior
   document.getElementById("prev-teacher").addEventListener("click", () => {
     if (sel.selectedIndex > 1) {
       sel.selectedIndex--;
@@ -70,7 +84,6 @@
     }
   });
 
-  // Navegación siguiente
   document.getElementById("next-teacher").addEventListener("click", () => {
     if (sel.selectedIndex < sel.options.length - 1) {
       sel.selectedIndex++;
@@ -79,24 +92,27 @@
   });
 </script>
 
-{% if schedule %}
 
-  <!-- Acciones -->
+
+
+{% if schedule %}
+  <!-- ACCIONES -->
   <div class="mb-4 flex gap-4">
 
-    <a class="btn-primary border border-gray-400 px-3 py-1"
-       href="/schedule/edit/{{ selected_id }}">
+    <a href="/schedule/edit/{{ selected_id }}"
+       class="btn-primary border border-gray-300 px-3 py-2">
       Editar horario
     </a>
 
-    <a class="btn-primary border border-gray-400 px-3 py-1"
-       href="/schedule/print/{{ selected_id }}">
+    <a href="/schedule/print/{{ selected_id }}"
+       class="btn-primary border border-gray-300 px-3 py-2">
       Imprimir horario
     </a>
 
   </div>
 
-  <!-- Tabla del horario -->
+
+  <!-- TABLA DE HORARIO -->
   <div class="overflow-x-auto">
     <table class="table table-fixed w-full text-center border border-gray-200 schedule-table">
 
@@ -107,13 +123,7 @@
         <col style="width: calc((100% - 70px) / 5);">
         <col style="width: calc((100% - 70px) / 5);">
         <col style="width: calc((100% - 70px) / 5);">
-      </colgroup>
-
-      <thead>
-        <tr class="bg-gray-200 h-[40px]">
-          <th class="p-2 align-middle text-center">Hora</th>
-          <th class="p-2 align-middle text-center">Lunes</th>
-          <th class="p-2 align-middle text-center">Martes</th>
+      </colmiddle text-center">Martes</th>
           <th class="p-2 align-middle text-center">Miércoles</th>
           <th class="p-2 align-middle text-center">Jueves</th>
           <th class="p-2 align-middle text-center">Viernes</th>
@@ -132,7 +142,6 @@
               {% set slot = schedule[hour][day] %}
               <td class="border align-middle text-center text-xs">
                 <div class="schedule-cell {% if hour == 3 %}schedule-cell--recreo{% endif %}">
-
                   {% if slot %}
                     {% if slot.type and slot.type.name == "CLASS" %}
                       <div class="schedule-badge class">
@@ -141,14 +150,24 @@
                           {{ slot.group or '' }}{% if slot.group and slot.room %} · {% endif %}{{ slot.room or '' }}
                         </div>
                       </div>
-
                     {% elif slot.type and slot.type.name == "GUARD" %}
                       <div class="schedule-badge guard">
                         {{ slot.guard_type or 'Guardia' }}
                       </div>
-
                     {% endif %}
                   {% else %}
-                    <div class="if %}
+                    <div class="schedule-line text-gray-300">—</div>
+                  {% endif %}
+                </div>
+              </td>
+            {% endfor %}
+
+          </tr>
+        {% endfor %}
+      </tbody>
+
+    </table>
+  </div>
+{% endif %}
 
 {% endblock %}
