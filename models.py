@@ -168,6 +168,8 @@ class Leave(Base):
     substitute_start_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
     substitute_end_date:   Mapped[Date | None] = mapped_column(Date, nullable=True)
 
+    # catalogación (A-L)
+    category: Mapped[str | None] = mapped_column(String(2), nullable=True)
 
 class Absence(Base):
     """
@@ -218,6 +220,7 @@ class Absence(Base):
 #
 # NOTA: si usas este modelo, recuerda crear su migración Alembic y adaptar los routers
 # que lean sustituciones (por ejemplo, /teachers/list “Profesorado Actual”).
+
 
 
 
