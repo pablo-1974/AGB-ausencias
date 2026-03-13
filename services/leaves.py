@@ -15,33 +15,50 @@ async def open_leave(
     teacher_id: int,
     start_date: date,
     leave_type: TeacherStatus,   # TeacherStatus.baja o TeacherStatus.excedencia
-    cause: str,                  # obligatorio
+    cause: str,                  
+    category: str,               # ⬅⬅⬅ NUEVO
 ) -> Leave:
     """
-    Inicia una baja/excedencia para un profesor.
-    - Requiere que el profesor esté 'activo'.
-    - Si existe una baja abierta o solapada, ajusta el inicio (no duplica).
-    - Cambia el status del profesor al tipo elegido.
+    Inicia una baja o excedencia.
+    - La BAJA requiere categoría A–L obligatoria.
+    - La EXCEDENCIA no lleva categoría.
+    - No duplicamos bajas solapadas.
     """
-    # Validaciones de tipo
+
+    # -------- Validación tipo --------
     if leave_type not in (TeacherStatus.baja, TeacherStatus.excedencia):
         raise HTTPException(status_code=400, detail="Tipo de baja no válido (usa 'baja' o 'excedencia').")
+
     if not isinstance(start_date, date):
         raise HTTPException(status_code=400, detail="Fecha de inicio no válida.")
+
     cause = (cause or "").strip()
     if not cause:
         raise HTTPException(status_code=400, detail="La causa es obligatoria.")
 
-    # Cargar profesor y validar estado actual
+    # -------- Cargar profesor --------
     teacher = (await session.execute(
         select(Teacher).where(Teacher.id == teacher_id)
     )).scalar_one_or_none()
+
     if not teacher:
         raise HTTPException(status_code=404, detail="Profesor no encontrado.")
+
     if teacher.status != TeacherStatus.activo:
         raise HTTPException(status_code=400, detail="Solo se puede iniciar baja/excedencia a un profesor en 'activo'.")
 
-    # Buscar baja activa o solapada
+    # -------- Validación categoría --------
+    if leave_type == TeacherStatus.baja:
+        # Las BAJAS necesitan categoría A–L
+        if category not in list("ABCDEFGHIJKL"):
+            raise HTTPException(status_code=400, detail="Categoría inválida. Debe ser A–L.")
+    else:
+        # Las EXCEDENCIAS NO llevan categoría
+        category = None
+
+    # --------------------------------------------------
+    # Buscar baja activa o solapada existente
+    # --------------------------------------------------
     q = select(Leave).where(
         and_(
             Leave.teacher_id == teacher_id,
@@ -49,28 +66,41 @@ async def open_leave(
         )
     )
     existing = (await session.execute(q)).scalar_one_or_none()
+
     if existing:
-        # Si ya existe activa o solapada, no creamos otra.
-        # Ajustamos fecha de inicio si la nueva es anterior.
+        # Ya había una baja o excedencia activa o solapada
         if existing.start_date > start_date:
             existing.start_date = start_date
-        # Aseguramos que cause esté informada (si antes no se guardaba)
+
         if not getattr(existing, "cause", None):
             existing.cause = cause
-        # Cambiamos el status del profesor al tipo actual elegido
+
+        # Si es baja → categoría se actualiza
+        if leave_type == TeacherStatus.baja:
+            existing.category = category
+        else:
+            existing.category = None
+
         teacher.status = leave_type
+
         await session.commit()
         await session.refresh(existing)
         return existing
 
-    # Crear Leave nueva con cause
+    # --------------------------------------------------
+    # Crear BAJA nueva
+    # --------------------------------------------------
     lv = Leave(
         teacher_id=teacher_id,
         start_date=start_date,
         end_date=None,
-        cause=cause,  # <-- requiere columna en BD
-        substitute_teacher_id=None
+        cause=cause,
+        category=category,                # ⬅⬅⬅ NUEVO
+        substitute_teacher_id=None,
+        substitute_start_date=None,
+        substitute_end_date=None,
     )
+
     session.add(lv)
 
     # Cambiar estado del profesor
@@ -78,6 +108,7 @@ async def open_leave(
 
     await session.commit()
     await session.refresh(lv)
+
     return lv
 
 
@@ -193,4 +224,5 @@ async def close_leave(session: AsyncSession, teacher_id: int, end_date: date) ->
     await session.commit()
     await session.refresh(lv)
     return lv
+
 
