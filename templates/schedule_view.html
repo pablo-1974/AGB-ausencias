@@ -112,67 +112,82 @@
   </div>
 
 
-  <!-- TABLA DE HORARIO -->
-  <div class="overflow-x-auto">
-    <table class="table table-fixed w-full text-center border border-gray-200 schedule-table">
+<!-- TABLA DE HORARIO -->
+<div class="overflow-x-auto">
+  <table class="table table-fixed w-full text-center border border-gray-200 schedule-table">
 
-      <colgroup>
-        <col style="width: 70px; background-color: #f3f4f6;">
-        <col style="width: calc((100% - 70px) / 5);">
-        <col style="width: calc((100% - 70px) / 5);">
-        <col style="width: calc((100% - 70px) / 5);">
-        <col style="width: calc((100% - 70px) / 5);">
-        <col style="width: calc((100% - 70px) / 5);">
-      </colmiddle text-center">Martes</th>
-          <th class="p-2 align-middle text-center">Miércoles</th>
-          <th class="p-2 align-middle text-center">Jueves</th>
-          <th class="p-2 align-middle text-center">Viernes</th>
-        </tr>
-      </thead>
+    <!-- Columnas -->
+    <colgroup>
+      <col style="width: 70px; background-color: #f3f4f6;">   <!-- Hora -->
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+      <col style="width: calc((100% - 70px) / 5);">
+    </colgroup>
 
-      <tbody>
-        {% for hour in range(7) %}
-          <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
+    <thead>
+      <tr class="bg-gray-200 h-[40px]">
+        <th class="p-2 align-middle text-center">Hora</th>
+        <th class="p-2 align-middle text-center">Lunes</th>
+        <th class="p-2 align-middle text-center">Martes</th>
+        <th class="p-2 align-middle text-center">Miércoles</th>
+        <th class="p-2 align-middle text-center">Jueves</th>
+        <th class="p-2 align-middle text-center">Viernes</th>
+      </tr>
+    </thead>
 
-            <th class="border bg-gray-100 align-middle text-center text-sm">
-              {% if hour == 3 %}
-                Recreo
-              {% else %}
-                {{ (hour if hour < 3 else hour - 1) + 1 }}ª
-              {% endif %}
-            </th>
+    <tbody>
+      {% for hour in range(7) %}
+        <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
 
-            {% for day in range(5) %}
-              {% set slot = schedule[hour][day] %}
-              <td class="border align-middle text-center text-xs">
-                <div class="schedule-cell {% if hour == 3 %}schedule-cell--recreo{% endif %}">
-                  {% if slot %}
-                    {% if slot.type and slot.type.name == "CLASS" %}
-                      <div class="schedule-badge class">
-                        <div class="schedule-line">{{ slot.subject or 'Clase' }}</div>
-                        <div class="schedule-muted">
-                          {{ slot.group or '' }}{% if slot.group and slot.room %} · {% endif %}{{ slot.room or '' }}
-                        </div>
+          <!-- Primera columna: Hora/Recreo — centrado vertical y horizontal -->
+          <th class="border bg-gray-100 text-center align-middle text-sm">
+            {% if hour == 3 %}
+              Recreo
+            {% else %}
+              {{ (hour if hour < 3 else hour - 1) + 1 }}ª
+            {% endif %}
+          </th>
+
+          <!-- Celdas L-V -->
+          {% for day in range(5) %}
+            {% set slot = schedule[hour][day] %}
+            <td class="border text-center align-middle text-xs">
+              <div class="schedule-cell {% if hour == 3 %}schedule-cell--recreo{% endif %}">
+                
+                {% if slot %}
+                  {% if slot.type and slot.type.name == "CLASS" %}
+                    <div class="schedule-badge class">
+                      <div class="schedule-line">{{ slot.subject or 'Clase' }}</div>
+                      <div class="schedule-muted">
+                        {{ slot.group or '' }}{% if slot.group and slot.room %} · {% endif %}{{ slot.room or '' }}
                       </div>
-                    {% elif slot.type and slot.type.name == "GUARD" %}
-                      <div class="schedule-badge guard">
-                        {{ slot.guard_type or 'Guardia' }}
-                      </div>
-                    {% endif %}
-                  {% else %}
-                    <div class="schedule-line text-gray-300">—</div>
+                    </div>
+
+                  {% elif slot.type and slot.type.name == "GUARD" %}
+                    <div class="schedule-badge guard">
+                      {{ slot.guard_type or 'Guardia' }}
+                    </div>
+
                   {% endif %}
-                </div>
-              </td>
-            {% endfor %}
+                
+                {% else %}
+                  <div class="schedule-line text-gray-300">—</div>
+                {% endif %}
 
-          </tr>
-        {% endfor %}
-      </tbody>
+              </div>
+            </td>
+          {% endfor %}
 
-    </table>
-  </div>
+        </tr>
+      {% endfor %}
+    </tbody>
+
+  </table>
+</div>
 {% endif %}
 
 {% endblock %}
+
 
