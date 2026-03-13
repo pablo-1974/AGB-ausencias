@@ -1,3 +1,4 @@
+raise RuntimeError("ESTE ES EL reports_router CORRECTO")
 # reports_router.py
 from __future__ import annotations
 
