@@ -34,6 +34,7 @@ def _ctx(request: Request, **extra):
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
         "logo_path": settings.LOGO_PATH,
+        "now": datetime.now(),
     }
     base.update(extra or {})
     return base
