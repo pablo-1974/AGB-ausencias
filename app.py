@@ -87,6 +87,19 @@ app.include_router(leaves_router)
 app.include_router(absences_router)
 app.include_router(reports_router)
 
+# DEBUG: mostrar errores de arranque
+import sys
+def debug_import_error(module_name: str):
+    try:
+        __import__(module_name)
+    except Exception as e:
+        print(f"ERROR AL IMPORTAR {module_name}:", e, file=sys.stderr)
+
+debug_import_error("services.pdf_monthly")
+debug_import_error("reports_router")
+debug_import_error("leaves_router")
+debug_import_error("teachers_router")
+
 # ------------------------------------------------------------
 # Contexto común
 # ------------------------------------------------------------
