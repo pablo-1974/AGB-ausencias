@@ -3,6 +3,7 @@
 
 <h1 class="text-2xl font-bold mb-4">Listado de Profesorado</h1>
 
+<!-- MENÚ DE IMPRESIÓN -->
 <div class="mb-4 flex gap-3">
 
   <div class="relative">
@@ -11,11 +12,24 @@
     </button>
 
     <div id="printMenu"
-         class="absolute hidden bg-white border rounded shadow p-2 mt-1 z-10">
-      /teachers/print/all">Listado completo</a><br>
-      /teachers/print/activos">Activos</a><br>
-      /teachers/print/bajas">Bajas / Excedencia</a><br>
-      /teachers/print/exprofes">Exprofes</a><br>
+         class="absolute hidden bg-white border rounded shadow p-2 mt-1 z-10 w-48">
+
+      <a href="/teachers/print/all" class="block px-2 py-1 hover:bg-gray-100">
+        Listado completo
+      </a>
+
+      <a href="/teachers/print/activos" class="block px-2 py-1 hover:bg-gray-100">
+        Activos
+      </a>
+
+      <a href="/teachers/print/bajas" class="block px-2 py-1 hover:bg-gray-100">
+        Bajas / Excedencias
+      </a>
+
+      <a href="/teachers/print/exprofes" class="block px-2 py-1 hover:bg-gray-100">
+        Exprofes
+      </a>
+
     </div>
   </div>
 
