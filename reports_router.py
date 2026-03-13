@@ -110,3 +110,110 @@ async def reports_daily_generate(
         media_type="application/pdf",
         filename=filename,
     )
+
+# ==================================
+# PARTE MENSUAL (GET formulario)
+# ==================================
+@router.get("/reports/monthly", response_class=HTMLResponse)
+async def reports_monthly_form(
+    request: Request,
+    admin=Depends(admin_required),
+):
+    # Primer y último día del mes anterior
+    today = date.today()
+    first_last_month = date(today.year, today.month - 1, 1) if today.month > 1 else date(today.year - 1, 12, 1)
+
+    # último día del mes anterior
+    if first_last_month.month == 12:
+        last_last_month = date(first_last_month.year, 12, 31)
+    else:
+        # último día = día antes del primer día del mes actual
+        last_last_month = date(today.year, today.month, 1) - timedelta(days=1)
+
+    return _templates(request).TemplateResponse(
+        "reports_monthly.html",
+        _ctx(
+            request,
+            title="Parte mensual de ausencias",
+            date_from=first_last_month.isoformat(),
+            date_to=last_last_month.isoformat(),
+        ),
+    )
+
+# ==================================
+# PARTE MENSUAL — Vista previa
+# ==================================
+@router.get("/reports/monthly/view", response_class=HTMLResponse)
+async def reports_monthly_view(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+):
+    from services.pdf_monthly import build_monthly_report_pdf
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp.close()
+
+    has_uncategorized, rows = await build_monthly_report_pdf(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        path_out=tmp.name,
+    )
+
+    return _templates(request).TemplateResponse(
+        "reports_monthly.html",
+        _ctx(
+            request,
+            title="Parte mensual de ausencias",
+            date_from=date_from.isoformat(),
+            date_to=date_to.isoformat(),
+            rows=rows,                  # MOSTRAMOS TABLA SIEMPRE
+            has_uncategorized=has_uncategorized,
+        ),
+    )
+
+# ==================================
+# PARTE MENSUAL — Generación PDF
+# ==================================
+@router.get("/reports/monthly/pdf")
+async def reports_monthly_pdf(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+):
+    from services.pdf_monthly import build_monthly_report_pdf
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp.close()
+
+    has_uncategorized, rows = await build_monthly_report_pdf(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        path_out=tmp.name,
+    )
+
+    # ❗ NO permitir PDF si hay elementos sin catalogar
+    if has_uncategorized:
+        return _templates(request).TemplateResponse(
+            "reports_monthly.html",
+            _ctx(
+                request,
+                title="Parte mensual de ausencias",
+                date_from=date_from.isoformat(),
+                date_to=date_to.isoformat(),
+                rows=rows,
+                has_uncategorized=True,
+                pdf_error="No se puede generar el PDF porque hay AUSENCIAS o BAJAS sin catalogar.",
+            ),
+            status_code=400,
+        )
+
+    filename = f"parte_mensual_{date_from}_{date_to}.pdf"
+    return FileResponse(tmp.name, media_type="application/pdf", filename=filename)
+
