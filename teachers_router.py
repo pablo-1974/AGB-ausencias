@@ -1,28 +1,25 @@
 # teachers_router.py
 from __future__ import annotations
 from datetime import date
-from typing import Iterable, Dict, List, Tuple, Optional
-import unicodedata  # <-- para ordenar ignorando tildes
+from typing import List, Optional
+import unicodedata
 
-from fastapi import APIRouter, Depends, Request, Query, HTTPException
+from fastapi import APIRouter, Depends, Request, Query
 from starlette.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_session
 from config import settings
-from models import Teacher
+from models import Teacher, TeacherStatus, Leave
 from services.pdf_teachers import generate_teachers_list_pdf
-
-# Intentar importar el modelo de sustituciones; si no existe, seguimos en modo “sin sustituciones”
-try:
-    from models import Substitution  # <-- si en tu proyecto tiene otro nombre, cámbialo aquí
-except Exception:
-    Substitution = None  # tolerante: el router funciona sin este modelo
 
 router = APIRouter()
 
 
+# ======================================================
+#   Helpers plantillas
+# ======================================================
 def _templates(request: Request):
     tpl = getattr(request.app.state, "templates", None)
     if tpl is None:
@@ -44,163 +41,147 @@ def _ctx(request: Request, **extra):
     return base
 
 
-# ------- helper de ordenación sin tildes -------
-def _sort_key(name: str) -> str:
-    """
-    Clave de ordenación que ignora tildes/diacríticos y compara en minúsculas.
-    'Álvarez' -> 'alvarez'
-    """
-    if not name:
-        return ""
+# ======================================================
+#   Helpers ordenación sin tildes
+# ======================================================
+def _normalize_name(name: str) -> str:
+    """Orden alfabético: Álvarez -> alvarez"""
     nf = unicodedata.normalize("NFD", name)
-    no_diacritics = "".join(ch for ch in nf if not unicodedata.combining(ch))
-    return no_diacritics.lower()
+    return "".join(ch for ch in nf if not unicodedata.combining(ch)).lower()
 
 
-# ------- helpers sustituciones -------
-def _get_attr(obj, candidates: Iterable[str], default=None):
-    for c in candidates:
-        if hasattr(obj, c):
-            return getattr(obj, c)
-    return default
-
-def _teacher_id(value) -> Optional[int]:
-    if value is None:
-        return None
-    try:
-        if hasattr(value, "id"):
-            return int(value.id)
-        return int(value)
-    except Exception:
-        return None
-
-def _extract_ids_and_is_active(s) -> Tuple[Optional[int], Optional[int], bool]:
+# ======================================================
+#   Obtener Profes Actual / Titular / Sustituto
+# ======================================================
+async def _get_profesorado_actual(session: AsyncSession):
     """
-    ADAPTA nombres si tu modelo usa otros:
-      substitute_id  -> ['substitute_id','substitute_teacher_id','sub_id','substitute']
-      replaced_id    -> ['replaced_id','replaced_teacher_id','orig_id','teacher_id','replaced']
-      start/end date -> ['start_date'/'end_date'] o ['since'/'until']
+    PROFESORADO ACTUAL:
+      1) Activos
+      2) En baja/excedencia sin sustituto → bloque aparte
     """
-    sub = _get_attr(s, ["substitute_id", "substitute_teacher_id", "sub_id", "substitute"])
-    rep = _get_attr(s, ["replaced_id", "replaced_teacher_id", "orig_id", "teacher_id", "replaced"])
-    sub_id = _teacher_id(sub)
-    rep_id = _teacher_id(rep)
 
-    start = _get_attr(s, ["start_date", "since"])
-    end   = _get_attr(s, ["end_date", "until"])
-    today = date.today()
-    active = True
-    if start and start > today:
-        active = False
-    if end and end < today:
-        active = False
-    return sub_id, rep_id, active
+    # -------------------------------
+    # 1) Profes activos
+    # -------------------------------
+    q_activos = select(Teacher).where(Teacher.status == TeacherStatus.activo)
+    activos = (await session.execute(q_activos)).scalars().all()
+    activos = sorted(activos, key=lambda t: _normalize_name(t.name))
 
-
-# ------- núcleo de listados -------
-async def _compute_lists(session: AsyncSession):
-    # Profes (para mapa de nombres y ordenación)
-    teachers = (await session.execute(select(Teacher))).scalars().all()
-    t_by_id: Dict[int, Teacher] = {int(t.id): t for t in teachers}
-
-    # Si no tenemos modelo de sustituciones aún → todo el mundo es “inicial” y “actual”, no hay “sustituidos”
-    if Substitution is None:
-        names = sorted([t.name for t in teachers], key=_sort_key)  # <-- sin tildes
-        return names, names, []
-
-    # Con modelo de sustituciones
-    subs = (await session.execute(select(Substitution))).scalars().all()
-
-    all_sub_ids = set()
-    active_pairs: List[Tuple[int, int]] = []
-    for s in subs:
-        sub_id, rep_id, active = _extract_ids_and_is_active(s)
-        if sub_id:
-            all_sub_ids.add(sub_id)
-        if active and sub_id and rep_id:
-            active_pairs.append((sub_id, rep_id))
-
-    # INICIAL: no sustitutos (nunca han sido substitute_id)
-    initial_ids = [tid for tid in t_by_id.keys() if tid not in all_sub_ids]
-    initial_names = sorted([t_by_id[tid].name for tid in initial_ids], key=_sort_key)  # <-- sin tildes
-
-    # ACTUAL (hoy)
-    active_sub_to_rep = {sub: rep for sub, rep in active_pairs}
-    active_rep_to_sub = {rep: sub for sub, rep in active_pairs}
-    active_sub_ids = set(active_sub_to_rep.keys())
-    active_rep_ids = set(active_rep_to_sub.keys())
-
-    current_display: List[str] = []
-    for tid, t in t_by_id.items():
-        if tid in active_rep_ids:
-            continue  # sustituido hoy → no lo listamos como “titular”
-        if tid in active_sub_ids:
-            rep_id = active_sub_to_rep.get(tid)
-            rep_name = t_by_id.get(rep_id).name if rep_id in t_by_id else "—"
-            current_display.append(f"{t.name} ({rep_name})")
-        else:
-            current_display.append(t.name)
-    current_display = sorted(current_display, key=_sort_key)  # <-- sin tildes
-
-    # SUSTITUIDOS (segunda lista en “Actual”), ordenados por nombre del sustituido
-    replaced_display: List[str] = []
-    for rep_id in sorted(
-        list(active_rep_ids),
-        key=lambda rid: _sort_key(t_by_id[rid].name) if rid in t_by_id else ""
-    ):
-        rep_name = t_by_id.get(rep_id).name if rep_id in t_by_id else "—"
-        sub_id = active_rep_to_sub.get(rep_id)
-        sub_name = t_by_id.get(sub_id).name if sub_id in t_by_id else "—"
-        replaced_display.append(f"{rep_name} ({sub_name})")
-
-    return initial_names, current_display, replaced_display
-
-
-# ------- rutas -------
-@router.get("/teachers/list")
-async def teachers_list(request: Request, session: AsyncSession = Depends(get_session)):
-    initial, current, replaced = await _compute_lists(session)
-    return _templates(request).TemplateResponse(
-        "teachers_list.html",
-        _ctx(request, initial_list=initial, current_list=current, replaced_list=replaced),
+    # -------------------------------
+    # 2) Profes en baja/excedencia sin sustituto
+    # -------------------------------
+    # tenemos que buscar leaves activas y sin substitute_teacher_id
+    q_bajas = (
+        select(Teacher)
+        .join(Leave, Leave.teacher_id == Teacher.id)
+        .where(
+            and_(
+                Teacher.status.in_([TeacherStatus.baja, TeacherStatus.excedencia]),
+                Leave.end_date.is_(None),
+                or_(
+                    Leave.substitute_teacher_id.is_(None),
+                    Leave.substitute_teacher_id == 0,
+                ),
+            )
+        )
     )
 
-@router.get("/teachers/list/pdf")
-async def teachers_list_pdf(
-    view: str = Query(..., pattern="^(initial|current|replaced)$"),
+    ausentes_sin_sustituto = (await session.execute(q_bajas)).scalars().all()
+    ausentes_sin_sustituto = sorted(ausentes_sin_sustituto, key=lambda t: _normalize_name(t.name))
+
+    return activos, ausentes_sin_sustituto
+
+
+async def _get_profesorado_titular(session: AsyncSession):
+    q = select(Teacher).where(Teacher.titular == True)
+    items = (await session.execute(q)).scalars().all()
+    return sorted(items, key=lambda t: _normalize_name(t.name))
+
+
+async def _get_profesorado_sustituto(session: AsyncSession):
+    q = select(Teacher).where(Teacher.titular == False)
+    items = (await session.execute(q)).scalars().all()
+    return sorted(items, key=lambda t: _normalize_name(t.name))
+
+
+# ======================================================
+#   RUTA PRINCIPAL /teachers/list
+# ======================================================
+@router.get("/teachers/list")
+async def teachers_list(
+    request: Request,
+    tipo: str = Query("actual", pattern="^(actual|titular|sustituto)$"),
     session: AsyncSession = Depends(get_session),
 ):
-    from datetime import date
-    initial, current, replaced = await _compute_lists(session)
-    title_map = {
-        "initial": "Profesorado Inicial (no sustitutos)",
-        "current": "Profesorado Actual",
-        "replaced": "Profesores sustituidos (hoy)",
-    }
-    data_map = {"initial": initial, "current": current, "replaced": replaced}
 
-    # Mantén el mismo orden sin tildes, si ya añadiste _sort_key(name)
-    try:
-        from .teachers_router import _sort_key  # si está en otro módulo, ajusta import
-    except Exception:
-        _sort_key = lambda x: x.lower()
+    if tipo == "actual":
+        activos, ausentes_sin_sustituto = await _get_profesorado_actual(session)
+        return _templates(request).TemplateResponse(
+            "teachers_list.html",
+            _ctx(
+                request,
+                tipo="actual",
+                activos=activos,
+                ausentes_sin_sustituto=ausentes_sin_sustituto,
+            ),
+        )
 
-    items = sorted(data_map[view], key=_sort_key)
+    elif tipo == "titular":
+        lista = await _get_profesorado_titular(session)
+        return _templates(request).TemplateResponse(
+            "teachers_list.html",
+            _ctx(request, tipo="titular", lista=lista),
+        )
 
-    # fecha solo para "Profesorado Actual"
-    date_str = None
-    if view == "current":
-        # Formato: dd/mm/yyyy — cámbialo si prefieres otra máscara
-        d = date.today()
-        date_str = f"{d.day:02d}/{d.month:02d}/{d.year}"
+    elif tipo == "sustituto":
+        lista = await _get_profesorado_sustituto(session)
+        return _templates(request).TemplateResponse(
+            "teachers_list.html",
+            _ctx(request, tipo="sustituto", lista=lista),
+        )
+
+
+# ======================================================
+#   PDF
+# ======================================================
+@router.get("/teachers/list/pdf")
+async def teachers_list_pdf(
+    tipo: str = Query("actual", pattern="^(actual|titular|sustituto)$"),
+    session: AsyncSession = Depends(get_session),
+):
+
+    if tipo == "actual":
+        activos, ausentes = await _get_profesorado_actual(session)
+        items = activos + ausentes
+        title = "Profesorado Actual"
+
+    elif tipo == "titular":
+        items = await _get_profesorado_titular(session)
+        title = "Profesorado Titular"
+
+    elif tipo == "sustituto":
+        items = await _get_profesorado_sustituto(session)
+        title = "Profesorado Sustituto"
+
+    # Para PDF convertimos objetos Teacher -> nombres
+    items_pdf = [t.name for t in items]
+
+    # Ordenar sin tildes
+    items_pdf = sorted(items_pdf, key=_normalize_name)
 
     import tempfile
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+
     generate_teachers_list_pdf(
         path=tmp.name,
         center_name=(settings.INSTITUTION_NAME or ""),
-        title=title_map[view],
-        items=items,
-        date_str=date_str,  # ← AÑADIDO
+        title=title,
+        items=items_pdf,
+        date_str=None,
     )
-    return FileResponse(tmp.name, media_type="application/pdf", filename=f"{view}_profesorado.pdf")
+
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=f"{tipo}_profesorado.pdf",
+    )
