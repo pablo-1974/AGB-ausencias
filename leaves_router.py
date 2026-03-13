@@ -305,7 +305,11 @@ async def substitutions_new_create(
                 _ctx(request, error="El sustituto no puede ser el mismo profesor sustituido."),
                 status_code=400,
             )
+        
+        # Activar al exprof como activo → NO titular
         sub_t.status = TeacherStatus.activo
+        sub_t.titular = False    # ⬅⬅⬅ NUEVO
+        
         substitute_teacher_id = sub_t.id
 
     else:  # sub_mode == "new"
@@ -329,8 +333,15 @@ async def substitutions_new_create(
                 status_code=400,
             )
         # Crear profesor nuevo como activo
-        new_t = Teacher(name=new_name, email=new_email, alias=new_alias, status=TeacherStatus.activo)
+        new_t = Teacher(
+            name=new_name,
+            email=new_email,
+            alias=new_alias,
+            status=TeacherStatus.activo,
+            titular=False   # ⬅⬅⬅ NUEVO
+        )
         session.add(new_t)
+        
         await session.flush()  # obtener ID
         substitute_teacher_id = new_t.id
 
