@@ -135,7 +135,11 @@
           <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
 
             <th class="border bg-gray-100 align-middle text-center text-sm">
-              {% if hour == 3 %}Recreo{% else %}{{ hour + 1 }}ª{% endif %}
+              {% if hour == 3 %}
+                Recreo
+              {% else %}
+                {{ (hour if hour < 3 else hour - 1) + 1 }}ª
+              {% endif %}
             </th>
 
             {% for day in range(5) %}
@@ -171,3 +175,4 @@
 {% endif %}
 
 {% endblock %}
+
