@@ -154,12 +154,14 @@
         <tr class="{% if hour == 3 %}h-[32px]{% else %}h-[60px]{% endif %}">
 
           <!-- Primera columna: Hora/Recreo — centrado vertical y horizontal -->
-          <th class="border bg-gray-100 text-center align-middle text-sm">
-            {% if hour == 3 %}
-              Recreo
-            {% else %}
-              {{ (hour if hour < 3 else hour - 1) + 1 }}ª
-            {% endif %}
+          <th class="border bg-gray-100 text-center text-sm">
+            <div class="flex items-center justify-center h-full">
+              {% if hour == 3 %}
+                Recreo
+              {% else %}
+                {{ (hour if hour < 3 else hour - 1) + 1 }}ª
+              {% endif %}
+            </div>
           </th>
 
           <!-- Celdas L-V -->
@@ -201,6 +203,7 @@
 {% endif %}
 
 {% endblock %}
+
 
 
 
