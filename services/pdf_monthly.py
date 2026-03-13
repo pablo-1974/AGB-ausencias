@@ -2,23 +2,27 @@
 from __future__ import annotations
 from typing import List, Dict, Tuple
 from datetime import date, timedelta
+import os
+from calendar import monthrange
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.units import cm, mm
 
 from models import Absence, Leave, Teacher, TeacherStatus
 from utils import mask_to_hour_list
+from config import settings
 
 
-# ------------------------------
-# Utilidades de agrupación
-# ------------------------------
+# ---------------------------------------------------------
+# UTILIDADES
+# ---------------------------------------------------------
 def _daterange(d0: date, d1: date) -> List[date]:
     cur = d0
     out = []
@@ -38,14 +42,10 @@ def _format_date_span(dates: List[date]) -> Tuple[str, int]:
     return f"del {d0.strftime('%d/%m/%Y')} al {d1.strftime('%d/%m/%Y')}", len(dates_sorted)
 
 
-# ------------------------------
-# Construcción de filas (solo AUSENCIAS)
-# ------------------------------
+# ---------------------------------------------------------
+# AUSENCIAS (compactación por profesor + categoría)
+# ---------------------------------------------------------
 def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[List[str]]:
-    """
-    Absences ya filtradas por rango y excluyendo Z.
-    Agrupa por (teacher_id, category) y compacta días consecutivos.
-    """
     by_tc: Dict[Tuple[int, str], Dict[date, int]] = {}
 
     for a in absences:
@@ -99,49 +99,30 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
     return rows
 
 
-# ------------------------------
-# Servicio principal
-# ------------------------------
+# ---------------------------------------------------------
+# SERVICIO PRINCIPAL
+# ---------------------------------------------------------
 async def build_monthly_report_pdf(
     session: AsyncSession,
     date_from: date,
     date_to: date,
     path_out: str
 ) -> Tuple[bool, List[List[str]]]:
-    """
-    Devuelve:
-      - has_uncategorized: True si hay ausencias o bajas sin catalogar
-      - rows: filas completas para preview / PDF
-    """
 
-    # =========================================================
-    # 1. Cargar AUSENCIAS del rango
-    # =========================================================
+    # 1) AUSENCIAS
     res = await session.execute(
-        select(Absence).where(
-            and_(
-                Absence.date >= date_from,
-                Absence.date <= date_to
-            )
-        )
+        select(Absence).where(and_(Absence.date >= date_from, Absence.date <= date_to))
     )
     absences = res.scalars().all()
 
-    # =========================================================
-    # 2. Cargar BAJAS del rango (solapadas o dentro)
-    # =========================================================
+    # 2) BAJAS SOLAPADAS CON EL RANGO
     res_leaves = await session.execute(
         select(Leave).where(
             or_(
-                # Empiezan dentro del rango
                 and_(Leave.start_date >= date_from, Leave.start_date <= date_to),
-
-                # Terminan dentro del rango
                 and_(Leave.end_date != None,
                      Leave.end_date >= date_from,
                      Leave.end_date <= date_to),
-
-                # Empiezan antes y terminan después o siguen abiertas
                 and_(Leave.start_date <= date_from,
                      or_(Leave.end_date == None, Leave.end_date >= date_to))
             )
@@ -149,53 +130,43 @@ async def build_monthly_report_pdf(
     )
     leaves = res_leaves.scalars().all()
 
-    # =========================================================
-    # 3. Detectar sin catalogar (ausencias o bajas)
-    # =========================================================
-    has_uncategorized = any(a.category is None for a in absences)
+    # 3) DETECTAR AUSENCIAS O BAJAS SIN CATEGORIZAR
+    has_uncategorized = any(
+        a.category is None for a in absences
+    )
 
-    # Para BAJAS: solo cuentan si son BAJA (no excedencia)
     for lv in leaves:
-        # Excedencia no se cataloga, se ignora
-        if lv.cause and lv.cause.lower().strip() == "excedencia":
+        if lv.leave_type == TeacherStatus.excedencia:
             continue
-        # Baja sin categoría → falta catalogar
         if lv.category is None:
             has_uncategorized = True
 
-    # =========================================================
-    # 4. Obtener nombres de profesor
-    # =========================================================
+    # 4) NOMBRES DE PROFESORES
     tids = list({a.teacher_id for a in absences})
     tids += [lv.teacher_id for lv in leaves]
     tids = list(set(tids))
 
     if tids:
-        qn = await session.execute(select(Teacher.id, Teacher.name).where(Teacher.id.in_(tids)))
+        qn = await session.execute(
+            select(Teacher.id, Teacher.name).where(Teacher.id.in_(tids))
+        )
         name_by_id = {tid: tname for tid, tname in qn.all()}
     else:
         name_by_id = {}
 
-    # =========================================================
-    # 5. Construir filas de AUSENCIAS
-    # =========================================================
+    # 5) FILAS DE AUSENCIAS
     rows = _build_rows(
         [a for a in absences if a.category and a.category != "Z"],
         name_by_id,
     )
 
-    # =========================================================
-    # 6. Añadir filas por BAJAS
-    # =========================================================
+    # 6) FILAS POR BAJA
     for lv in leaves:
-        # Excedencias NO entran
-        if lv.cause and lv.cause.lower().strip() == "excedencia":
+        if lv.leave_type == TeacherStatus.excedencia:
             continue
 
-        # Categoría A–L
         cat = lv.category
 
-        # Rango de fechas
         if lv.end_date:
             fecha_text = (
                 f"del {lv.start_date.strftime('%d/%m/%Y')} "
@@ -209,43 +180,96 @@ async def build_monthly_report_pdf(
         rows.append([
             name_by_id.get(lv.teacher_id, f"ID {lv.teacher_id}"),
             fecha_text,
-            "Todas",     # una baja es 100% horas
+            "Todas",
             cat,
             str(n_days),
         ])
 
-    # =========================================================
-    # 7. Generar PDF
-    # =========================================================
+    # ---------------------------------------------------------
+    # 7) GENERAR PDF con LOGO + CABECERO INTELIGENTE
+    # ---------------------------------------------------------
     doc = SimpleDocTemplate(
         path_out,
         pagesize=A4,
-        leftMargin=1.2 * cm,
-        rightMargin=1.2 * cm,
-        topMargin=1.0 * cm,
-        bottomMargin=1.0 * cm
+        leftMargin=18*mm,
+        rightMargin=18*mm,
+        topMargin=18*mm,
+        bottomMargin=18*mm,
     )
 
     styles = getSampleStyleSheet()
+
+    style_center_small = ParagraphStyle(
+        name="CenterSmall",
+        parent=styles["Normal"],
+        alignment=TA_CENTER,
+        fontSize=9,
+    )
+    style_title = ParagraphStyle(
+        name="Title",
+        parent=styles["Heading1"],
+        alignment=TA_CENTER,
+        fontSize=16,
+        leading=20,
+    )
+
     elements = []
 
-    title = (
-        f"Parte mensual de ausencias "
-        f"({date_from.strftime('%d/%m/%Y')} – {date_to.strftime('%d/%m/%Y')})"
-    )
-    elements.append(Paragraph(title, styles["Title"]))
+    # --------- LOGO ---------
+    logo_path = settings.LOGO_PATH
+    if logo_path and os.path.exists(logo_path):
+        img = Image(logo_path, width=22*mm, height=22*mm)
+        img.hAlign = "CENTER"
+        elements.append(img)
+        elements.append(Spacer(1, 4))
 
+    # --------- INSTITUTION NAME ---------
+    if settings.INSTITUTION_NAME:
+        elements.append(Paragraph(settings.INSTITUTION_NAME, style_center_small))
+
+    # --------- TÍTULO INTELIGENTE ---------
+    # Si el rango cubre un MES COMPLETO → usar “MARZO de 2026”
+    ultimo_dia_mes = monthrange(date_from.year, date_from.month)[1]
+
+    es_mes_completo = (
+        date_from.day == 1 and
+        date_to.day == ultimo_dia_mes and
+        date_from.month == date_to.month and
+        date_from.year == date_to.year
+    )
+
+    if es_mes_completo:
+        nombre_mes = date_from.strftime("%B").upper()   # Ej: MARCH → MARCH → lo convertiremos a español si quieres
+        # En español:
+        meses = {
+            "JANUARY": "ENERO", "FEBRUARY": "FEBRERO", "MARCH": "MARZO",
+            "APRIL": "ABRIL", "MAY": "MAYO", "JUNE": "JUNIO",
+            "JULY": "JULIO", "AUGUST": "AGOSTO", "SEPTEMBER": "SEPTIEMBRE",
+            "OCTOBER": "OCTUBRE", "NOVEMBER": "NOVIEMBRE", "DECEMBER": "DICIEMBRE"
+        }
+        nombre_mes = meses[nombre_mes]
+
+        titulo = f"Parte mensual de ausencias {nombre_mes} de {date_from.year}"
+    else:
+        titulo = (
+            f"Parte mensual de ausencias "
+            f"({date_from.strftime('%d/%m/%Y')} – {date_to.strftime('%d/%m/%Y')})"
+        )
+
+    elements.append(Paragraph(titulo, style_title))
+
+    # --------- AVISO ---------
     if has_uncategorized:
-        elements.append(Paragraph(
+        txt = (
             '<font color="red"><b>AVISO:</b> '
             'Existen AUSENCIAS o BAJAS sin catalogar en el rango seleccionado.'
-            '</font>',
-            styles["Normal"]
-        ))
+            '</font>'
+        )
+        elements.append(Paragraph(txt, styles["Normal"]))
 
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 10))
 
-    # Tabla
+    # --------- TABLA ---------
     head = ["NOMBRE", "FECHA", "HORAS", "CAUSA", "DÍAS"]
     data = [head] + rows
 
@@ -260,7 +284,7 @@ async def build_monthly_report_pdf(
         ]
     )
 
-    ts = TableStyle([
+    table.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
@@ -270,9 +294,8 @@ async def build_monthly_report_pdf(
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ])
+    ]))
 
-    table.setStyle(ts)
     elements.append(table)
 
     doc.build(elements)
