@@ -92,9 +92,12 @@ class Teacher(Base):
     email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
     alias: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
 
-    # ⬇️ NUEVO: estado del profesor (enum) en lugar de 'active: bool'
+    # ⬇️ NUEVO: titularidad del profesor (True = titular, False = sustituto)
+    titular: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # ⬇️ Estado del profesor (enum)
     status: Mapped[TeacherStatus] = mapped_column(
-        SAEnum(TeacherStatus, name="teacher_status"),  # nombre del tipo enum en BD
+        SAEnum(TeacherStatus, name="teacher_status"),
         nullable=False,
         default=TeacherStatus.activo
     )
@@ -215,6 +218,7 @@ class Absence(Base):
 #
 # NOTA: si usas este modelo, recuerda crear su migración Alembic y adaptar los routers
 # que lean sustituciones (por ejemplo, /teachers/list “Profesorado Actual”).
+
 
 
 
