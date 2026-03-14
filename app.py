@@ -72,15 +72,16 @@ from models import User
 # ------------------------------------------------------------
 # MIDDLEWARE: cargar SIEMPRE el usuario autenticado
 # ------------------------------------------------------------
+from database import SessionLocal
+
 @app.middleware("http")
 async def load_user(request: Request, call_next):
     request.state.user = None
 
-    # SOLO si la sesión existe ya
     if "session" in request.scope:
         uid = request.session.get("uid")
         if uid:
-            async with get_session() as session:
+            async with SessionLocal() as session:
                 user = await session.get(User, uid)
                 request.state.user = user
 
