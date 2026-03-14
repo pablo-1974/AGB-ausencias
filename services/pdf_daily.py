@@ -130,7 +130,7 @@ async def build_daily_report_pdf(
         # ------------------------
         for tid in sorted(absent_ids):
 
-            # 1) excluir titulares sustituídos
+            # 1) Excluir titulares sustituídos
             t = await session.get(Teacher, tid)
 
             if t.status in (TeacherStatus.baja, TeacherStatus.excedencia):
@@ -142,7 +142,7 @@ async def build_daily_report_pdf(
                 )).scalar_one_or_none()
 
                 if leave and leave.substitute_teacher_id:
-                    continue  # tiene sustituto → no aparece
+                    continue
 
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
@@ -156,22 +156,35 @@ async def build_daily_report_pdf(
 
             prof_name = name_by_id.get(tid)
 
+            # ========================================
+            #   MEJORA 1 → EXCLUIR SOLO CLASES ED
+            # ========================================
             if slot.type == ScheduleType.CLASS:
+                if (slot.group or "").upper() == "ED":
+                    continue  # ocultar SOLO la hora ED
+
+                # Clase normal
                 row_prof.append(prof_name)
                 row_grp.append(slot.group or "")
                 row_room.append(slot.room or "")
                 row_subj.append(slot.subject or "")
 
             else:
+                # Guardias
                 gtext = (slot.guard_type or "").upper()
 
+                # ========================================
+                #   MEJORA 2 → GUARDIA DE RECREO A OBSERV.
+                # ========================================
                 if "RECREO" in gtext:
                     obs_lines.append(prof_name)
-                else:
-                    row_prof.append(prof_name)
-                    row_grp.append("guardia")
-                    row_room.append("guardia")
-                    row_subj.append("guardia")
+                    continue  # NO mostrar en tabla
+
+                # Guardia normal
+                row_prof.append(prof_name)
+                row_grp.append("guardia")
+                row_room.append("guardia")
+                row_subj.append("guardia")
 
         # ------------------------
         #   GUARDIAS (NO AUSENTES)
@@ -206,7 +219,7 @@ async def build_daily_report_pdf(
             crush(guard_aliases)
         ])
 
-# ===================================================================
+    # ===================================================================
     #   MAQUETACIÓN PDF
     # ===================================================================
     doc = SimpleDocTemplate(
@@ -232,14 +245,14 @@ async def build_daily_report_pdf(
     # =======================================================
     #   OBSERVACIONES (fuera de la tabla)
     # =======================================================
-    row_h = 72     # fila normal (25% más alta)
-    recreo_h = 44  # fila recreo (25% más alta que antes)
+    row_h = 72
+    recreo_h = 44
 
     obs_text = ""
     if obs_lines or observaciones_usuario:
         parts = []
         if obs_lines:
-            parts.append("; ".join(obs_lines))
+            parts.append("Ausentes Guardia Recreo: " + "; ".join(obs_lines))
         if observaciones_usuario:
             parts.append(observaciones_usuario)
         obs_text = "; ".join(parts)
@@ -269,13 +282,13 @@ async def build_daily_report_pdf(
     #   TABLA DEL PARTE (la principal)
     # =======================================================
     col_widths = [
-        1.0 * cm,            # HORA
-        total_width * 0.32,  # PROFESOR
-        total_width * 0.10,  # GRUPO
-        total_width * 0.10,  # AULA
-        total_width * 0.10,  # ASIGN.
-        total_width * 0.18,  # FIRMAS
-        total_width * 0.20,  # GUARDIA
+        1.0 * cm,
+        total_width * 0.32,
+        total_width * 0.10,
+        total_width * 0.10,
+        total_width * 0.10,
+        total_width * 0.18,
+        total_width * 0.20,
     ]
 
     row_heights = [16] + [
@@ -294,7 +307,6 @@ async def build_daily_report_pdf(
 
         ("GRID", (0,0), (-1,-1), 0.5, colors.black),
 
-        # Fila RECREO en gris
         ("BACKGROUND", (0,4), (-1,4), colors.lightgrey),
 
         ("FONTSIZE", (0,1), (-1,-1), 8),
@@ -305,11 +317,7 @@ async def build_daily_report_pdf(
         ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ])
 
-    # ================================
-    #   SPAN para fila RECREO
-    # ================================
-    recreo_row_index = 1 + recreo_index  # header (0) + fila del índice (3) = 4
-
+    recreo_row_index = 1 + recreo_index
     ts.add("SPAN", (0, recreo_row_index), (-1, recreo_row_index))
     ts.add("ALIGN", (0, recreo_row_index), (-1, recreo_row_index), "CENTER")
     ts.add("VALIGN", (0, recreo_row_index), (-1, recreo_row_index), "MIDDLE")
@@ -319,6 +327,8 @@ async def build_daily_report_pdf(
 
     elements.append(table)
     doc.build(elements)
+
+
 
 # ======================================================================
 #   HTML PREVIEW (idéntico en lógica al PDF)
@@ -348,9 +358,6 @@ async def build_daily_report_data(
 
     for label, hour_idx in HOUR_ROWS:
 
-        # ===========================
-        #   FILA RECREO (SPAN visual en plantilla)
-        # ===========================
         if hour_idx == recreo_index:
             rows.append(["RECREO", "", "", "", "", "", ""])
             continue
@@ -362,7 +369,6 @@ async def build_daily_report_data(
         # ------------------------
         for tid in sorted(absent_ids):
 
-            # excluir titulares sustituidos
             t = await session.get(Teacher, tid)
             if t.status in (TeacherStatus.baja, TeacherStatus.excedencia):
                 leave = (await session.execute(
@@ -380,29 +386,34 @@ async def build_daily_report_data(
                 continue
 
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
-
-            # sin slot → no aparece
             if not slot:
                 continue
 
             prof_name = name_by_id.get(tid)
 
+            # MEJORA 1 → excluir solo horas ED
+            if slot.type == ScheduleType.CLASS and (slot.group or "").upper() == "ED":
+                continue
+
+            # MEJORA 2 → guardia de recreo a observaciones
+            if slot.type == ScheduleType.GUARD:
+                gtext = (slot.guard_type or "").upper()
+                if "RECREO" in gtext:
+                    obs_lines.append(prof_name)
+                    continue
+
+                row_prof.append(prof_name)
+                row_grp.append("guardia")
+                row_room.append("guardia")
+                row_subj.append("guardia")
+                continue
+
+            # Clase normal
             if slot.type == ScheduleType.CLASS:
                 row_prof.append(prof_name)
                 row_grp.append(slot.group or "")
                 row_room.append(slot.room or "")
                 row_subj.append(slot.subject or "")
-
-            else:
-                gtext = (slot.guard_type or "").upper()
-
-                if "RECREO" in gtext:
-                    obs_lines.append(prof_name)
-                else:
-                    row_prof.append(prof_name)
-                    row_grp.append("guardia")
-                    row_room.append("guardia")
-                    row_subj.append("guardia")
 
         # ------------------------
         #   GUARDIAS (NO AUSENTES)
@@ -445,9 +456,12 @@ async def build_daily_report_data(
     if obs_lines or observaciones_usuario:
         parts = []
         if obs_lines:
-            parts.append("; ".join(obs_lines))
+            parts.append(
+                "Ausentes Guardia Recreo: " + "; ".join(obs_lines)
+            )
         if observaciones_usuario:
             parts.append(observaciones_usuario)
+
         obs_text = "; ".join(parts)
 
     return {
