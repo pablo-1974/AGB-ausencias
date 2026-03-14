@@ -74,7 +74,7 @@ async def load_user(request: Request, call_next):
     request.state.user = None
 
     # SessionMiddleware YA está instalado aquí
-    uid = request.session.get("uid") if hasattr(request, "session") else None
+    uid = request.session.get("uid") if "session" in request.scope else None
 
     if uid:
         session: AsyncSession = await get_session()
