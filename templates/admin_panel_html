@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- ========================================================= -->
+  <!-- 1ª FILA: CONFIGURACIÓN INICIAL -->
+  <!-- ========================================================= -->
+  <div class="card">
+    <h2 class="text-xl font-semibold mb-4">Configuración Inicial</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+      <!-- Calendario escolar -->
+      /config/calendar/viewCalendario escolar</a>
+
+      <!-- Importar profesores -->
+      /imports/teachersImportar profesores</a>
+
+      <!-- Importar clases -->
+      /imports/classesImportar clases</a>
+
+      <!-- Importar guardias -->
+      /imports/guardsImportar guardias</a>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- 2ª FILA: EDICIÓN -->
+  <!-- ========================================================= -->
+  <div class="card">
+    <h2 class="text-xl font-semibold mb-4">Edición</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+      <!-- Profesores -->
+      /admin/edit/professorsEdición de profesores</a>
+
+      <!-- Ausencias -->
+      /admin/edit/absencesEdición de ausencias</a>
+
+      <!-- Bajas -->
+      /admin/edit/leavesEdición de bajas</a>
+
+      <!-- Calendario -->
+      /admin/edit/calendarEdición del calendario</a>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- 3ª FILA: GESTIÓN AVANZADA -->
+  <!-- ========================================================= -->
+  <div class="card">
+    <h2 class="text-xl font-semibold mb-4">Herramientas Avanzadas</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+      <!-- Gestión de usuarios -->
+      /admin/usersGestión de usuarios</a>
+
+      <!-- Caja vacía -->
+      <div class="p-4 border rounded-lg bg-gray-50 text-gray-500">
+        Caja futura
+      </div>
+
+      <!-- Registro de acciones -->
+      /admin/logsRegistro de acciones</a>
+
+      <!-- Copia de seguridad -->
+      /admin/backupCopia de seguridad</a>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
