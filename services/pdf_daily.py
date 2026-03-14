@@ -108,8 +108,20 @@ async def build_daily_report_pdf(
 
     obs_lines: List[str] = []
     weekday_py = the_date.weekday()
-    weekday_name = DAYS.get(weekday_py)
+    
+    # ==========================================================
+    #   MEJORA 2 — Ausentes con Guardia de RECREO
+    # ==========================================================
+    ausentes_guardia_recreo: List[str] = []
 
+    for tid in absent_ids:
+        slot = await get_teacher_slot(session, tid, weekday_py, recreo_index)
+        if slot and slot.type == ScheduleType.GUARD:
+            gtext = (slot.guard_type or "").upper()
+            if gtext.startswith("G RECREO"):
+                ausentes_guardia_recreo.append(name_by_id.get(tid))
+
+    weekday_name = DAYS.get(weekday_py)
 
     # ===================================================================
     #   GENERAR FILAS
@@ -130,9 +142,8 @@ async def build_daily_report_pdf(
         # ------------------------
         for tid in sorted(absent_ids):
 
-            # 1) Excluir titulares sustituídos
+            # 1) Excluir titulares sustituidos
             t = await session.get(Teacher, tid)
-
             if t.status in (TeacherStatus.baja, TeacherStatus.excedencia):
                 leave = (await session.execute(
                     select(Leave).where(
@@ -149,8 +160,6 @@ async def build_daily_report_pdf(
                 continue
 
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
-
-            # NO SLOT → NO aparece
             if not slot:
                 continue
 
@@ -161,30 +170,28 @@ async def build_daily_report_pdf(
             # ========================================
             if slot.type == ScheduleType.CLASS:
                 if (slot.group or "").upper() == "ED":
-                    continue  # ocultar SOLO la hora ED
-
+                    continue  # SOLO ED no aparece
                 # Clase normal
                 row_prof.append(prof_name)
                 row_grp.append(slot.group or "")
                 row_room.append(slot.room or "")
                 row_subj.append(slot.subject or "")
+                continue
 
-            else:
-                # Guardias
+            # Guardias
+            if slot.type == ScheduleType.GUARD:
                 gtext = (slot.guard_type or "").upper()
 
-                # ========================================
-                #   MEJORA 2 → GUARDIA DE RECREO A OBSERV.
-                # ========================================
-                if "RECREO" in gtext:
-                    obs_lines.append(prof_name)
-                    continue  # NO mostrar en tabla
+                if gtext.startswith("G RECREO"):
+                    # en recreo → NO va a la tabla, solo a Observaciones (ya añadido)
+                    continue
 
-                # Guardia normal
+                # guardia normal
                 row_prof.append(prof_name)
                 row_grp.append("guardia")
                 row_room.append("guardia")
                 row_subj.append("guardia")
+                continue
 
         # ------------------------
         #   GUARDIAS (NO AUSENTES)
@@ -200,14 +207,14 @@ async def build_daily_report_pdf(
                 continue
 
             gtext = (slot.guard_type or "").upper()
-            if "RECREO" in gtext:
+            if gtext.startswith("G RECREO"):
                 continue
 
             t = await session.get(Teacher, tid)
             guard_aliases.append(t.alias or t.name)
 
         def crush(xs: List[str]) -> str:
-            return "\n".join([str(s) for s in xs if str(s).strip()])
+            return "\n".join([str(s) for s in xs if s.strip()])
 
         data.append([
             label,
@@ -243,31 +250,33 @@ async def build_daily_report_pdf(
 
 
     # =======================================================
-    #   OBSERVACIONES (fuera de la tabla)
+    #   OBSERVACIONES FIJAS ARRIBA A LA IZQUIERDA
     # =======================================================
     row_h = 72
     recreo_h = 44
 
-    obs_text = ""
-    if obs_lines or observaciones_usuario:
-        parts = []
-        if obs_lines:
-            parts.append("Ausentes Guardia Recreo: " + "; ".join(obs_lines))
-        if observaciones_usuario:
-            parts.append(observaciones_usuario)
-        obs_text = "; ".join(parts)
+    parts = []
+    if ausentes_guardia_recreo:
+        parts.append(
+            "Ausentes Guardia Recreo: " + "; ".join(ausentes_guardia_recreo)
+        )
+    if observaciones_usuario:
+        parts.append(observaciones_usuario)
+
+    obs_text = "; ".join(parts) if parts else "—"
 
     total_width = A4[0] - doc.leftMargin - doc.rightMargin
 
     obs_table = Table(
-        [[Paragraph(f"<b>Observaciones:</b><br/>{obs_text or '—'}", styles["Normal"])]],
+        [[Paragraph(f"<b>Observaciones:</b><br/>{obs_text}", styles["Normal"])]],
         colWidths=[total_width],
         rowHeights=[row_h],
     )
 
     obs_table.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.black),
-        ("VALVALIGN", (0,0), (-1,-1), "TOP"),
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),   # ← fijo arriba izquierda
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
         ("LEFTPADDING", (0,0), (-1,-1), 4),
         ("RIGHTPADDING", (0,0), (-1,-1), 4),
         ("TOPPADDING", (0,0), (-1,-1), 2),
@@ -279,7 +288,7 @@ async def build_daily_report_pdf(
 
 
     # =======================================================
-    #   TABLA DEL PARTE (la principal)
+    #   TABLA PRINCIPAL DEL PARTE DIARIO
     # =======================================================
     col_widths = [
         1.0 * cm,
@@ -353,6 +362,15 @@ async def build_daily_report_data(
     weekday_py = the_date.weekday()
     weekday_name = DAYS.get(weekday_py)
 
+    # MEJORA 2 — Ausentes con Guardia de Recreo
+    ausentes_guardia_recreo: List[str] = []
+    for tid in absent_ids:
+        slot = await get_teacher_slot(session, tid, weekday_py, recreo_index)
+        if slot and slot.type == ScheduleType.GUARD:
+            gtext = (slot.guard_type or "").upper()
+            if gtext.startswith("G RECREO"):
+                ausentes_guardia_recreo.append(name_by_id.get(tid))
+
     obs_lines: List[str] = []
 
 
@@ -377,7 +395,6 @@ async def build_daily_report_data(
                         Leave.end_date.is_(None)
                     )
                 )).scalar_one_or_none()
-
                 if leave and leave.substitute_teacher_id:
                     continue
 
@@ -391,17 +408,16 @@ async def build_daily_report_data(
 
             prof_name = name_by_id.get(tid)
 
-            # MEJORA 1 → excluir solo horas ED
+            # MEJORA 1 — excluir solo ED
             if slot.type == ScheduleType.CLASS and (slot.group or "").upper() == "ED":
                 continue
 
-            # MEJORA 2 → guardia de recreo a observaciones
+            # Guardias
             if slot.type == ScheduleType.GUARD:
                 gtext = (slot.guard_type or "").upper()
-                if "RECREO" in gtext:
-                    obs_lines.append(prof_name)
+                if gtext.startswith("G RECREO"):
+                    # guardia recreo de ausente → observaciones
                     continue
-
                 row_prof.append(prof_name)
                 row_grp.append("guardia")
                 row_room.append("guardia")
@@ -423,14 +439,13 @@ async def build_daily_report_data(
         )
 
         guard_aliases = []
-
         for tid in guard_ids:
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
             if not slot or slot.type != ScheduleType.GUARD:
                 continue
 
             gtext = (slot.guard_type or "").upper()
-            if "RECREO" in gtext:
+            if gtext.startswith("G RECREO"):
                 continue
 
             t = await session.get(Teacher, tid)
@@ -452,17 +467,13 @@ async def build_daily_report_data(
     # ==========================================================
     #   OBSERVACIONES
     # ==========================================================
-    obs_text = ""
-    if obs_lines or observaciones_usuario:
-        parts = []
-        if obs_lines:
-            parts.append(
-                "Ausentes Guardia Recreo: " + "; ".join(obs_lines)
-            )
-        if observaciones_usuario:
-            parts.append(observaciones_usuario)
+    parts = []
+    if ausentes_guardia_recreo:
+        parts.append("Ausentes Guardia Recreo: " + "; ".join(ausentes_guardia_recreo))
+    if observaciones_usuario:
+        parts.append(observaciones_usuario)
 
-        obs_text = "; ".join(parts)
+    obs_text = "; ".join(parts) if parts else "—"
 
     return {
         "title": f"Ausencias del día ({weekday_name} {the_date.strftime('%d/%m/%Y')})",
