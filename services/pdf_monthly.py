@@ -21,7 +21,7 @@ from config import settings
 
 
 # ---------------------------------------------------------
-# AUX: Formato de días consecutivos
+# AUX → Formato de fechas seguidas
 # ---------------------------------------------------------
 def _format_date_span(dates: List[date]) -> Tuple[str, int]:
     if not dates:
@@ -37,15 +37,11 @@ def _format_date_span(dates: List[date]) -> Tuple[str, int]:
 
 
 # ---------------------------------------------------------
-# AUX: ¿El profesor trabaja este día?
+# AUX → ¿Trabaja el profesor este día?
 # ---------------------------------------------------------
 async def professor_works_day(session: AsyncSession, teacher_id: int, day: date) -> bool:
-    """
-    Devuelve True si el profesor tiene horario ese día,
-    según ScheduleSlot.day_index.
-    """
-    weekday = day.weekday()      # 0=Lun ... 6=Dom
-    if weekday >= 5:             # sábado/domingo
+    weekday = day.weekday()
+    if weekday >= 5:
         return False
 
     res = await session.execute(
@@ -58,10 +54,9 @@ async def professor_works_day(session: AsyncSession, teacher_id: int, day: date)
 
 
 # ---------------------------------------------------------
-# AUX: ¿Es festivo o vacaciones?
+# AUX → ¿Es festivo o vacaciones?
 # ---------------------------------------------------------
 def is_holiday(day: date, cal: SchoolCalendar) -> bool:
-    """True si el día está fuera del curso o en vacaciones o festivos sueltos."""
     if day < cal.first_day or day > cal.last_day:
         return True
 
@@ -79,7 +74,7 @@ def is_holiday(day: date, cal: SchoolCalendar) -> bool:
 
 
 # ---------------------------------------------------------
-# AUX: Días lectivos reales
+# AUX → Días lectivos reales
 # ---------------------------------------------------------
 async def working_school_days(
     session: AsyncSession,
@@ -88,32 +83,21 @@ async def working_school_days(
     start: date,
     end: date,
 ) -> int:
-    """
-    Días lectivos reales:
-
-    ✔ Lunes–Viernes
-    ✔ No festivos
-    ✔ No vacaciones
-    ✔ No días fuera de curso
-    ✔ Y SOLO días en los que el profesor tiene horario
-    """
-    cur = start
     count = 0
+    cur = start
 
     while cur <= end:
+
         weekday = cur.weekday()
 
-        # 1) Excluir sábado y domingo
         if weekday >= 5:
             cur += timedelta(days=1)
             continue
 
-        # 2) Excluir festivos / vacaciones / fuera de curso
         if is_holiday(cur, cal):
             cur += timedelta(days=1)
             continue
 
-        # 3) Excluir días sin horario del profesor
         if not await professor_works_day(session, teacher_id, cur):
             cur += timedelta(days=1)
             continue
@@ -125,10 +109,9 @@ async def working_school_days(
 
 
 # ---------------------------------------------------------
-# AUSENCIAS compactadas
+# AUSENCIAS compactadas (CORREGIDO)
 # ---------------------------------------------------------
 def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[List[str]]:
-    # AGRUPA POR PROFESOR Y CATEGORÍA
     by_key: Dict[Tuple[int, str], Dict[date, int]] = {}
 
     for a in absences:
@@ -140,7 +123,6 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
 
     rows: List[List[str]] = []
 
-    # RECORRER CADA PROFESOR-CATEGORÍA
     for (tid, cat), days in sorted(
         by_key.items(),
         key=lambda x: (name_by_id.get(x[0][0], ""), x[0][1])
@@ -149,7 +131,6 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
         if not dates:
             continue
 
-        # DIVIDIR EN SEGMENTOS CONSECUTIVOS
         segments = []
         seg = [dates[0]]
         for d in dates[1:]:
@@ -160,7 +141,6 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
                 seg = [d]
         segments.append(seg)
 
-        # UNA FILA POR CADA SEGMENTO (AQUÍ ESTABA EL FALLO)
         for seg in segments:
             masks = [days[d] for d in seg]
             first = masks[0]
@@ -171,11 +151,11 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
             else:
                 hours_text = "varias"
 
-            fecha_txt, n_days_seg = _format_date_span(seg)
+            fecha_text, n_days_seg = _format_date_span(seg)
 
             rows.append([
                 name_by_id.get(tid, f"ID {tid}"),
-                fecha_txt,
+                fecha_text,
                 hours_text,
                 cat,
                 str(n_days_seg),
@@ -183,8 +163,9 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
 
     return rows
 
+
 # ---------------------------------------------------------
-# PARTE MENSUAL (principal)
+# PARTE MENSUAL
 # ---------------------------------------------------------
 async def build_monthly_report_pdf(
     session: AsyncSession,
@@ -192,18 +173,18 @@ async def build_monthly_report_pdf(
     date_to: date,
     path_out: str,
 ):
-    # -----------------------------
-    # Cargar calendario escolar
-    # -----------------------------
+    # ======================================================
+    # 1) Cargar calendario escolar
+    # ======================================================
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc()).limit(1)
         )
     ).scalar_one_or_none()
 
-    # -----------------------------
-    # AUSENCIAS
-    # -----------------------------
+    # ======================================================
+    # 2) AUSENCIAS (todas)
+    # ======================================================
     res_abs = await session.execute(
         select(Absence).where(
             and_(Absence.date >= date_from, Absence.date <= date_to)
@@ -211,9 +192,9 @@ async def build_monthly_report_pdf(
     )
     absences = list(res_abs.scalars().all())
 
-    # -----------------------------
-    # BAJAS
-    # -----------------------------
+    # ======================================================
+    # 3) BAJAS
+    # ======================================================
     res_lv = await session.execute(
         select(Leave).where(
             or_(
@@ -226,63 +207,50 @@ async def build_monthly_report_pdf(
     )
     leaves = list(res_lv.scalars().all())
 
-    # ¿Hay sin catalogar?
-    has_uncategorized = any(a.category is None for a in absences)
-    for lv in leaves:
-        if lv.cause and lv.cause.lower().strip() == "excedencia":
-            continue
-        if lv.category is None:
-            has_uncategorized = True
+    # ======================================================
+    # 4) Separar catalogadas / no catalogadas
+    # ======================================================
+    catalogadas = [a for a in absences if a.category and a.category != "Z"]
+    sin_catalogar = [a for a in absences if not a.category or a.category == "Z"]
 
-    # -----------------------------
-    # NOMBRES
-    # -----------------------------
+    has_uncategorized = len(sin_catalogar) > 0
+
+    # ======================================================
+    # 5) Nombres de todos los profesores involucrados (CORREGIDO)
+    # ======================================================
     teacher_ids = {a.teacher_id for a in absences} | {lv.teacher_id for lv in leaves}
 
     name_by_id = {}
     if teacher_ids:
-        qnames = await session.execute(
+        q = await session.execute(
             select(Teacher.id, Teacher.name).where(Teacher.id.in_(teacher_ids))
         )
-        name_by_id = {tid: nm for tid, nm in qnames.all()}
+        name_by_id = {tid: nm for tid, nm in q.all()}
 
-    # -----------------------------
-    # FILAS AUSENCIAS
-    # -----------------------------
-    # Separar ausencias catalogadas de no catalogadas
-    catalogadas = [a for a in absences if a.category and a.category != "Z"]
-    sin_catalogar = [a for a in absences if not a.category or a.category == "Z"]
-    
-    has_uncategorized = len(sin_catalogar) > 0
-    
+    # ======================================================
+    # 6) AUSENCIAS catalogadas
+    # ======================================================
     rows = _build_rows(catalogadas, name_by_id)
 
-    # -----------------------------
-    # FILAS BAJAS (con calendario)
-    # -----------------------------
+    # ======================================================
+    # 7) BAJAS
+    # ======================================================
     for lv in leaves:
         if lv.cause and lv.cause.lower().strip() == "excedencia":
             continue
 
         name = name_by_id.get(lv.teacher_id, f"ID {lv.teacher_id}")
-        cat = lv.category
 
-        # Recorte a fechas del mes
         start = max(lv.start_date, date_from)
         end = lv.end_date or date_to
         end = min(end, date_to)
 
-        # Días lectivos reales
         if cal:
             n_days = await working_school_days(session, cal, lv.teacher_id, start, end)
         else:
-            # fallback: solo días L-V
-            n_days = sum(
-                1 for i in range((end - start).days + 1)
-                if (start + timedelta(days=i)).weekday() < 5
-            )
+            n_days = sum(1 for i in range((end - start).days + 1)
+                         if (start + timedelta(days=i)).weekday() < 5)
 
-        # Texto fecha
         if lv.end_date:
             fecha_txt = f"del {start.strftime('%d/%m/%Y')} al {end.strftime('%d/%m/%Y')}"
         else:
@@ -292,18 +260,26 @@ async def build_monthly_report_pdf(
             name,
             fecha_txt,
             "Todas",
-            cat,
+            lv.category,
             str(n_days),
         ])
 
-    # -----------------------------
-    # ORDEN FINAL
-    # -----------------------------
+    # ======================================================
+    # 8) Evitar pérdida de profesores (CORRECTOR CRÍTICO)
+    # ======================================================
+    for a in sin_catalogar:
+        name = name_by_id.get(a.teacher_id, f"ID {a.teacher_id}")
+        if all(r[0] != name for r in rows):
+            rows.append([name, "AUSENCIA SIN CATALOGAR", "-", "-", "0"])
+
+    # ======================================================
+    # 9) ORDEN FINAL
+    # ======================================================
     rows = sorted(rows, key=lambda r: (r[0].lower(), r[1]))
 
-    # -----------------------------
-    # PDF
-    # -----------------------------
+    # ======================================================
+    # 10) GENERAR PDF (igual que antes)
+    # ======================================================
     doc = SimpleDocTemplate(
         path_out,
         pagesize=A4,
@@ -314,14 +290,12 @@ async def build_monthly_report_pdf(
     )
 
     styles = getSampleStyleSheet()
-
     style_center_small = ParagraphStyle(
         name="CenterSmall",
         parent=styles["Normal"],
         alignment=TA_CENTER,
         fontSize=9,
     )
-
     style_title = ParagraphStyle(
         name="Title",
         parent=styles["Heading1"],
@@ -332,18 +306,15 @@ async def build_monthly_report_pdf(
 
     elements = []
 
-    # Logo
     if settings.LOGO_PATH and os.path.exists(settings.LOGO_PATH):
         img = Image(settings.LOGO_PATH, width=22 * mm, height=22 * mm)
         img.hAlign = "CENTER"
         elements.append(img)
         elements.append(Spacer(1, 4))
 
-    # Centro
     if settings.INSTITUTION_NAME:
         elements.append(Paragraph(settings.INSTITUTION_NAME, style_center_small))
 
-    # Título
     ultimo = monthrange(date_from.year, date_from.month)[1]
     mes_completo = (
         date_from.day == 1 and
@@ -353,9 +324,9 @@ async def build_monthly_report_pdf(
 
     if mes_completo:
         meses = {
-            1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",
-            5:"MAYO",6:"JUNIO",7:"JULIO",8:"AGOSTO",
-            9:"SEPTIEMBRE",10:"OCTUBRE",11:"NOVIEMBRE",12:"DICIEMBRE"
+            1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
+            5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
+            9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
         }
         titulo = f"Parte mensual de ausencias {meses[date_from.month]} de {date_from.year}"
     else:
@@ -364,12 +335,10 @@ async def build_monthly_report_pdf(
     elements.append(Paragraph(titulo, style_title))
     elements.append(Spacer(1, 10))
 
-    # Aviso
     if has_uncategorized:
-        aviso = '<font color="red"><b>AVISO:</b> Existen AUSENCIAS o BAJAS sin catalogar en el rango.</font>'
+        aviso = '<font color="red"><b>AVISO:</b> Existen AUSENCIAS sin categorizar.</font>'
         elements.append(Paragraph(aviso, styles["Normal"]))
 
-    # Tabla
     data = [
         ["NOMBRE", "FECHA", "HORAS", "CAUSA", "DÍAS"]
     ] + rows
