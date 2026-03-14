@@ -58,27 +58,36 @@ templates = Jinja2Templates(directory="templates")
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# Registrar función global Jinja para obtener el usuario actual
-# ------------------------------------------------------------
-from auth import get_template_user
-from database import get_session
-from sqlalchemy.ext.asyncio import AsyncSession
-
-async def _current_user_wrapper(request):
-    session: AsyncSession = await get_session()
-    return await get_template_user(request, session)
-
-templates.env.globals['current_user'] = _current_user_wrapper
-
-# ------------------------------------------------------------
 # SESIONES (cookies)
 # ------------------------------------------------------------
 setup_session(app)
 
 # ------------------------------------------------------------
+# MIDDLEWARE: Cargar SIEMPRE el usuario en request.state.user
+# ------------------------------------------------------------
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_session
+from models import User
+
+@app.middleware("http")
+async def load_user(request: Request, call_next):
+    """
+    Carga el usuario autenticado en request.state.user para que esté
+    disponible en TODAS las plantillas, sin depender de cada ruta.
+    """
+    request.state.user = None
+    uid = request.session.get("uid") if request.session else None
+
+    if uid:
+        session: AsyncSession = await get_session()
+        request.state.user = await session.get(User, uid)
+
+    response = await call_next(request)
+    return response
+
+
+# ------------------------------------------------------------
 # MIDDLEWARE: No cache en páginas sensibles
-#   Evita que tras "dormir/despertar" el servicio el navegador o un proxy
-#   sirvan una página vieja con el menú aunque no haya sesión.
 # ------------------------------------------------------------
 @app.middleware("http")
 async def no_cache_mw(request: Request, call_next):
