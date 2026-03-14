@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Calendario escolar</h2>
+
+    <form method="post">
+
+        <!-- AÑO ESCOLAR -->
+        <div class="mb-3">
+            <label class="form-label">Año escolar</label>
+            <input type="text" name="school_year" class="form-control"
+                   value="{{ calendar.school_year if calendar else '' }}"
+                   placeholder="2024-2025" required>
+        </div>
+
+        <!-- INICIO Y FIN DE CURSO -->
+        <h4 class="mt-4">Curso escolar</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Primer día del curso</label>
+                <input type="date" name="first_day" class="form-control"
+                       value="{{ calendar.first_day if calendar else '' }}"
+                       required>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Último día del curso</label>
+                <input type="date" name="last_day" class="form-control"
+                       value="{{ calendar.last_day if calendar else '' }}"
+                       required>
+            </div>
+        </div>
+
+        <!-- NAVIDAD -->
+        <h4 class="mt-4">Vacaciones de Navidad</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Inicio</label>
+                <input type="date" name="xmas_start" class="form-control"
+                       value="{{ calendar.xmas_start if calendar else '' }}"
+                       required>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Fin</label>
+                <input type="date" name="xmas_end" class="form-control"
+                       value="{{ calendar.xmas_end if calendar else '' }}"
+                       required>
+            </div>
+        </div>
+
+        <!-- SEMANA SANTA -->
+        <h4 class="mt-4">Vacaciones de Semana Santa</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Inicio</label>
+                <input type="date" name="easter_start" class="form-control"
+                       value="{{ calendar.easter_start if calendar else '' }}"
+                       required>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Fin</label>
+                <input type="date" name="easter_end" class="form-control"
+                       value="{{ calendar.easter_end if calendar else '' }}"
+                       required>
+            </div>
+        </div>
+
+        <!-- FESTIVOS SUELTOS -->
+        <h4 class="mt-4">Festivos individuales</h4>
+        <p class="text-muted">Introduce fechas separadas por comas (ej: 2026-03-19, 2026-05-01)</p>
+
+        <textarea name="other_holidays" class="form-control" rows="3">
+{% if calendar and calendar.other_holidays %}
+{{ calendar.other_holidays|join(", ") }}
+{% endif %}
+</textarea>
+
+        <!-- BOTÓN -->
+        <div class="mt-4">
+            <button class="btn btn-primary">
+                Guardar calendario
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
