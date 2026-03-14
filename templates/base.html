@@ -65,7 +65,7 @@
           @mouseover="if(window.innerWidth>768){open=true}"
           @mouseleave="if(window.innerWidth>768){open=false}"
           @click="open=!open"
-        >Importar</button>
+        >Configurar</button>
 
         <!-- buffer anti-cierre -->
         <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
@@ -76,6 +76,7 @@
           @mouseleave="if(window.innerWidth>768){open=false}"
           @click.away="open=false"
         >
+          <hr class="my-1">
           <a href="/config/calendar" class="block px-2 py-1 link">Calendario escolar</a>
           <a href="/imports/teachers" class="block px-2 py-1 link">Importar profesores</a>
           <a href="/imports/guards"   class="block px-2 py-1 link">Importar guardias</a>
