@@ -11,6 +11,8 @@
 {% endif %}
 
 <form method="post" action="/leaves/new" class="card space-y-3 max-w-xl">
+
+  <!-- PROFESOR -->
   <div>
     <label class="label">Profesor</label>
     <select name="teacher_id" class="input" required>
@@ -21,11 +23,13 @@
     </select>
   </div>
 
+  <!-- FECHA INICIO -->
   <div>
     <label class="label">Fecha de inicio</label>
     <input class="input" type="date" name="start_date" required>
   </div>
 
+  <!-- TIPO -->
   <div>
     <label class="label">Tipo</label>
     <div class="flex items-center gap-6">
@@ -33,6 +37,7 @@
         <input type="radio" name="leave_type" value="baja" required>
         <span>Baja</span>
       </label>
+
       <label class="flex items-center gap-2">
         <input type="radio" name="leave_type" value="excedencia" required>
         <span>Excedencia</span>
@@ -40,13 +45,36 @@
     </div>
   </div>
 
+  <!-- CAUSA -->
   <div>
     <label class="label">Causa (obligatoria)</label>
     <input class="input" type="text" name="cause" placeholder="Describe la causa" required>
   </div>
 
+  <!-- CATEGORÍA A–L -->
+  <div>
+    <label class="label">Categoría</label>
+    <select name="category" class="input" required>
+      <option value="">-- seleccionar categoría --</option>
+
+      <option value="A">A — Enfermedad de duración superior a tres días</option>
+      <option value="B">B — Matrimonio</option>
+      <option value="C">C — Embarazo</option>
+      <option value="D">D — Licencia por estudios</option>
+      <option value="E">E — Asuntos propios</option>
+      <option value="F">F — Actividades de perfeccionamiento</option>
+      <option value="G">G — Nacimiento de un hijo, enfermedad de un familiar</option>
+      <option value="H">H — Traslado de domicilio, funciones sindicales, exámenes…</option>
+      <option value="I">I — Deber inexcusable de carácter público o personal</option>
+      <option value="J">J — Asistencia a consulta médica</option>
+      <option value="K">K — Enfermedad de 1 a 3 días</option>
+      <option value="L">L — “Moscosos” y otros motivos</option>
+
+    </select>
+  </div>
+
   <button class="btn-primary">Iniciar baja</button>
+
 </form>
 
 {% endblock %}
-
