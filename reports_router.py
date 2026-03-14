@@ -171,7 +171,7 @@ async def reports_monthly_view(
             title="Parte mensual de ausencias",
             date_from=date_from.isoformat(),
             date_to=date_to.isoformat(),
-            rows=rows,                  # MOSTRAMOS TABLA SIEMPRE
+            rows=rows_html,                  # MOSTRAMOS TABLA SIEMPRE
             has_uncategorized=has_uncategorized,
         ),
     )
