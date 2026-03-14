@@ -130,13 +130,15 @@ INSTITUTION_NAME = settings.INSTITUTION_NAME
 LOGO_PATH = settings.LOGO_PATH
 
 def tpl(request: Request, **extra):
+    now = datetime.now()
     ctx = {
         "request": request,
         "title": APP_NAME,
         "app_name": APP_NAME,
         "institution_name": INSTITUTION_NAME,
         "logo_path": LOGO_PATH,
-        "now_dt": datetime.now(),
+        "now_dt": now,   # ← usado por la cabecera
+        "now": now,      # ← usado por el footer (now.year)
     }
     ctx.update(extra or {})
     return ctx
