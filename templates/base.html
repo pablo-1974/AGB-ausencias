@@ -58,7 +58,7 @@
       <!-- 1) Inicio -->
       <a class="link px-2 py-1" href="/">Inicio</a>
 
-      <!-- 2) Importar -->
+      <!-- 2) Configurar -->
       <div class="relative group" x-data="{open:false}">
         <button
           class="link px-2 py-1 block cursor-pointer"
@@ -71,11 +71,12 @@
         <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
 
         <div
-          class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+          class="absolute left-0 mt-2 w-60 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
           :class="{'block':open}"
           @mouseleave="if(window.innerWidth>768){open=false}"
           @click.away="open=false"
         >
+          <a href="/config/calendar" class="block px-2 py-1 link">Calendario escolar</a>
           <a href="/imports/teachers" class="block px-2 py-1 link">Importar profesores</a>
           <a href="/imports/guards"   class="block px-2 py-1 link">Importar guardias</a>
           <a href="/imports/classes"  class="block px-2 py-1 link">Importar clases</a>
