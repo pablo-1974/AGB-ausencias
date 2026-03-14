@@ -389,4 +389,4 @@ async def build_monthly_report_pdf(
     elements.append(table)
     doc.build(elements)
 
-    return has_uncategorized, rows,roes_html
+    return has_uncategorized, rows, rows_html
