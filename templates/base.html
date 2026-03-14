@@ -34,7 +34,7 @@
   {% set hide_chrome = hide_chrome if hide_chrome is defined else false %}
   {% set show_nav = show_nav if show_nav is defined else (not hide_chrome) %}
   {% set user = request.state.user %}
-
+  <div style="color:red">DEBUG USER: {{ user }}</div> #### PROVISIONAL
   {% if not hide_chrome %}
   <!-- HEADER -->
   <header class="bg-white border-b">
