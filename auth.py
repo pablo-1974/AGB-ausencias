@@ -470,6 +470,39 @@ async def admin_users_delete(
     await session.commit()
     return RedirectResponse("/admin/users", status_code=303)
 
+
+# cambiar usuario de activo a inactivo
+@router.post("/admin/users/{user_id}/toggle-active")
+async def admin_toggle_active(user_id: int, session: AsyncSession = Depends(get_session), admin: User = Depends(admin_required)):
+    u = await session.get(User, user_id)
+    if not u:
+        raise HTTPException(404, "Usuario no encontrado")
+
+    u.active = not u.active
+    await session.commit()
+
+    return RedirectResponse("/admin/users", status_code=303)
+    
+
+# cambiar role de usuario
+@router.post("/admin/users/{user_id}/toggle-role")
+async def admin_toggle_role(user_id: int, session: AsyncSession = Depends(get_session), admin: User = Depends(admin_required)):
+    u = await session.get(User, user_id)
+    if not u:
+        raise HTTPException(404, "Usuario no encontrado")
+
+    # Evitar quedarse sin admins
+    if u.role == Role.admin:
+        admins = await session.execute(select(func.count()).select_from(User).where(User.role == Role.admin))
+        if admins.scalar_one() <= 1:
+            raise HTTPException(400, "Debe quedar al menos un administrador")
+
+    u.role = Role.user if u.role == Role.admin else Role.admin
+    await session.commit()
+
+    return RedirectResponse("/admin/users", status_code=303)
+
+
 # --- DEBUG: eliminar cuando acabemos ---
 @router.get("/__debug-first-admin")
 async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
