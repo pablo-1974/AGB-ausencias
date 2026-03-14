@@ -45,14 +45,19 @@
         <div class="text-xs text-gray-500">{{ institution_name }}</div>
       </div>
   
-      {% if request.session and request.session.get('uid') and user %}
-        <div class="ml-auto flex items-center gap-3 text-sm text-gray-800">
-          <span>{{ user.name }} ({{ user.role.name }})</span>
-        </div>
-      {% endif %}
+      <!-- BLOQUE DERECHA: nombre + rol + fecha + hora -->
+      <div class="ml-auto text-right flex flex-col leading-tight text-sm text-gray-800">
   
-      <div class="text-xs text-gray-500">
-        {{ now_dt.strftime('%d/%m/%Y %H:%M') if now_dt else '' }}
+        {% if request.session and request.session.get('uid') and user %}
+          <div class="font-semibold">
+            {{ user.name }} ({{ user.role.name }})
+          </div>
+          <div class="text-xs text-gray-500">
+            {{ now_dt.strftime('%d/%m/%Y') if now_dt else '' }} ·
+            {{ now_dt.strftime('%H:%M') if now_dt else '' }}
+          </div>
+        {% endif %}
+  
       </div>
   
     </div>
