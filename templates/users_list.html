@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card max-w-4xl mx-auto mt-6">
+  <h1 class="text-xl font-semibold mb-4">Usuarios</h1>
+
+  {% if users|length == 0 %}
+    <div class="text-gray-500 text-sm">No hay usuarios registrados.</div>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Rol</th>
+          <th>Activo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.name }}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ "Admin" if u.role.name == "admin" else "Usuario" }}</td>
+          <td>
+            {% if u.active %}
+              <span class="text-green-700 font-medium">Sí</span>
+            {% else %}
+              <span class="text-red-700 font-medium">No</span>
+            {% endif %}
+          </td>
+          <td class="space-x-2">
+
+            <!-- Reset password -->
+            <form method="post" action="/admin/users/{{ u.id }}/reset-password" style="display:inline;">
+              <input type="hidden" name="new_password" value="temporal123">
+              <button class="btn-muted text-xs" onclick="return confirm('¿Resetear la contraseña?')">
+                Reset clave
+              </button>
+            </form>
+
+            <!-- Toggle active -->
+            <form method="post" action="/admin/users/{{ u.id }}/toggle-active" style="display:inline;">
+              <button class="btn-muted text-xs">
+                {{ "Desactivar" if u.active else "Activar" }}
+              </button>
+            </form>
+
+            <!-- Change role -->
+            <form method="post" action="/admin/users/{{ u.id }}/toggle-role" style="display:inline;">
+              <button class="btn-muted text-xs">
+                Cambiar rol
+              </button>
+            </form>
+
+            <!-- Delete user -->
+            <form method="post" action="/admin/users/{{ u.id }}/delete" style="display:inline;">
+              <button class="btn-muted text-xs text-red-700" onclick="return confirm('¿Eliminar usuario?')">
+                Borrar
+              </button>
+            </form>
+
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <div class="mt-4">
+    <a href="/admin/users/new" class="btn-primary">Nuevo usuario</a>
+  </div>
+</div>
+{% endblock %}
