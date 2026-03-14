@@ -15,7 +15,7 @@ from imports_schedule import router as schedule_import_router
 # router de horarios
 from schedule_router import router as schedule_router
 # router de listados de profesorado (pantalla + PDFs)
-from teachers_router import router as teachers_router  # NEW
+from teachers_router import router as teachers_router  
 # router de bajas
 from leaves_router import router as leaves_router
 # router de ausencias
@@ -27,16 +27,13 @@ from config_calendar_router import router as calendar_router
 
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
-#   Intento 1: import “antiguo” de Starlette (compat si bajas versión)
-#   Intento 2: import recomendado actual de Uvicorn
-#   Si ninguno existe, seguimos sin middleware (no rompe el arranque)
 # ------------------------------------------------------------
 ProxyHeadersMiddleware = None
 try:
-    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware  # type: ignore
+    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware  
 except Exception:
     try:
-        from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # type: ignore
+        from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  
     except Exception:
         ProxyHeadersMiddleware = None
 
@@ -44,6 +41,11 @@ except Exception:
 # APP FASTAPI (configurada ya para Render + Neon)
 # ------------------------------------------------------------
 app = FastAPI(title=settings.APP_NAME)
+
+# ------------------------------------------------------------
+# SESIONES — ¡VITAL! Debe ir ANTES de cualquier middleware HTTP
+# ------------------------------------------------------------
+setup_session(app)
 
 # Asegurar https detrás de Render (X-Forwarded-Proto)
 if ProxyHeadersMiddleware:
@@ -58,40 +60,25 @@ templates = Jinja2Templates(directory="templates")
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# SESIONES (cookies) — DEBE IR ANTES DE LOS MIDDLEWARES
-# ------------------------------------------------------------
-setup_session(app)
-
-# ------------------------------------------------------------
-# MIDDLEWARE: Cargar SIEMPRE el usuario en request.state.user
-# ------------------------------------------------------------
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_session
-from models import User
-
-# ------------------------------------------------------------
-# MIDDLEWARE: cargar SIEMPRE el usuario autenticado
+# MIDDLEWARE: Cargar usuario SIEMPRE
 # ------------------------------------------------------------
 from database import AsyncSessionLocal
+from models import User
 
 @app.middleware("http")
 async def load_user(request: Request, call_next):
     request.state.user = None
 
-    # Sólo si SessionMiddleware creó la key "session"
     if "session" in request.scope:
         uid = request.session.get("uid")
         if uid:
-            # Abrir sesión REAL against Neon
             async with AsyncSessionLocal() as db:
-                user = await db.get(User, uid)
-                request.state.user = user
+                request.state.user = await db.get(User, uid)
 
     return await call_next(request)
 
-
 # ------------------------------------------------------------
-# MIDDLEWARE: No cache en páginas sensibles
+# MIDDLEWARE: No cache
 # ------------------------------------------------------------
 @app.middleware("http")
 async def no_cache_mw(request: Request, call_next):
@@ -107,16 +94,18 @@ async def no_cache_mw(request: Request, call_next):
 # INCLUIR RUTAS
 # ------------------------------------------------------------
 app.include_router(auth_router)
-app.include_router(teachers_import_router)    # importar profesores
-app.include_router(schedule_import_router)    # importar guardias y clases
-app.include_router(schedule_router)           # ver/editar/imprimir horario
-app.include_router(teachers_router)           # listados de profesorado
+app.include_router(teachers_import_router)
+app.include_router(schedule_import_router)
+app.include_router(schedule_router)
+app.include_router(teachers_router)
 app.include_router(leaves_router)
 app.include_router(absences_router)
 app.include_router(reports_router)
 app.include_router(calendar_router)
 
-# DEBUG: mostrar errores de arranque
+# ------------------------------------------------------------
+# DEBUG import errors
+# ------------------------------------------------------------
 import sys
 def debug_import_error(module_name: str):
     try:
@@ -130,7 +119,7 @@ debug_import_error("leaves_router")
 debug_import_error("teachers_router")
 
 # ------------------------------------------------------------
-# Contexto común
+# Contexto común para plantillas
 # ------------------------------------------------------------
 APP_NAME = settings.APP_NAME
 INSTITUTION_NAME = settings.INSTITUTION_NAME
@@ -144,8 +133,8 @@ def tpl(request: Request, **extra):
         "app_name": APP_NAME,
         "institution_name": INSTITUTION_NAME,
         "logo_path": LOGO_PATH,
-        "now_dt": now,   # ← usado por la cabecera
-        "now": now,      # ← usado por el footer (now.year)
+        "now_dt": now,
+        "now": now,
     }
     ctx.update(extra or {})
     return ctx
@@ -155,23 +144,19 @@ def tpl(request: Request, **extra):
 # ------------------------------------------------------------
 @app.get("/")
 async def dashboard(request: Request):
-    # Si no hay login → enviar a login
-    if not request.session.get("uid"):
+    if "session" not in request.scope or not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
-
     return templates.TemplateResponse("dashboard.html", tpl(request))
 
 # ------------------------------------------------------------
-# HEALTHCHECK (Render lo usa si quieres)
+# HEALTHCHECK
 # ------------------------------------------------------------
 @app.get("/health")
 async def health():
     return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
 
 # ------------------------------------------------------------
-# ERRORES
-#   Nota: si no hay sesión, en vez de "maquillar" el error como dashboard,
-#   redirigimos a /login para no confundir (menú sólo tras login).
+# ERROR HANDLERS
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
@@ -186,7 +171,6 @@ async def not_found(request: Request, exc):
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
     if "session" not in request.scope or not request.session.get("uid"):
-        # Evita mostrar dashboard si no hay login
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
         "dashboard.html",
@@ -194,7 +178,9 @@ async def internal_error(request: Request, exc):
         status_code=500
     )
 
-# app.py (al final, después de app.include_router(...))
+# ------------------------------------------------------------
+# PRINT ROUTES
+# ------------------------------------------------------------
 print("=== ROUTES ===")
 for r in app.routes:
     try:
@@ -202,5 +188,3 @@ for r in app.routes:
     except Exception:
         print(r)
 print("==============")
-
-
