@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card max-w-md mx-auto mt-6">
+  <h1 class="text-xl font-semibold mb-4">Nuevo usuario</h1>
+
+  {% if error %}
+    <div class="bg-red-100 text-red-800 p-2 rounded mb-3 text-sm">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" class="space-y-4">
+
+    <div>
+      <label class="label">Nombre</label>
+      <input class="input" type="text" name="name" required>
+    </div>
+
+    <div>
+      <label class="label">Email</label>
+      <input class="input" type="email" name="email" required>
+    </div>
+
+    <div>
+      <label class="label">Contraseña</label>
+      <input class="input" type="password" name="password" required>
+    </div>
+
+    <div>
+      <label class="label">Rol</label>
+      <select name="role" class="input">
+        <option value="user">Usuario</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <a href="/admin/users" class="btn-muted">Cancelar</a>
+      <button class="btn-primary" type="submit">Guardar</button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
