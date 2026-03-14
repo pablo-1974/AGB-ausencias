@@ -22,6 +22,8 @@ from leaves_router import router as leaves_router
 from absences_router import router as absences_router
 # app.py (imports)
 from reports_router import router as reports_router
+# router de calendario
+from config_calendar_router import router as calendar_router
 
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
@@ -86,6 +88,7 @@ app.include_router(teachers_router)           # listados de profesorado
 app.include_router(leaves_router)
 app.include_router(absences_router)
 app.include_router(reports_router)
+app.include_router(calendar_router)
 
 # DEBUG: mostrar errores de arranque
 import sys
