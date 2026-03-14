@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-8">
+
+<div class="space-y-10">
 
   <!-- ========================================================= -->
-  <!-- 1ª FILA: CONFIGURACIÓN INICIAL -->
+  <!-- 1) CONFIGURACIÓN INICIAL -->
   <!-- ========================================================= -->
   <div class="card">
     <h2 class="text-xl font-semibold mb-4">Configuración Inicial</h2>
@@ -12,23 +13,43 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
       <!-- Calendario escolar -->
-      /config/calendar/viewCalendario escolar</a>
+      <a href="/config/calendar/view" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Calendario escolar</div>
+          <div class="text-sm text-gray-500">Definir días lectivos y festivos</div>
+        </div>
+      </a>
 
       <!-- Importar profesores -->
-      /imports/teachersImportar profesores</a>
+      <a href="/imports/teachers" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Importar profesores</div>
+          <div class="text-sm text-gray-500">Carga inicial de profesorado</div>
+        </div>
+      </a>
 
       <!-- Importar clases -->
-      /imports/classesImportar clases</a>
+      <a href="/imports/classes" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Importar clases</div>
+          <div class="text-sm text-gray-500">Estructura de grupos y asignaturas</div>
+        </div>
+      </a>
 
       <!-- Importar guardias -->
-      /imports/guardsImportar guardias</a>
+      <a href="/imports/guards" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Importar guardias</div>
+          <div class="text-sm text-gray-500">Asignación inicial de guardias</div>
+        </div>
+      </a>
 
     </div>
   </div>
 
 
   <!-- ========================================================= -->
-  <!-- 2ª FILA: EDICIÓN -->
+  <!-- 2) EDICIÓN -->
   <!-- ========================================================= -->
   <div class="card">
     <h2 class="text-xl font-semibold mb-4">Edición</h2>
@@ -36,23 +57,43 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
       <!-- Profesores -->
-      /admin/edit/professorsEdición de profesores</a>
+      <a href="/admin/edit/professors" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Profesores</div>
+          <div class="text-sm text-gray-500">Listado completo y edición</div>
+        </div>
+      </a>
 
       <!-- Ausencias -->
-      /admin/edit/absencesEdición de ausencias</a>
+      <a href="/admin/edit/absences" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Ausencias</div>
+          <div class="text-sm text-gray-500">Modificar o borrar ausencias</div>
+        </div>
+      </a>
 
       <!-- Bajas -->
-      /admin/edit/leavesEdición de bajas</a>
+      <a href="/admin/edit/leaves" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Bajas</div>
+          <div class="text-sm text-gray-500">Gestión avanzada y sustituciones</div>
+        </div>
+      </a>
 
       <!-- Calendario -->
-      /admin/edit/calendarEdición del calendario</a>
+      <a href="/admin/edit/calendar" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Calendario</div>
+          <div class="text-sm text-gray-500">Editar días lectivos/festivos</div>
+        </div>
+      </a>
 
     </div>
   </div>
 
 
   <!-- ========================================================= -->
-  <!-- 3ª FILA: GESTIÓN AVANZADA -->
+  <!-- 3) HERRAMIENTAS AVANZADAS -->
   <!-- ========================================================= -->
   <div class="card">
     <h2 class="text-xl font-semibold mb-4">Herramientas Avanzadas</h2>
@@ -60,21 +101,38 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
       <!-- Gestión de usuarios -->
-      /admin/usersGestión de usuarios</a>
+      <a href="/admin/users" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Gestión de usuarios</div>
+          <div class="text-sm text-gray-500">Altas, bajas, roles, contraseñas</div>
+        </div>
+      </a>
 
-      <!-- Caja vacía -->
-      <div class="p-4 border rounded-lg bg-gray-50 text-gray-500">
-        Caja futura
+      <!-- Reservado -->
+      <div class="p-4 border rounded-lg bg-gray-50 text-gray-500 shadow">
+        <div class="font-semibold">Reservado</div>
+        <div class="text-sm">Funcionalidad futura</div>
       </div>
 
       <!-- Registro de acciones -->
-      /admin/logsRegistro de acciones</a>
+      <a href="/admin/logs" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Registro de acciones</div>
+          <div class="text-sm text-gray-500">Actividad · Logs · Exportar Excel</div>
+        </div>
+      </a>
 
       <!-- Copia de seguridad -->
-      /admin/backupCopia de seguridad</a>
+      <a href="/admin/backup" class="block">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Copia de seguridad</div>
+          <div class="text-sm text-gray-500">Exportar base en Excel (7 hojas)</div>
+        </div>
+      </a>
 
     </div>
   </div>
 
 </div>
+
 {% endblock %}
