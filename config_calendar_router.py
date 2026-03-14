@@ -41,6 +41,90 @@ async def calendar_get(
 
 
 # -----------------------------------------
+# VISTA DEL CALENDARIO (12 meses con colores)
+# -----------------------------------------
+@router.get("/view")
+async def calendar_view(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin=Depends(admin_required),
+):
+    # Cargar calendario escolar
+    cal = (
+        await session.execute(
+            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+        )
+    ).scalar_one_or_none()
+
+    if not cal:
+        # Si no hay calendario aún → redirigir al editor
+        return RedirectResponse("/config/calendar", status_code=303)
+
+    # Generar meses del curso
+    from datetime import timedelta
+
+    months = []
+    cur = cal.first_day
+
+    # ir al 1 del mes
+    cur = cur.replace(day=1)
+
+    # generar 12 meses
+    for i in range(12):
+        year = cur.year
+        month = cur.month
+
+        # primer día del mes
+        m1 = cur
+        # siguiente mes
+        if month == 12:
+            next_m = cur.replace(year=year+1, month=1, day=1)
+        else:
+            next_m = cur.replace(month=month+1, day=1)
+        m_last = next_m - timedelta(days=1)
+
+        # lista de días del mes
+        days = []
+        d = m1
+        while d <= m_last:
+            # determinar tipo
+            if d.weekday() >= 5:
+                kind = "weekend"
+            elif d < cal.first_day or d > cal.last_day:
+                kind = "out"
+            elif cal.xmas_start <= d <= cal.xmas_end:
+                kind = "xmas"
+            elif cal.easter_start <= d <= cal.easter_end:
+                kind = "easter"
+            elif isinstance(cal.other_holidays, list) and d.isoformat() in cal.other_holidays:
+                kind = "holiday"
+            else:
+                kind = "class"
+
+            days.append((d.day, d.weekday(), kind))
+            d += timedelta(days=1)
+
+        months.append({
+            "name": m1.strftime("%B").upper(),
+            "year": m1.year,
+            "first_weekday": m1.weekday(),  # 0 lunes - 6 domingo
+            "days": days,
+        })
+
+        cur = next_m  # avanzar
+
+    return request.app.state.templates.TemplateResponse(
+        "calendar_view.html",
+        {
+            "request": request,
+            "title": "Calendario escolar",
+            "calendar": cal,
+            "months": months,
+        },
+    )
+
+
+# -----------------------------------------
 # POST → Guardar / actualizar calendario
 # -----------------------------------------
 @router.post("/")
