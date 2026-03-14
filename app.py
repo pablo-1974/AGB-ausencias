@@ -72,21 +72,22 @@ from models import User
 # ------------------------------------------------------------
 # MIDDLEWARE: cargar SIEMPRE el usuario autenticado
 # ------------------------------------------------------------
-from database import SessionLocal
+from database import AsyncSessionLocal
 
 @app.middleware("http")
 async def load_user(request: Request, call_next):
     request.state.user = None
 
+    # Sólo si SessionMiddleware creó la key "session"
     if "session" in request.scope:
         uid = request.session.get("uid")
         if uid:
-            async with SessionLocal() as session:
-                user = await session.get(User, uid)
+            # Abrir sesión REAL against Neon
+            async with AsyncSessionLocal() as db:
+                user = await db.get(User, uid)
                 request.state.user = user
 
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
 
 # ------------------------------------------------------------
