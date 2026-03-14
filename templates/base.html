@@ -4,17 +4,19 @@
   <meta charset="utf-8">
   <title>{{ title or app_name }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <!-- CSS propio -->
   <link rel="stylesheet" href="/static/styles.css">
+
   <!-- Tailwind vía CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 
-  <!-- Favicon / logo -->
+  <!-- Favicon -->
   {% if logo_path %}
     <link rel="icon" href="{{ logo_path }}">
   {% endif %}
+
   <style>
     .card { @apply bg-white rounded-lg shadow p-4; }
     .btn-primary { @apply bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700; }
@@ -31,66 +33,60 @@
 <body class="{% block body_class %}min-h-screen bg-gray-50 text-gray-900{% endblock %}">
   {% set hide_chrome = hide_chrome if hide_chrome is defined else false %}
   {% set show_nav = show_nav if show_nav is defined else (not hide_chrome) %}
+  {% set user = request.state.user %}
 
   {% if not hide_chrome %}
+  <!-- HEADER -->
   <header class="bg-white border-b">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-  
+
       {% if logo_path %}
         <img src="{{ logo_path }}" alt="logo" class="h-8 w-8">
       {% endif %}
-  
+
       <div>
         <div class="font-semibold">{{ app_name }}</div>
         <div class="text-xs text-gray-500">{{ institution_name }}</div>
       </div>
-  
-      <!-- BLOQUE DERECHA: nombre + rol + fecha + hora -->
+
+      <!-- BLOQUE DERECHA: nombre + rol + fecha -->
       <div class="ml-auto text-right flex flex-col leading-tight text-sm text-gray-800">
-  
-        {% if request.session and request.session.get('uid') and user %}
+
+        {% if user %}
           <div class="font-semibold">
             {{ user.name }} ({{ user.role.name }})
           </div>
+
           <div class="text-xs text-gray-500">
             {{ now_dt.strftime('%d/%m/%Y') if now_dt else '' }} ·
             {{ now_dt.strftime('%H:%M') if now_dt else '' }}
           </div>
         {% endif %}
-  
+
       </div>
-  
     </div>
   </header>
   {% endif %}
 
-  {# -------- NAV: solo si se permite y hay sesión -------- #}
-  {% if show_nav and request.session and request.session.get('uid') %}
+  <!-- NAV -->
+  {% if show_nav and user %}
   <nav class="bg-gray-100 border-b relative z-50 select-none">
     <div class="max-w-7xl mx-auto px-4 py-2 flex gap-6 text-sm">
 
-      <!-- 1) Inicio -->
+      <!-- Inicio -->
       <a class="link px-2 py-1" href="/">Inicio</a>
 
-      <!-- 2) Configurar -->
+      <!-- Configurar -->
       <div class="relative group" x-data="{open:false}">
-        <button
-          class="link px-2 py-1 block cursor-pointer"
-          @mouseover="if(window.innerWidth>768){open=true}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click="open=!open"
-        >Configurar</button>
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Configurar
+        </button>
 
-        <!-- buffer anti-cierre -->
         <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
 
-        <div
-          class="absolute left-0 mt-2 w-60 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
-          :class="{'block':open}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click.away="open=false"
-        >
-          <hr class="my-1">
+        <div class="absolute left-0 mt-2 w-60 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
           <a href="/config/calendar/view" class="block px-2 py-1 link">Calendario escolar</a>
           <a href="/imports/teachers" class="block px-2 py-1 link">Importar profesores</a>
           <a href="/imports/guards"   class="block px-2 py-1 link">Importar guardias</a>
@@ -98,68 +94,50 @@
         </div>
       </div>
 
-      <!-- 3) Profesores -->
+      <!-- Profesores -->
       <div class="relative group" x-data="{open:false}">
-        <button
-          class="link px-2 py-1 block cursor-pointer"
-          @mouseover="if(window.innerWidth>768){open=true}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click="open=!open"
-        >Profesores</button>
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Profesores
+        </button>
 
         <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
 
-        <div
-          class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
-          :class="{'block':open}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click.away="open=false"
-        >
-          <a href="/teachers/list"  class="block px-2 py-1 link">Listado</a>
-          <a href="/schedule/view"  class="block px-2 py-1 link">Horarios</a>
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
+          <a href="/teachers/list" class="block px-2 py-1 link">Listado</a>
+          <a href="/schedule/view" class="block px-2 py-1 link">Horarios</a>
         </div>
       </div>
 
-      <!-- 4) Ausencias -->
+      <!-- Ausencias -->
       <div class="relative group" x-data="{open:false}">
-        <button
-          class="link px-2 py-1 block cursor-pointer"
-          @mouseover="if(window.innerWidth>768){open=true}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click="open=!open"
-        >Ausencias</button>
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Ausencias
+        </button>
 
         <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
 
-        <div
-          class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
-          :class="{'block':open}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click.away="open=false"
-        >
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
           <a href="/absences/new"        class="block px-2 py-1 link">Nueva ausencia</a>
           <a href="/absences/manage"     class="block px-2 py-1 link">Ausencias del día</a>
           <a href="/absences/categorize" class="block px-2 py-1 link">Catalogar ausencia</a>
         </div>
       </div>
 
-      <!-- 5) Bajas -->
+      <!-- Bajas -->
       <div class="relative group" x-data="{open:false}">
-        <button
-          class="link px-2 py-1 block cursor-pointer"
-          @mouseover="if(window.innerWidth>768){open=true}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click="open=!open"
-        >Bajas</button>
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Bajas
+        </button>
 
         <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
 
-        <div
-          class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
-          :class="{'block':open}"
-          @mouseleave="if(window.innerWidth>768){open=false}"
-          @click.away="open=false"
-        >
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
           <a href="/leaves"             class="block px-2 py-1 link">Ver bajas</a>
           <a href="/leaves/new"         class="block px-2 py-1 link">Iniciar baja</a>
           <a href="/leaves/close"       class="block px-2 py-1 link">Finalizar baja</a>
@@ -167,45 +145,29 @@
         </div>
       </div>
 
-      <!-- 6) Parte diario -->
+      <!-- Parte diario -->
       <a class="link px-2 py-1" href="/reports/daily">Parte diario</a>
 
-      <!-- 7) Parte mensual -->
+      <!-- Parte mensual -->
       <a class="link px-2 py-1" href="/reports/monthly">Parte mensual</a>
 
       <!-- DERECHA -->
       <div class="ml-auto flex gap-4 items-center">
-      
-        <!-- Usuarios -->
-        <a class="link px-2 py-1" href="/admin/users">
-          Usuarios
-        </a>
-      
-        <!-- Panel administrador -->
+        <a class="link px-2 py-1" href="/admin/users">Usuarios</a>
+
         {% if user and user.role.name == "admin" %}
-          <a class="link px-2 py-1" href="/admin/panel">
-            Administrador
-          </a>
+          <a class="link px-2 py-1" href="/admin/panel">Administrador</a>
         {% endif %}
-      
-        <!-- Cambiar contraseña -->
-        <a class="link px-2 py-1" href="/me/password">
-          Contraseña
-        </a>
-      
-        <!-- Salir -->
-        <a class="link px-2 py-1" href="/logout">
-          Salir
-        </a>
-      
+
+        <a class="link px-2 py-1" href="/me/password">Contraseña</a>
+        <a class="link px-2 py-1" href="/logout">Salir</a>
       </div>
 
     </div>
   </nav>
   {% endif %}
-  {# ------------------------------------------------------ #}
 
-  <!-- Main -->
+  <!-- MAIN -->
   <main class="{% if hide_chrome %}min-h-[70vh]{% else %}max-w-7xl mx-auto px-4 py-6{% endif %}">
     {% block content %}{% endblock %}
   </main>
@@ -217,4 +179,3 @@
   {% endif %}
 </body>
 </html>
-
