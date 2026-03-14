@@ -69,20 +69,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session
 from models import User
 
+# ------------------------------------------------------------
+# MIDDLEWARE: cargar SIEMPRE el usuario autenticado
+# ------------------------------------------------------------
 @app.middleware("http")
 async def load_user(request: Request, call_next):
-    # Valor por defecto
     request.state.user = None
 
-    # Solo si SessionMiddleware ya montó la sesión
+    # SOLO si la sesión existe ya
     if "session" in request.scope:
         uid = request.session.get("uid")
         if uid:
-            session: AsyncSession = await get_session()
-            request.state.user = await session.get(User, uid)
+            async with get_session() as session:
+                user = await session.get(User, uid)
+                request.state.user = user
 
-    # Seguir al siguiente middleware / ruta
-    return await call_next(request)
+    response = await call_next(request)
+    return response
 
 
 # ------------------------------------------------------------
