@@ -1,11 +1,15 @@
 # models.py
 from __future__ import annotations
 
-# SQLAlchemy base y utilidades
+# Base de SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
+
+# Tipos SQLAlchemy
 from sqlalchemy import (
-    String, Integer, Enum as SAEnum, ForeignKey, Text, Date, Boolean, UniqueConstraint
+    String, Integer, Enum as SAEnum, ForeignKey, Text,
+    Date, Boolean, UniqueConstraint, DateTime, JSON
 )
+
 import enum
 from datetime import datetime
 
@@ -199,29 +203,16 @@ class Absence(Base):
     )
 
 
-# ---------------------------------------------------------
-# (Opcional) Modelo de sustituciones explícitas
-# ---------------------------------------------------------
-# Si decides llevar un registro explícito de sustituciones actuales (substitute -> replaced)
-# en vez de (o además de) Leave, puedes usar un modelo como este:
-#
-# class Substitution(Base):
-#     __tablename__ = "substitutions"
-#
-#     id: Mapped[int] = mapped_column(primary_key=True)
-#     substitute_id: Mapped[int] = mapped_column(ForeignKey("teachers.id"), index=True, nullable=False)
-#     replaced_id:   Mapped[int] = mapped_column(ForeignKey("teachers.id"), index=True, nullable=False)
-#     start_date:    Mapped[Date | None] = mapped_column(Date, nullable=True)
-#     end_date:      Mapped[Date | None] = mapped_column(Date, nullable=True)
-#
-#     # Relaciones opcionales (si te interesa navegar)
-#     # substitute = relationship("Teacher", foreign_keys=[substitute_id])
-#     # replaced   = relationship("Teacher", foreign_keys=[replaced_id])
-#
-# NOTA: si usas este modelo, recuerda crear su migración Alembic y adaptar los routers
-# que lean sustituciones (por ejemplo, /teachers/list “Profesorado Actual”).
+class SchoolCalendar(Base):
+    __tablename__ = "school_calendar"
 
-
-
-
-
+    id = Column(Integer, primary_key=True)
+    school_year = Column(String, nullable=False)
+    first_day = Column(Date, nullable=False)
+    last_day = Column(Date, nullable=False)
+    xmas_start = Column(Date, nullable=False)
+    xmas_end = Column(Date, nullable=False)
+    easter_start = Column(Date, nullable=False)
+    easter_end = Column(Date, nullable=False)
+    other_holidays = Column(JSON, default=list)
+    updated_at = Column(DateTime, default=datetime.utcnow)
