@@ -169,10 +169,30 @@
       <a class="link px-2 py-1" href="/reports/monthly">Parte mensual</a>
 
       <!-- DERECHA -->
-      <div class="ml-auto flex gap-4">
-        <a class="link" href="/me/password">Cambiar clave</a>
-        <a class="link" href="/admin/users">Usuarios</a>
-        <a class="link" href="/logout">Salir</a>
+      <div class="ml-auto flex gap-4 items-center">
+      
+        <!-- Usuarios -->
+        <a class="link px-2 py-1" href="/admin/users">
+          Usuarios
+        </a>
+      
+        <!-- Panel administrador -->
+        {% if user and user.role.name == "admin" %}
+          <a class="link px-2 py-1" href="/admin/panel">
+            Administrador
+          </a>
+        {% endif %}
+      
+        <!-- Cambiar contraseña -->
+        <a class="link px-2 py-1" href="/me/password">
+          Contraseña
+        </a>
+      
+        <!-- Salir -->
+        <a class="link px-2 py-1" href="/logout">
+          Salir
+        </a>
+      
       </div>
 
     </div>
