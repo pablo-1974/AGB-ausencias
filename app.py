@@ -58,6 +58,19 @@ templates = Jinja2Templates(directory="templates")
 app.state.templates = templates
 
 # ------------------------------------------------------------
+# Registrar función global Jinja para obtener el usuario actual
+# ------------------------------------------------------------
+from auth import get_template_user
+from database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+async def _current_user_wrapper(request):
+    session: AsyncSession = await get_session()
+    return await get_template_user(request, session)
+
+templates.env.globals['current_user'] = _current_user_wrapper
+
+# ------------------------------------------------------------
 # SESIONES (cookies)
 # ------------------------------------------------------------
 setup_session(app)
