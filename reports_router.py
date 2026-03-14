@@ -192,7 +192,7 @@ async def reports_monthly_pdf(
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     tmp.close()
 
-    has_uncategorized, rows = await build_monthly_report_pdf(
+    has_uncategorized, rows, _ = await build_monthly_report_pdf(
         session=session,
         date_from=date_from,
         date_to=date_to,
