@@ -20,9 +20,9 @@ from utils import mask_to_hour_list
 from config import settings
 
 
-# ---------------------------------------------------------
-# AUX
-# ---------------------------------------------------------
+# ========================
+# AUX → tramo de fechas
+# ========================
 def _format_date_span(dates: List[date]) -> Tuple[str, int]:
     if not dates:
         return "", 0
@@ -36,9 +36,23 @@ def _format_date_span(dates: List[date]) -> Tuple[str, int]:
     )
 
 
-# ---------------------------------------------------------
-# AUSENCIAS
-# ---------------------------------------------------------
+# ========================
+# AUX → días laborables
+# ========================
+def working_days(start: date, end: date) -> int:
+    """Cuenta solo L-V, sin festivos ni horario (lo añadiremos luego)."""
+    count = 0
+    cur = start
+    while cur <= end:
+        if cur.weekday() < 5:  # L=0 ... V=4
+            count += 1
+        cur += timedelta(days=1)
+    return count
+
+
+# ========================
+# AUSENCIAS compactadas
+# ========================
 def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[List[str]]:
     by_key: Dict[Tuple[int, str], Dict[date, int]] = {}
 
@@ -51,7 +65,10 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
 
     rows: List[List[str]] = []
 
-    for (tid, cat), days in sorted(by_key.items(), key=lambda x: (name_by_id.get(x[0][0], ""), x[0][1])):
+    for (tid, cat), days in sorted(
+        by_key.items(),
+        key=lambda x: (name_by_id.get(x[0][0], ""), x[0][1])
+    ):
         dates = sorted(days.keys())
         if not dates:
             continue
@@ -76,29 +93,31 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
             else:
                 hours_text = "varias"
 
-            fecha_text, n_days = _format_date_span(seg)
+            fecha_text, n_days_seg = _format_date_span(seg)
 
             rows.append([
-                name_by_id.get(tid, f"ID {tid}"),
-                fecha_text,
-                hours_text,
-                cat,
-                str(n_days),
+                name_by_id.get(tid, f"ID {tid}"),  # NOMBRE
+                fecha_text,                         # FECHA
+                hours_text,                         # HORAS
+                cat,                                # CAUSA
+                str(n_days_seg),                    # DÍAS
             ])
 
     return rows
 
 
-# ---------------------------------------------------------
-# MAIN SERVICE
-# ---------------------------------------------------------
+# ========================
+# PARTE PRINCIPAL
+# ========================
 async def build_monthly_report_pdf(
     session: AsyncSession,
     date_from: date,
     date_to: date,
-    path_out: str
+    path_out: str,
 ):
+    # -------------------------------------------------
     # 1) AUSENCIAS
+    # -------------------------------------------------
     res_abs = await session.execute(
         select(Absence).where(
             and_(
@@ -109,19 +128,24 @@ async def build_monthly_report_pdf(
     )
     absences = list(res_abs.scalars().all())
 
-    # 2) BAJAS solapadas
+    # -------------------------------------------------
+    # 2) BAJAS (cualquier solapamiento con el rango)
+    # -------------------------------------------------
     res_lv = await session.execute(
         select(Leave).where(
             or_(
                 and_(Leave.start_date >= date_from, Leave.start_date <= date_to),
                 and_(Leave.end_date != None, Leave.end_date >= date_from, Leave.end_date <= date_to),
-                and_(Leave.start_date <= date_from, or_(Leave.end_date == None, Leave.end_date >= date_to))
+                and_(Leave.start_date <= date_from,
+                     or_(Leave.end_date == None, Leave.end_date >= date_to))
             )
         )
     )
     leaves = list(res_lv.scalars().all())
 
-    # 3) SIN CATEGORIZAR
+    # -------------------------------------------------
+    # 3) DETECTAR SIN CATEGORIZAR
+    # -------------------------------------------------
     has_uncategorized = any(a.category is None for a in absences)
 
     for lv in leaves:
@@ -130,46 +154,65 @@ async def build_monthly_report_pdf(
         if lv.category is None:
             has_uncategorized = True
 
+    # -------------------------------------------------
     # 4) NOMBRES
+    # -------------------------------------------------
     teacher_ids = {a.teacher_id for a in absences} | {lv.teacher_id for lv in leaves}
 
     name_by_id = {}
     if teacher_ids:
-        res_names = await session.execute(
+        qnames = await session.execute(
             select(Teacher.id, Teacher.name).where(Teacher.id.in_(teacher_ids))
         )
-        name_by_id = {tid: name for tid, name in res_names.all()}
+        name_by_id = {tid: nm for tid, nm in qnames.all()}
 
-    # 5) FILAS AUSENCIAS
+    # -------------------------------------------------
+    # 5) FILAS DE AUSENCIAS
+    # -------------------------------------------------
     rows = _build_rows(
         [a for a in absences if a.category and a.category != "Z"],
         name_by_id,
     )
 
-    # 6) FILAS BAJAS
+    # -------------------------------------------------
+    # 6) FILAS DE BAJAS (solo tramo dentro del periodo)
+    # -------------------------------------------------
     for lv in leaves:
         if lv.cause and lv.cause.lower().strip() == "excedencia":
             continue
 
-        name = name_by_id.get(lv.teacher_id, f"ID {lv.teacher_id}")
+        nm = name_by_id.get(lv.teacher_id, f"ID {lv.teacher_id}")
         cat = lv.category
 
+        # RECORTE DEL PERÍODO
+        start = max(lv.start_date, date_from)
+        end = lv.end_date or date_to
+        end = min(end, date_to)
+
+        # Cálculo solo L-V
+        n_days = working_days(start, end)
+
         if lv.end_date:
-            fecha = f"del {lv.start_date.strftime('%d/%m/%Y')} al {lv.end_date.strftime('%d/%m/%Y')}"
-            n_days = (lv.end_date - lv.start_date).days + 1
+            fecha_txt = f"del {start.strftime('%d/%m/%Y')} al {end.strftime('%d/%m/%Y')}"
         else:
-            fecha = f"desde {lv.start_date.strftime('%d/%m/%Y')}"
-            n_days = (date_to - lv.start_date).days + 1
+            fecha_txt = f"desde {start.strftime('%d/%m/%Y')}"
 
         rows.append([
-            name,
-            fecha,
+            nm,
+            fecha_txt,
             "Todas",
             cat,
             str(n_days),
         ])
 
-    # 7) PDF
+    # -------------------------------------------------
+    # 7) ORDEN FINAL DE TODAS LAS FILAS
+    # -------------------------------------------------
+    rows = sorted(rows, key=lambda r: (r[0].lower(), r[1]))
+
+    # -------------------------------------------------
+    # 8) GENERAR PDF
+    # -------------------------------------------------
     doc = SimpleDocTemplate(
         path_out,
         pagesize=A4,
@@ -203,11 +246,11 @@ async def build_monthly_report_pdf(
         elements.append(img)
         elements.append(Spacer(1, 4))
 
-    # NOMBRE CENTRO
+    # CENTRO
     if settings.INSTITUTION_NAME:
         elements.append(Paragraph(settings.INSTITUTION_NAME, style_center_small))
 
-    # TITULO INTELIGENTE
+    # TÍTULO
     ultimo = monthrange(date_from.year, date_from.month)[1]
     mes_completo = (
         date_from.day == 1 and
@@ -241,8 +284,8 @@ async def build_monthly_report_pdf(
     elements.append(Spacer(1, 10))
 
     # TABLA
-    head = ["NOMBRE", "FECHA", "HORAS", "CAUSA", "DÍAS"]
-    data = [head] + rows
+    headers = ["NOMBRE", "FECHA", "HORAS", "CAUSA", "DÍAS"]
+    data = [headers] + rows
 
     table = Table(
         data,
