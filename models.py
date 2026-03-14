@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
 # Tipos SQLAlchemy
 from sqlalchemy import (
     String, Integer, Enum as SAEnum, ForeignKey, Text,
-    Date, Boolean, UniqueConstraint, DateTime, JSON
+    Date, Boolean, UniqueConstraint, DateTime, JSON, Column
 )
 
 import enum
