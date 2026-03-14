@@ -128,6 +128,7 @@ async def working_school_days(
 # AUSENCIAS compactadas
 # ---------------------------------------------------------
 def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[List[str]]:
+    # AGRUPA POR PROFESOR Y CATEGORÍA
     by_key: Dict[Tuple[int, str], Dict[date, int]] = {}
 
     for a in absences:
@@ -139,6 +140,7 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
 
     rows: List[List[str]] = []
 
+    # RECORRER CADA PROFESOR-CATEGORÍA
     for (tid, cat), days in sorted(
         by_key.items(),
         key=lambda x: (name_by_id.get(x[0][0], ""), x[0][1])
@@ -147,6 +149,7 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
         if not dates:
             continue
 
+        # DIVIDIR EN SEGMENTOS CONSECUTIVOS
         segments = []
         seg = [dates[0]]
         for d in dates[1:]:
@@ -157,17 +160,14 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
                 seg = [d]
         segments.append(seg)
 
+        # CONSTRUIR UNA FILA POR SEGMENTO
         for seg in segments:
             masks = [days[d] for d in seg]
             first = masks[0]
-            same = all(m == first for m in masks)
 
-            if same:
+            if all(m == first for m in masks):
                 hours_list = mask_to_hour_list(first)
-                hours_text = (
-                    "Todas" if len(hours_list) == 6 
-                    else ",".join(str(h) for h in hours_list)
-                )
+                hours_text = "Todas" if len(hours_list) == 6 else ",".join(str(h) for h in hours_list)
             else:
                 hours_text = "varias"
 
@@ -181,7 +181,7 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
                 str(n_days_seg),
             ])
 
-    return rows
+    return rows   # ✔ DEVUELVE TODOS LOS SEGMENTOS
 
 
 # ---------------------------------------------------------
