@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session
 from models import SchoolCalendar
 from auth import admin_required
-
+from datetime import date
 
 router = APIRouter(prefix="/config/calendar", tags=["calendar"])
 
@@ -58,25 +58,32 @@ async def calendar_post(
     easter_end: str = Form(...),
     other_holidays: str = Form(""),
 ):
-    # Convertir lista de festivos separados por coma
-    festivos = [
-        h.strip() for h in other_holidays.split(",") if h.strip()
-    ]
+    from datetime import date
 
-    # Crear nuevo registro (no editamos, creamos uno nuevo cada vez)
+    # Convertir texto ISO → date
+    fd = date.fromisoformat(first_day)
+    ld = date.fromisoformat(last_day)
+    xs = date.fromisoformat(xmas_start)
+    xe = date.fromisoformat(xmas_end)
+    es = date.fromisoformat(easter_start)
+    ee = date.fromisoformat(easter_end)
+
+    # Convertir lista de festivos separados por coma
+    festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
+
+    # Crear registro
     cal = SchoolCalendar(
         school_year=school_year,
-        first_day=first_day,
-        last_day=last_day,
-        xmas_start=xmas_start,
-        xmas_end=xmas_end,
-        easter_start=easter_start,
-        easter_end=easter_end,
+        first_day=fd,
+        last_day=ld,
+        xmas_start=xs,
+        xmas_end=xe,
+        easter_start=es,
+        easter_end=ee,
         other_holidays=festivos,
     )
 
     session.add(cal)
     await session.commit()
 
-    # Volvemos a la página de calendario
-    return RedirectResponse("/config/calendar/", status_code=303)
+    return RedirectResponse("/config/calendar", status_code=303)
