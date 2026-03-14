@@ -160,7 +160,7 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
                 seg = [d]
         segments.append(seg)
 
-        # CONSTRUIR UNA FILA POR SEGMENTO
+        # UNA FILA POR CADA SEGMENTO (AQUÍ ESTABA EL FALLO)
         for seg in segments:
             masks = [days[d] for d in seg]
             first = masks[0]
@@ -171,18 +171,17 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
             else:
                 hours_text = "varias"
 
-            fecha_text, n_days_seg = _format_date_span(seg)
+            fecha_txt, n_days_seg = _format_date_span(seg)
 
             rows.append([
                 name_by_id.get(tid, f"ID {tid}"),
-                fecha_text,
+                fecha_txt,
                 hours_text,
                 cat,
                 str(n_days_seg),
             ])
 
-    return rows   # ✔ DEVUELVE TODOS LOS SEGMENTOS
-
+    return rows
 
 # ---------------------------------------------------------
 # PARTE MENSUAL (principal)
