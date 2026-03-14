@@ -229,7 +229,7 @@ async def substitutions_new_form(
             select(Teacher)
             .where(
                 and_(
-                    Teacher.status != TeacherStatus.activo,
+                    Teacher.status == TeacherStatus.exprofe,
                     subq_open_leave.is_(None)
                 )
             )
