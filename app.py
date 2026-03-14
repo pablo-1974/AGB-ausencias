@@ -58,9 +58,9 @@ templates = Jinja2Templates(directory="templates")
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# SESIONES (cookies)
+# SESIONES (cookies) — DEBE IR ANTES DE CUALQUIER MIDDLEWARE
 # ------------------------------------------------------------
-setup_session(app)
+setup_session(app)   # ← ¡OBLIGATORIAMENTE AQUÍ!
 
 # ------------------------------------------------------------
 # MIDDLEWARE: Cargar SIEMPRE el usuario en request.state.user
@@ -71,19 +71,16 @@ from models import User
 
 @app.middleware("http")
 async def load_user(request: Request, call_next):
-    """
-    Carga el usuario autenticado en request.state.user para que esté
-    disponible en TODAS las plantillas, sin depender de cada ruta.
-    """
     request.state.user = None
-    uid = request.session.get("uid") if request.session else None
+
+    # SessionMiddleware YA está instalado aquí
+    uid = request.session.get("uid") if hasattr(request, "session") else None
 
     if uid:
         session: AsyncSession = await get_session()
         request.state.user = await session.get(User, uid)
 
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
 
 # ------------------------------------------------------------
