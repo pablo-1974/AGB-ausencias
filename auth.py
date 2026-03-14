@@ -360,14 +360,35 @@ async def me_password_post(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(current_user),
 ):
+    # Validar la contraseña actual
     if not _verify_password(current_password, user.password_hash):
         raise HTTPException(400, "La contraseña actual no es válida")
+
+    # Generar y guardar el nuevo hash
     try:
         user.password_hash = _hash_password(new_password)
     except ValueError as ve:
         raise HTTPException(400, str(ve))
+
     await session.commit()
-    return RedirectResponse("/", status_code=303)
+
+    # --- CERRAR SESIÓN AUTOMÁTICAMENTE ---
+    if request.session:
+        request.session.clear()
+
+    response = RedirectResponse("/login", status_code=303)
+
+    # Borrar cookie de sesión, igual que en /logout
+    is_secure = (request.url.scheme == "https")
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        path="/",
+        samesite="lax",
+        secure=is_secure,
+        domain=None,
+    )
+
+    return response
 
 # ---------------------------
 # Admin: gestión de usuarios
