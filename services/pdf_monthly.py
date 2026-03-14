@@ -249,10 +249,13 @@ async def build_monthly_report_pdf(
     # -----------------------------
     # FILAS AUSENCIAS
     # -----------------------------
-    rows = _build_rows(
-        [a for a in absences if a.category and a.category != "Z"],
-        name_by_id,
-    )
+    # Separar ausencias catalogadas de no catalogadas
+    catalogadas = [a for a in absences if a.category and a.category != "Z"]
+    sin_catalogar = [a for a in absences if not a.category or a.category == "Z"]
+    
+    has_uncategorized = len(sin_catalogar) > 0
+    
+    rows = _build_rows(catalogadas, name_by_id)
 
     # -----------------------------
     # FILAS BAJAS (con calendario)
