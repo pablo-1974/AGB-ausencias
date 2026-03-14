@@ -265,33 +265,35 @@ async def build_monthly_report_pdf(
         ])
 
     # ======================================================
-    # 8) Evitar pérdida de profesores (CORRECTOR CRÍTICO)
-    # ======================================================
-    for a in sin_catalogar:
-        name = name_by_id.get(a.teacher_id, f"ID {a.teacher_id}")
-        if all(r[0] != name for r in rows):
-            rows.append([name, "AUSENCIA SIN CATALOGAR", "-", "-", "0"])
-
-    # ======================================================
-    # 9) ORDEN FINAL
+    # 8) ORDEN FINAL
     # ======================================================
     rows = sorted(rows, key=lambda r: (r[0].lower(), r[1]))
-
-    # Añadir ausencias sin catalogar con botón "Catalogar"
+    
+    
+    # ======================================================
+    # 9) AÑADIR AUSENCIAS SIN CATALOGAR (VISTA HTML)
+    #      No afecta al PDF porque el PDF filtra HTML.
+    # ======================================================
+    rows_html = rows.copy()  # versión solo para HTML
+    
     for a in sin_catalogar:
         name = name_by_id.get(a.teacher_id, f"ID {a.teacher_id}")
         fecha_txt = a.date.strftime("%d/%m/%Y")
         hours_list = mask_to_hour_list(a.hours_mask or 0)
         hours_text = "Todas" if len(hours_list) == 6 else ",".join(str(h) for h in hours_list)
     
-        # Enlace para catalogar
-        cat_btn = f'/absences/categorize?absence_id={a.id}Catalogar</a>'
+        # Botón real HTML
+        cat_btn = (
+            f'<a href="/absences/categorize?absence_id={a.id}" '
+            f'class="px-2 py-1 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">'
+            f'Catalogar</a>'
+        )
     
-        rows.append([
+        rows_html.append([
             name,
             fecha_txt,
             hours_text,
-            cat_btn,
+            cat_btn,  # HTML real
             "-"
         ])
     
