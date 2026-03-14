@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto mt-6">
+
+  <h2 class="text-2xl font-bold mb-4">Calendario escolar {{ calendar.school_year }}</h2>
+
+  <a href="/config/calendar" class="mb-4 inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
+    Editar calendario
+  </a>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+    {% for m in months %}
+    <div class="border rounded shadow bg-white p-2">
+
+      <!-- Nombre del mes -->
+      <div class="text-center font-bold text-lg mb-1">
+        {{ m.name }} {{ m.year }}
+      </div>
+
+      <!-- Cabecera -->
+      <div class="grid grid-cols-7 text-center bg-gray-700 text-white text-xs py-1">
+        <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+      </div>
+
+      <!-- Cuadrícula -->
+      <div class="grid grid-cols-7 text-center text-sm">
+
+        <!-- Huecos antes del día 1 -->
+        {% for i in range(m.first_weekday) %}
+        <div class="py-1"></div>
+        {% endfor %}
+
+        {% for d, wd, kind in m.days %}
+
+          {% if kind == 'weekend' %}
+            <div class="py-1 text-gray-400">{{ d }}</div>
+          {% elif kind == 'out' %}
+            <div class="py-1 text-gray-300">{{ d }}</div>
+          {% elif kind == 'xmas' %}
+            <div class="py-1 bg-green-200 text-green-900 font-semibold rounded">{{ d }}</div>
+          {% elif kind == 'easter' %}
+            <div class="py-1 bg-blue-200 text-blue-900 font-semibold rounded">{{ d }}</div>
+          {% elif kind</div>
+          {% else %}
+            <div class="py-1">{{ d }}</div>
+          {% endif %}
+
+        {% endfor %}
+      </div>
+
+    </div>
+    {% endfor %}
+
+  </div>
+</div>
+
+{% endblock %}
