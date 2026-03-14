@@ -57,6 +57,8 @@ if ProxyHeadersMiddleware:
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
+# DESACTIVAR CACHE DE JINJA PARA DEPLOY EN RENDER
+templates.env.cache = {}
 app.state.templates = templates
 
 # ------------------------------------------------------------
