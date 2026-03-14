@@ -44,7 +44,7 @@
         <div class="text-xs text-gray-500">{{ institution_name }}</div>
       </div>
       <div class="ml-auto text-xs text-gray-500">
-        {{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}
+        {{ now_dt.strftime('%d/%m/%Y %H:%M') if now_dt else '' }}
       </div>
     </div>
   </header>
