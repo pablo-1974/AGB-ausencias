@@ -519,4 +519,12 @@ async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
 
 
 
+async def get_template_user(request: Request, session: AsyncSession):
+    uid = request.session.get("uid") if request.session else None
+    if not uid:
+        return None
+    user = await session.get(User, uid)
+    return user
+
+
 
