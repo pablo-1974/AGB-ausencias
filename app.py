@@ -20,7 +20,7 @@ from teachers_router import router as teachers_router
 from leaves_router import router as leaves_router
 # router de ausencias
 from absences_router import router as absences_router
-# app.py (imports)
+# router de informes
 from reports_router import router as reports_router
 # router de calendario
 from config_calendar_router import router as calendar_router
@@ -38,16 +38,18 @@ except Exception:
         ProxyHeadersMiddleware = None
 
 # ------------------------------------------------------------
-# APP FASTAPI (configurada ya para Render + Neon)
+# APP FASTAPI
 # ------------------------------------------------------------
 app = FastAPI(title=settings.APP_NAME)
 
 # ------------------------------------------------------------
-# SESIONES — ¡VITAL! Debe ir ANTES de cualquier middleware HTTP
+# SESIONES — ¡DEBE IR LO PRIMERO!
 # ------------------------------------------------------------
 setup_session(app)
 
-# Asegurar https detrás de Render (X-Forwarded-Proto)
+# ------------------------------------------------------------
+# PROXY HEADERS (Render)
+# ------------------------------------------------------------
 if ProxyHeadersMiddleware:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
@@ -57,27 +59,33 @@ if ProxyHeadersMiddleware:
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
-# DESACTIVAR CACHE DE JINJA PARA DEPLOY EN RENDER
-templates.env.cache = {}
+templates.env.cache = {}  # aseguramos recarga de plantillas
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# MIDDLEWARE: Cargar usuario SIEMPRE
+# MIDDLEWARE CORRECTO: LoadUserMiddleware (CLASE)
 # ------------------------------------------------------------
+from starlette.middleware.base import BaseHTTPMiddleware
 from database import AsyncSessionLocal
 from models import User
 
-@app.middleware("http")
-async def load_user(request: Request, call_next):
-    request.state.user = None
+class LoadUserMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request.state.user = None
 
-    if "session" in request.scope:
-        uid = request.session.get("uid")
-        if uid:
-            async with AsyncSessionLocal() as db:
-                request.state.user = await db.get(User, uid)
+        # Solo si SessionMiddleware añadió la clave "session"
+        if "session" in request.scope:
+            uid = request.session.get("uid")
+            if uid:
+                async with AsyncSessionLocal() as db:
+                    user = await db.get(User, uid)
+                    request.state.user = user
 
-    return await call_next(request)
+        response = await call_next(request)
+        return response
+
+# -------- REGISTRO DEL MIDDLEWARE (muy importante) --------
+app.add_middleware(LoadUserMiddleware)
 
 # ------------------------------------------------------------
 # MIDDLEWARE: No cache
@@ -106,7 +114,7 @@ app.include_router(reports_router)
 app.include_router(calendar_router)
 
 # ------------------------------------------------------------
-# DEBUG import errors
+# DEBUG de importación
 # ------------------------------------------------------------
 import sys
 def debug_import_error(module_name: str):
