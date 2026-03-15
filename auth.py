@@ -24,18 +24,6 @@ COOKIE_NAME = "ausencias_session"
 logger = logging.getLogger("uvicorn.error")
 router = APIRouter()
 
-# ---------------------------
-# Sesión (cookie)
-# ---------------------------
-def setup_session(app):
-    app.add_middleware(
-        SessionMiddleware,
-        secret_key=settings.SECRET_KEY,
-        session_cookie=COOKIE_NAME,  # <-- usar constante
-        max_age=60 * 60 * 8,         # 8 horas
-        same_site="lax",
-        https_only=True,             # OK en Render (HTTPS)
-    )
 
 # ---------------------------
 # Helpers
