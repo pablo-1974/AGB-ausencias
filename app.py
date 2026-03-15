@@ -59,33 +59,29 @@ if ProxyHeadersMiddleware:
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
-templates.env.cache = {}  # aseguramos recarga de plantillas
+templates.env.cache = {}
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# MIDDLEWARE CORRECTO: LoadUserMiddleware (CLASE)
+# NUEVO MIDDLEWARE CORRECTO (FUNCIONAL, NO DE CLASE)
 # ------------------------------------------------------------
-from starlette.middleware.base import BaseHTTPMiddleware
 from database import AsyncSessionLocal
 from models import User
 
-class LoadUserMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        request.state.user = None
+@app.middleware("http")
+async def load_user(request: Request, call_next):
+    # Inicializar
+    request.state.user = None
 
-        # Solo si SessionMiddleware añadió la clave "session"
-        if "session" in request.scope:
-            uid = request.session.get("uid")
-            if uid:
-                async with AsyncSessionLocal() as db:
-                    user = await db.get(User, uid)
-                    request.state.user = user
+    # Comprobar si SessionMiddleware creó la clave
+    if "session" in request.scope:
+        uid = request.session.get("uid")
+        if uid:
+            async with AsyncSessionLocal() as db:
+                user = await db.get(User, uid)
+                request.state.user = user
 
-        response = await call_next(request)
-        return response
-
-# -------- REGISTRO DEL MIDDLEWARE (muy importante) --------
-app.add_middleware(LoadUserMiddleware)
+    return await call_next(request)
 
 # ------------------------------------------------------------
 # MIDDLEWARE: No cache
@@ -114,7 +110,7 @@ app.include_router(reports_router)
 app.include_router(calendar_router)
 
 # ------------------------------------------------------------
-# DEBUG de importación
+# DEBUG import
 # ------------------------------------------------------------
 import sys
 def debug_import_error(module_name: str):
@@ -129,7 +125,7 @@ debug_import_error("leaves_router")
 debug_import_error("teachers_router")
 
 # ------------------------------------------------------------
-# Contexto común para plantillas
+# Contexto común
 # ------------------------------------------------------------
 APP_NAME = settings.APP_NAME
 INSTITUTION_NAME = settings.INSTITUTION_NAME
