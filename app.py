@@ -172,10 +172,17 @@ def tpl(request: Request, **extra):
 # ------------------------------------------------------------
 # RUTA PRINCIPAL
 # ------------------------------------------------------------
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def dashboard(request: Request):
+    # 🔥 IGNORAR HEAD REQUESTS
+    if request.method == "HEAD":
+        # No usar sesión, no renderizar plantillas
+        return JSONResponse({"ok": True})
+
+    # 🔥 GET normal: aquí sí usamos sesión
     if not request.session or not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
+
     return templates.TemplateResponse("dashboard.html", tpl(request))
 
 # ------------------------------------------------------------
@@ -190,29 +197,38 @@ async def health():
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
+    # IGNORAR HEAD (Chrome lo hace siempre)
+    if request.method == "HEAD":
+        return JSONResponse({"ok": True})
+
     session = request.scope.get("session")
     uid = session.get("uid") if session else None
 
     if not uid:
         return RedirectResponse("/login", status_code=303)
 
-    return templates.TemplateResponse(
-        "dashboard.html",
-        tpl(request, message="Página no encontrada"),
-        status_code=404
-    )
+    return templates.TemplateResponse(...)
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
+    # 🔥 1) IGNORAR peticiones HEAD
+    # Chrome, Avast y algunas extensiones hacen HEAD a muchas rutas.
+    # HEAD no envía cookies → no hay sesión → no debemos renderizar plantillas.
+    if request.method == "HEAD":
+        return JSONResponse({"ok": True})
+
+    # 🔥 2) Obtener UID desde sesión (solo GET)
     session = request.scope.get("session")
     uid = session.get("uid") if session else None
 
+    # 🔥 3) Si no hay uid → volver a login
     if not uid:
         return RedirectResponse("/login", status_code=303)
 
+    # 🔥 4) Renderizar plantilla normal de error
     return templates.TemplateResponse(
         "dashboard.html",
-        tpl(request, message="Error interno"),
+        tpl(request, message="Error interno. Intenta más tarde."),
         status_code=500
     )
 
