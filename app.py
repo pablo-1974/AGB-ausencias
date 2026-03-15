@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.responses import RedirectResponse, JSONResponse
 
 from config import settings
-from auth import router as auth_router, setup_session
+from auth import router as auth_router
 
 # router de importación de profesores
 from imports_teachers import router as teachers_import_router
@@ -42,10 +42,6 @@ except Exception:
 # ------------------------------------------------------------
 app = FastAPI(title=settings.APP_NAME)
 
-# ------------------------------------------------------------
-# SESIONES — ¡DEBE IR LO PRIMERO!
-# ------------------------------------------------------------
-setup_session(app)
 
 # ------------------------------------------------------------
 # PROXY HEADERS (Render)
