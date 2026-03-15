@@ -191,8 +191,12 @@ async def health():
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    if not request.session or not request.session.get("uid"):
+    session = request.scope.get("session")
+    uid = session.get("uid") if session else None
+
+    if not uid:
         return RedirectResponse("/login", status_code=303)
+
     return templates.TemplateResponse(
         "dashboard.html",
         tpl(request, message="Página no encontrada"),
@@ -201,11 +205,15 @@ async def not_found(request: Request, exc):
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
-    if not request.session or not request.session.get("uid"):
+    session = request.scope.get("session")
+    uid = session.get("uid") if session else None
+
+    if not uid:
         return RedirectResponse("/login", status_code=303)
+
     return templates.TemplateResponse(
         "dashboard.html",
-        tpl(request, message="Error interno. Intenta más tarde."),
+        tpl(request, message="Error interno"),
         status_code=500
     )
 
