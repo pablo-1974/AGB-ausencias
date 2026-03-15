@@ -51,7 +51,7 @@ app.add_middleware(
     session_cookie="ausencias_session",
     max_age=60 * 60 * 8,
     same_site="none",      # ← esencial para que Chrome envie la cookie tras login POST + redirect
-    https_only=True,        # ← mantiene seguridad
+    https_only=False,        # ← mantiene seguridad
 )
 
 
