@@ -34,6 +34,14 @@ app = FastAPI(title=settings.APP_NAME)
 
 print("APP STARTED")
 
+
+# ------------------------------------------------------------
+# PROXY HEADERS (Render)
+# ------------------------------------------------------------
+if ProxyHeadersMiddleware:
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+
 # ------------------------------------------------------------
 # SESIÓN — DEBE IR AQUÍ, ANTES DE CUALQUIER OTRO MIDDLEWARE
 # ------------------------------------------------------------
@@ -74,12 +82,6 @@ async def load_user(request: Request, call_next):
 
     return await call_next(request)
 
-
-# ------------------------------------------------------------
-# PROXY HEADERS (Render)
-# ------------------------------------------------------------
-if ProxyHeadersMiddleware:
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ------------------------------------------------------------
 # STATIC y TEMPLATES
