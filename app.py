@@ -197,17 +197,23 @@ async def health():
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    # IGNORAR HEAD (Chrome lo hace siempre)
+    # 🔥 IGNORAR HEAD REQUESTS (Chrome manda HEAD sin sesión)
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
+    # Sesión normal
     session = request.scope.get("session")
     uid = session.get("uid") if session else None
 
+    # Si no hay sesión → login
     if not uid:
         return RedirectResponse("/login", status_code=303)
 
-    return templates.TemplateResponse(...)
+    return templates.TemplateResponse(
+        "dashboard.html",
+        tpl(request, message="Página no encontrada"),
+        status_code=404
+    )
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
