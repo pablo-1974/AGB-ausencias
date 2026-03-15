@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.responses import RedirectResponse, JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
 from auth import router as auth_router
@@ -41,6 +42,19 @@ except Exception:
 # APP FASTAPI
 # ------------------------------------------------------------
 app = FastAPI(title=settings.APP_NAME)
+
+
+# ------------------------------------------------------------
+# SESIÓN — DEBE IR AQUÍ, ANTES DE CUALQUIER OTRO MIDDLEWARE
+# ------------------------------------------------------------
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="ausencias_session",
+    max_age=60 * 60 * 8,
+    same_site="lax",
+    https_only=True,
+)
 
 
 # ------------------------------------------------------------
