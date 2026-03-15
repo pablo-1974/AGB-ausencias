@@ -6,9 +6,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+
 ########## DEBUG ##############################
 import os
-print("DEBUG FILES:", os.listdir("."))
+print("DEBUG FILES:", os.listdir("."))  # para confirmar entorno Render
 ################################################
 
 from config import settings
@@ -23,10 +24,10 @@ from auth import router as auth_router
 ProxyHeadersMiddleware = None
 try:
     from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
-except:
+except Exception:
     try:
         from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-    except:
+    except Exception:
         ProxyHeadersMiddleware = None
 
 
@@ -38,40 +39,40 @@ print("APP STARTED")
 
 
 # ------------------------------------------------------------
-# 1) PROXY HEADERS (DEBE IR ANTES que SessionMiddleware)
+# 1) PROXY HEADERS — DEBE IR ANTES QUE SessionMiddleware
 # ------------------------------------------------------------
 if ProxyHeadersMiddleware:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 
 # ------------------------------------------------------------
-# 2) SESSION MIDDLEWARE (cookie de sesión)
+# 2) SESSION MIDDLEWARE
 # ------------------------------------------------------------
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
     session_cookie="ausencias_session",
     max_age=60 * 60 * 8,
-    same_site="lax",     # funcional con Render + Chrome
-    https_only=False,    # evita bloqueos en proxys
+    same_site="lax",    # Perfecto para Chrome + Render
+    https_only=False     # Importante en Render (proxy HTTPS)
 )
 
 
 # ------------------------------------------------------------
-# 3) LOAD USER MIDDLEWARE (como CLASE)
+# 3) LOAD USER MIDDLEWARE (AHORA COMO CLASE, ORDEN CORRECTO)
 # ------------------------------------------------------------
 from starlette.middleware.base import BaseHTTPMiddleware
 from database import AsyncSessionLocal
 from models import User
 
 class LoadUserMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        print("LOAD_USER middleware running")
+    async def dispatch(self, request: Request, call_next):
+        print("\nLOAD_USER middleware running")
         print("REQUEST HAS COOKIE?:", request.cookies)
 
         request.state.user = None
 
-        session = request.scope.get("session")
+        session = request.scope.get("session")  # ⭐ DECODED por SessionMiddleware
         uid = session.get("uid") if session else None
         print("UID SEEN:", uid)
 
@@ -87,7 +88,7 @@ class LoadUserMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
-# Añadir middleware de clase
+# Añadir el middleware REAL
 app.add_middleware(LoadUserMiddleware)
 
 
@@ -102,7 +103,7 @@ app.state.templates = templates
 
 
 # ------------------------------------------------------------
-# MIDDLEWARE: No cache
+# NO CACHE middleware
 # ------------------------------------------------------------
 @app.middleware("http")
 async def no_cache_mw(request: Request, call_next):
@@ -116,7 +117,7 @@ async def no_cache_mw(request: Request, call_next):
 
 
 # ------------------------------------------------------------
-# INCLUIR RUTAS
+# INCLUIR TODAS LAS RUTAS
 # ------------------------------------------------------------
 from imports_teachers import router as teachers_import_router
 from imports_schedule import router as schedule_import_router
@@ -139,7 +140,7 @@ app.include_router(calendar_router)
 
 
 # ------------------------------------------------------------
-# DEBUG de imports
+# DEBUG IMPORTS
 # ------------------------------------------------------------
 import sys
 def debug_import_error(module_name: str):
@@ -155,7 +156,7 @@ debug_import_error("teachers_router")
 
 
 # ------------------------------------------------------------
-# Contexto común para templates
+# CONTEXTO PARA TEMPLATES
 # ------------------------------------------------------------
 APP_NAME = settings.APP_NAME
 INSTITUTION_NAME = settings.INSTITUTION_NAME
@@ -177,16 +178,16 @@ def tpl(request: Request, **extra):
 
 
 # ------------------------------------------------------------
-# RUTA PRINCIPAL (GET y HEAD)
+# RUTA ROOT (HEAD + GET)
 # ------------------------------------------------------------
 @app.api_route("/", methods=["GET", "HEAD"])
 async def dashboard(request: Request):
 
-    # HEAD: Chrome y Render envían HEAD sin cookies → NO usar sesión
+    # HEAD no tiene cookies → no usar sesión
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
-    # GET: comprobar sesión real
+    # GET normal con sesión
     if not request.session or not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
 
@@ -194,7 +195,7 @@ async def dashboard(request: Request):
 
 
 # ------------------------------------------------------------
-# HEALTHCHECK
+# HEALTH
 # ------------------------------------------------------------
 @app.get("/health")
 async def health():
@@ -202,7 +203,7 @@ async def health():
 
 
 # ------------------------------------------------------------
-# ERROR HANDLERS
+# ERROR HANDLERS (HEAD seguro)
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
@@ -237,13 +238,13 @@ async def internal_error(request: Request, exc):
 
     return templates.TemplateResponse(
         "dashboard.html",
-        tpl(request, message="Error interno. Intenta más tarde."),
+        tpl(request, message="Error interno"),
         status_code=500
     )
 
 
 # ------------------------------------------------------------
-# PRINT ROUTES
+# RUTAS
 # ------------------------------------------------------------
 print("=== ROUTES ===")
 for r in app.routes:
