@@ -35,13 +35,6 @@
   {% set show_nav = show_nav if show_nav is defined else (not hide_chrome) %}
   {% set user = request.state.user %}
   
-  <div style="color:blue">
-  DEBUG USER: {{ user }}<br>
-  DEBUG SESSION: {{ request.session }}<br>
-  DEBUG HAS_SESSION: {{ "session" in request.scope }}<br>
-  DEBUG SCOPE: {{ request.scope }}<br>
-  </div>
-  
   {% if not hide_chrome %}
   <!-- VERSION DEBUG 1 -->
   
