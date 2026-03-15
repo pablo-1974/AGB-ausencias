@@ -14,22 +14,6 @@ print("DEBUG FILES:", os.listdir("."))
 from config import settings
 from auth import router as auth_router
 
-# router de importación de profesores
-from imports_teachers import router as teachers_import_router
-# router de importación de clases y guardias
-from imports_schedule import router as schedule_import_router
-# router de horarios
-from schedule_router import router as schedule_router
-# router de listados de profesorado (pantalla + PDFs)
-from teachers_router import router as teachers_router  
-# router de bajas
-from leaves_router import router as leaves_router
-# router de ausencias
-from absences_router import router as absences_router
-# router de informes
-from reports_router import router as reports_router
-# router de calendario
-from config_calendar_router import router as calendar_router
 
 # ------------------------------------------------------------
 # Middleware de proxy (fallback tolerante)
@@ -116,8 +100,25 @@ async def no_cache_mw(request: Request, call_next):
     return response
 
 # ------------------------------------------------------------
-# INCLUIR RUTAS
+# INCLUIR RUTAS (IMPORTAR Y AÑADIR)
 # ------------------------------------------------------------
+# router de importación de profesores
+from imports_teachers import router as teachers_import_router
+# router de importación de clases y guardias
+from imports_schedule import router as schedule_import_router
+# router de horarios
+from schedule_router import router as schedule_router
+# router de listados de profesorado (pantalla + PDFs)
+from teachers_router import router as teachers_router  
+# router de bajas
+from leaves_router import router as leaves_router
+# router de ausencias
+from absences_router import router as absences_router
+# router de informes
+from reports_router import router as reports_router
+# router de calendario
+from config_calendar_router import router as calendar_router
+
 app.include_router(auth_router)
 app.include_router(teachers_import_router)
 app.include_router(schedule_import_router)
