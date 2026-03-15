@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 ########## PROVISIONAL ##############################
 import os
 print("DEBUG FILES:", os.listdir("."))
+print("SECRET_KEY IN RUNTIME:", settings.SECRET_KEY)
 ####################################################
 
 from config import settings
