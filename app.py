@@ -59,7 +59,7 @@ async def load_user(request: Request, call_next):
 
     request.state.user = None
 
-    if "session" in request.scope:
+    if request.session:
         uid = request.session.get("uid")
         print("UID SEEN:", uid)             # NEW
 
