@@ -78,8 +78,8 @@ async def load_user(request: Request, call_next):
 # ------------------------------------------------------------
 # PROXY HEADERS (Render)
 # ------------------------------------------------------------
-if ProxyHeadersMiddleware:
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+# if ProxyHeadersMiddleware:
+#     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ------------------------------------------------------------
 # STATIC y TEMPLATES
