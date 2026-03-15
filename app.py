@@ -59,18 +59,18 @@ async def load_user(request: Request, call_next):
 
     request.state.user = None
 
-    if request.session:
-        uid = request.session.get("uid")
-        print("UID SEEN:", uid)             # NEW
-
-        if uid:
-            async with AsyncSessionLocal() as db:
-                try:
-                    user = await db.get(User, uid)
-                    print("DB RESULT:", user)   # NEW
-                    request.state.user = user
-                except Exception as e:
-                    print("DB ERROR:", e)       # NEW
+    session = request.scope.get("session")
+    uid = session.get("uid") if session else None
+    print("UID SEEN:", uid)
+    
+    if uid:
+        async with AsyncSessionLocal() as db:
+            try:
+                user = await db.get(User, uid)
+                print("DB RESULT:", user)
+                request.state.user = user
+            except Exception as e:
+                print("DB ERROR:", e)
 
     return await call_next(request)
 
