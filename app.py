@@ -6,6 +6,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+########## PROVISIONAL ##############################
+import os
+print("DEBUG FILES:", os.listdir("."))
+
 from config import settings
 from auth import router as auth_router
 
