@@ -137,6 +137,9 @@ async def login_post(
 
         # OK: establecemos la sesión y redirigimos al dashboard
         request.session["uid"] = u.id
+        
+        print("SESSION AFTER LOGIN:", request.session)   # 🟢 AÑADIR ESTO AQUÍ
+        
         logger.info("Login OK para %s (uid=%s)", email_norm, u.id)
         return RedirectResponse(url="/", status_code=303)
 
