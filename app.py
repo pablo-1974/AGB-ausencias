@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 ########## PROVISIONAL ##############################
 import os
 print("DEBUG FILES:", os.listdir("."))
+####################################################
 
 from config import settings
 from auth import router as auth_router
@@ -62,21 +63,6 @@ app.add_middleware(
 
 
 # ------------------------------------------------------------
-# PROXY HEADERS (Render)
-# ------------------------------------------------------------
-if ProxyHeadersMiddleware:
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
-
-# ------------------------------------------------------------
-# STATIC y TEMPLATES
-# ------------------------------------------------------------
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-templates = Jinja2Templates(directory="templates")
-templates.env.cache = {}
-app.state.templates = templates
-
-# ------------------------------------------------------------
 # NUEVO MIDDLEWARE CORRECTO (FUNCIONAL, NO DE CLASE)
 # ------------------------------------------------------------
 from database import AsyncSessionLocal
@@ -98,6 +84,23 @@ async def load_user(request: Request, call_next):
 
     response = await call_next(request)
     return response
+
+
+# ------------------------------------------------------------
+# PROXY HEADERS (Render)
+# ------------------------------------------------------------
+if ProxyHeadersMiddleware:
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# ------------------------------------------------------------
+# STATIC y TEMPLATES
+# ------------------------------------------------------------
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+templates = Jinja2Templates(directory="templates")
+templates.env.cache = {}
+app.state.templates = templates
+
 
 # ------------------------------------------------------------
 # MIDDLEWARE: No cache
