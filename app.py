@@ -160,7 +160,7 @@ def tpl(request: Request, **extra):
 # ------------------------------------------------------------
 @app.get("/")
 async def dashboard(request: Request):
-    if "session" not in request.scope or not request.session.get("uid"):
+    if not request.session or not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse("dashboard.html", tpl(request))
 
@@ -176,7 +176,7 @@ async def health():
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    if "session" not in request.scope or not request.session.get("uid"):
+    if not request.session or not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
         "dashboard.html",
@@ -186,7 +186,7 @@ async def not_found(request: Request, exc):
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
-    if "session" not in request.scope or not request.session.get("uid"):
+    if not request.session or not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
         "dashboard.html",
