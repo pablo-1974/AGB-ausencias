@@ -80,18 +80,20 @@ from models import User
 
 @app.middleware("http")
 async def load_user(request: Request, call_next):
-    # Inicializar
     request.state.user = None
 
-    # Comprobar si SessionMiddleware creó la clave
     if "session" in request.scope:
         uid = request.session.get("uid")
+        print("LOAD_USER:", uid)    # ← Debug 1
+
         if uid:
             async with AsyncSessionLocal() as db:
                 user = await db.get(User, uid)
+                print("DB USER:", user)   # ← Debug 2
                 request.state.user = user
 
-    return await call_next(request)
+    response = await call_next(request)
+    return response
 
 # ------------------------------------------------------------
 # MIDDLEWARE: No cache
