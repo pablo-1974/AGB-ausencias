@@ -19,12 +19,7 @@ router = APIRouter()
 # Helpers de plantillas
 # -------------------------------
 def _templates(request: Request):
-    tpl = getattr(request.app.state, "templates", None)
-    if tpl is None:
-        from fastapi.templating import Jinja2Templates
-        tpl = Jinja2Templates(directory="templates")
-        request.app.state.templates = tpl
-    return tpl
+    return request.app.state.templates
 
 
 def _ctx(request: Request, **extra):
