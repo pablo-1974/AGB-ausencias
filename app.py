@@ -63,22 +63,19 @@ from models import User
 
 @app.middleware("http")
 async def load_user(request: Request, call_next):
-    print("LOAD_USER middleware running")   # NEW
+    print("LOAD_USER middleware running")
+    print("REQUEST HAS COOKIE?:", request.cookies)   # 🟢 LÍNEA NUEVA
 
     request.state.user = None
 
-    session = request.scope.get("session")
-    uid = session.get("uid") if session else None
-    print("UID SEEN:", uid)
-    
-    if uid:
-        async with AsyncSessionLocal() as db:
-            try:
+    if "session" in request.scope:
+        uid = request.session.get("uid")
+        print("UID SEEN:", uid)   # ya lo tienes
+        if uid:
+            async with AsyncSessionLocal() as db:
                 user = await db.get(User, uid)
-                print("DB RESULT:", user)
+                print("DB USER:", user)
                 request.state.user = user
-            except Exception as e:
-                print("DB ERROR:", e)
 
     return await call_next(request)
 
