@@ -6,7 +6,6 @@ import logging
 
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from starlette.responses import RedirectResponse
-from starlette.middleware.sessions import SessionMiddleware
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
