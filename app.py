@@ -66,18 +66,23 @@ from models import User
 @app.middleware("http")
 async def load_user(request: Request, call_next):
     print("LOAD_USER middleware running")
-    print("REQUEST HAS COOKIE?:", request.cookies)   # 🟢 LÍNEA NUEVA
+    print("REQUEST HAS COOKIE?:", request.cookies)
 
     request.state.user = None
 
-    if "session" in request.scope:
-        uid = request.session.get("uid")
-        print("UID SEEN:", uid)   # ya lo tienes
-        if uid:
-            async with AsyncSessionLocal() as db:
+    # 🔥 Forma segura: sin usar request.session directamente
+    session = request.scope.get("session")
+    uid = session.get("uid") if session else None
+    print("UID SEEN:", uid)
+
+    if uid:
+        async with AsyncSessionLocal() as db:
+            try:
                 user = await db.get(User, uid)
-                print("DB USER:", user)
+                print("DB RESULT:", user)
                 request.state.user = user
+            except Exception as e:
+                print("DB ERROR:", e)
 
     return await call_next(request)
 
@@ -206,7 +211,7 @@ async def not_found(request: Request, exc):
     # Sesión normal
     session = request.scope.get("session")
     uid = session.get("uid") if session else None
-
+    
     # Si no hay sesión → login
     if not uid:
         return RedirectResponse("/login", status_code=303)
