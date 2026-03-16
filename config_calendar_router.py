@@ -8,48 +8,69 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_session
-from models import SchoolCalendar
+from models import SchoolCalendar, User
 from auth import admin_required
-from datetime import date
+from datetime import date, timedelta
 
 router = APIRouter(prefix="/config/calendar", tags=["calendar"])
 
 
-# -----------------------------------------
-# GET → Mostrar la configuración actual
-# -----------------------------------------
+# ================================
+# Helpers de plantillas y contexto
+# ================================
+def _templates(request: Request):
+    return request.app.state.templates
+
+
+def _ctx(request: Request, user: User, **extra):
+    base = {
+        "request": request,
+        "user": user,   # ← NECESARIO para menú y cabecera
+        "title": "Calendario escolar",
+    }
+    base.update(extra or {})
+    return base
+
+
+# ================================
+# GET /config/calendar  (formulario)
+# ================================
 @router.get("/")
 async def calendar_get(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
 ):
+    user = admin
+
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
         )
     ).scalar_one_or_none()
 
-    return request.app.state.templates.TemplateResponse(
+    return _templates(request).TemplateResponse(
         "calendar_config.html",
-        {
-            "request": request,
-            "title": "Calendario escolar",
-            "calendar": cal,
-        },
+        _ctx(
+            request,
+            user=user,
+            title="Configuración del calendario",
+            calendar=cal,
+        ),
     )
 
 
-# -----------------------------------------
-# VISTA DEL CALENDARIO (12 meses con colores)
-# -----------------------------------------
+# ================================
+# GET /config/calendar/view  (vista 12 meses)
+# ================================
 @router.get("/view")
 async def calendar_view(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
 ):
-    # Cargar calendario escolar
+    user = admin
+
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -57,37 +78,31 @@ async def calendar_view(
     ).scalar_one_or_none()
 
     if not cal:
-        # Si no hay calendario aún → redirigir al editor
         return RedirectResponse("/config/calendar", status_code=303)
 
-    # Generar meses del curso
-    from datetime import timedelta
-
+    # Construir 12 meses comenzando desde primer día del mes de cal.first_day
     months = []
-    cur = cal.first_day
+    cur = cal.first_day.replace(day=1)
 
-    # ir al 1 del mes
-    cur = cur.replace(day=1)
-
-    # generar 12 meses
-    for i in range(12):
+    for _ in range(12):
         year = cur.year
         month = cur.month
 
-        # primer día del mes
+        # 1º del mes
         m1 = cur
-        # siguiente mes
+        # 1º del mes siguiente
         if month == 12:
-            next_m = cur.replace(year=year+1, month=1, day=1)
+            next_m = cur.replace(year=year + 1, month=1, day=1)
         else:
-            next_m = cur.replace(month=month+1, day=1)
+            next_m = cur.replace(month=month + 1, day=1)
+
+        # último día del mes actual
         m_last = next_m - timedelta(days=1)
 
-        # lista de días del mes
+        # lista de días
         days = []
         d = m1
         while d <= m_last:
-            # determinar tipo
             if d.weekday() >= 5:
                 kind = "weekend"
             elif d < cal.first_day or d > cal.last_day:
@@ -107,31 +122,32 @@ async def calendar_view(
         months.append({
             "name": m1.strftime("%B").upper(),
             "year": m1.year,
-            "first_weekday": m1.weekday(),  # 0 lunes - 6 domingo
+            "first_weekday": m1.weekday(),
             "days": days,
         })
 
-        cur = next_m  # avanzar
+        cur = next_m
 
-    return request.app.state.templates.TemplateResponse(
+    return _templates(request).TemplateResponse(
         "calendar_view.html",
-        {
-            "request": request,
-            "title": "Calendario escolar",
-            "calendar": cal,
-            "months": months,
-        },
+        _ctx(
+            request,
+            user=user,
+            title="Calendario escolar",
+            calendar=cal,
+            months=months,
+        ),
     )
 
 
-# -----------------------------------------
-# POST → Guardar / actualizar calendario
-# -----------------------------------------
+# ================================
+# POST /config/calendar  (guardar)
+# ================================
 @router.post("/")
 async def calendar_post(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
 
     school_year: str = Form(...),
     first_day: str = Form(...),
@@ -142,9 +158,7 @@ async def calendar_post(
     easter_end: str = Form(...),
     other_holidays: str = Form(""),
 ):
-    from datetime import date
-
-    # Convertir texto ISO → date
+    # Convertir fechas
     fd = date.fromisoformat(first_day)
     ld = date.fromisoformat(last_day)
     xs = date.fromisoformat(xmas_start)
@@ -152,10 +166,8 @@ async def calendar_post(
     es = date.fromisoformat(easter_start)
     ee = date.fromisoformat(easter_end)
 
-    # Convertir lista de festivos separados por coma
     festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
 
-    # Crear registro
     cal = SchoolCalendar(
         school_year=school_year,
         first_day=fd,
