@@ -33,7 +33,7 @@
 <body class="{% block body_class %}min-h-screen bg-gray-50 text-gray-900{% endblock %}">
   {% set hide_chrome = hide_chrome if hide_chrome is defined else false %}
   {% set show_nav = show_nav if show_nav is defined else (not hide_chrome) %}
-  {% set user = request.state.user %}
+  {% set user = user %}
   
   {% if not hide_chrome %}
   <!-- VERSION DEBUG 1 -->
