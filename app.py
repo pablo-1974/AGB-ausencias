@@ -53,8 +53,8 @@ app.add_middleware(
     secret_key=settings.SECRET_KEY,
     session_cookie="ausencias_session",
     max_age=60 * 60 * 8,
-    same_site="lax",    # Perfecto para Chrome + Render
-    https_only=False     # Importante en Render (proxy HTTPS)
+    same_site="none",    # Perfecto para Chrome + Render
+    https_only=True     # Importante en Render (proxy HTTPS)
 )
 
 
