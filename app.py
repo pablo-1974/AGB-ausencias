@@ -66,14 +66,14 @@ from database import AsyncSessionLocal
 from models import User
 
 class LoadUserMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        print("\nLOAD_USER middleware running")
+    async def dispatch(self, request, call_next):
+        print("LOAD_USER middleware running")
         print("REQUEST HAS COOKIE?:", request.cookies)
 
         request.state.user = None
 
-        session = request.scope.get("session")  # ⭐ DECODED por SessionMiddleware
-        uid = session.get("uid") if session else None
+        # 🔥 Aquí está el fix: usar request.session
+        uid = request.session.get("uid")
         print("UID SEEN:", uid)
 
         if uid:
