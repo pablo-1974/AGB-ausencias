@@ -8,9 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database import get_session
-from models import Teacher, ScheduleSlot, ScheduleType
+from models import Teacher, ScheduleSlot, ScheduleType, User
 from config import settings
-from services.pdf_schedule import generate_schedule_pdf  # <-- requiere services/pdf_schedule.py
+from services.pdf_schedule import generate_schedule_pdf
+
+# 🔥 Importamos la dependencia correcta del usuario
+from app import load_user_dep
 
 router = APIRouter()
 
@@ -22,9 +25,18 @@ def _templates(request: Request):
     return request.app.state.templates
 
 
-def _ctx(request: Request, **extra):
+def _ctx(request: Request, user: User, **extra):
+    """
+    Contexto uniforme para TODAS las plantillas del módulo.
+    Incluye SIEMPRE:
+    - request
+    - user  (necesario para base.html y el menú)
+    - app_name, institution_name, logo_path
+    - y cualquier dato extra
+    """
     base = {
         "request": request,
+        "user": user,  # 🔥 CLAVE para menú/cabecera
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
         "logo_path": settings.LOGO_PATH,
@@ -38,14 +50,21 @@ def _ctx(request: Request, **extra):
 #  GET /schedule/view — selector vacío
 # ---------------------------------------------------------
 @router.get("/schedule/view")
-async def schedule_view(request: Request, session: AsyncSession = Depends(get_session)):
+async def schedule_view(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),      # 🔥 añadimos usuario
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
     teachers = (
         await session.execute(select(Teacher).order_by(Teacher.name.asc()))
     ).scalars().all()
 
     return _templates(request).TemplateResponse(
         "schedule_view.html",
-        _ctx(request, teachers=teachers, selected_id=None, schedule=None),
+        _ctx(request, user=user, teachers=teachers, selected_id=None, schedule=None),
     )
 
 
@@ -57,7 +76,11 @@ async def schedule_view_post(
     request: Request,
     teacher_id: int = Form(...),
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),     # 🔥 usuario
 ):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
     teachers = (
         await session.execute(select(Teacher).order_by(Teacher.name.asc()))
     ).scalars().all()
@@ -79,6 +102,7 @@ async def schedule_view_post(
         "schedule_view.html",
         _ctx(
             request,
+            user=user,
             teachers=teachers,
             selected_id=teacher_id,
             schedule=tabla,
@@ -94,7 +118,11 @@ async def schedule_edit(
     teacher_id: int,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),     # 🔥 usuario
 ):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
     teacher = await session.get(Teacher, teacher_id)
     if not teacher:
         return RedirectResponse("/schedule/view", status_code=303)
@@ -110,13 +138,14 @@ async def schedule_edit(
         if 0 <= s.hour_index <= 6 and 0 <= s.day_index <= 4:
             tabla[s.hour_index][s.day_index] = s
 
-    # Valores de guardia admitidos (los usas también en import)
+    # Valores de guardia admitidos
     from services.imports import GUARD_LABELS
 
     return _templates(request).TemplateResponse(
         "schedule_edit.html",
         _ctx(
             request,
+            user=user,
             teacher=teacher,
             schedule=tabla,
             GUARD_LABELS=sorted(list(GUARD_LABELS)),
@@ -126,14 +155,17 @@ async def schedule_edit(
 
 # ---------------------------------------------------------
 #  POST /schedule/edit/{teacher_id}
-#  Guarda los cambios del horario
 # ---------------------------------------------------------
 @router.post("/schedule/edit/{teacher_id}")
 async def schedule_edit_post(
     teacher_id: int,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),     # 🔥 usuario
 ):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
     # Borrar slots existentes del profesor
     await session.execute(
         ScheduleSlot.__table__.delete().where(ScheduleSlot.teacher_id == teacher_id)
@@ -151,7 +183,6 @@ async def schedule_edit_post(
                 group = (form.get(prefix + "group") or "").strip()
                 room = (form.get(prefix + "room") or "").strip()
                 subject = (form.get(prefix + "subject") or "").strip()
-                # Guardamos una clase sólo si hay grupo y materia
                 if group and subject:
                     session.add(
                         ScheduleSlot(
@@ -179,7 +210,6 @@ async def schedule_edit_post(
                             source="manual",
                         )
                     )
-            # NONE => no insertamos nada
 
     await session.commit()
 
@@ -199,14 +229,12 @@ async def schedule_print(
     if not teacher:
         raise HTTPException(status_code=404, detail="Profesor no encontrado")
 
-    # Slots del profesor
     slots = (
         await session.execute(
             select(ScheduleSlot).where(ScheduleSlot.teacher_id == teacher_id)
         )
     ).scalars().all()
 
-    # Convertir a matriz 7x5 con estructura simple para el generador PDF
     tabla = [[None for _ in range(5)] for _ in range(7)]
     for s in slots:
         if 0 <= s.hour_index <= 6 and 0 <= s.day_index <= 4:
@@ -223,7 +251,6 @@ async def schedule_print(
                     "guard_type": s.guard_type or "",
                 }
 
-    # Generar PDF temporal
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     generate_schedule_pdf(
         path=tmp.name,
@@ -232,10 +259,5 @@ async def schedule_print(
         schedule=tabla,
     )
 
-    # Descargar
     filename = f"Horario_{teacher.name}.pdf".replace(" ", "_")
-    return FileResponse(
-        tmp.name,
-        media_type="application/pdf",
-        filename=filename,
-    )
+    return FileResponse(tmp.name, media_type="application/pdf", filename=filename)
