@@ -194,8 +194,3 @@ async def internal_error(request: Request, exc):
     return templates.TemplateResponse(
         "dashboard.html", tpl(request, message="Error interno"), status_code=500
     )
-
-print("=== ROUTES ===")
-for r in app.routes:
-    print(r.methods, r.path)
-print("==============")
