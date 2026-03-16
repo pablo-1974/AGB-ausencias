@@ -1,6 +1,6 @@
 # app.py
 from datetime import datetime
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.responses import RedirectResponse, JSONResponse
@@ -15,7 +15,7 @@ print("SECRET_KEY IN RUNTIME:", settings.SECRET_KEY)
 from auth import router as auth_router
 
 # ------------------------------------------------------------
-# Proxy Headers (Render)
+# Proxy Headers
 # ------------------------------------------------------------
 ProxyHeadersMiddleware = None
 try:
@@ -33,13 +33,13 @@ app = FastAPI(title=settings.APP_NAME)
 print("APP STARTED")
 
 # ------------------------------------------------------------
-# PROXY HEADERS
+# PROXY HEADERS FIRST
 # ------------------------------------------------------------
 if ProxyHeadersMiddleware:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ------------------------------------------------------------
-# SESSION MIDDLEWARE (colocado antes que load_user)
+# SESSION MIDDLEWARE (antes que nada más)
 # ------------------------------------------------------------
 app.add_middleware(
     SessionMiddleware,
@@ -51,16 +51,32 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------
-# STATIC & TEMPLATES
+# STATIC FILES
 # ------------------------------------------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ------------------------------------------------------------
+# TEMPLATES
+# ------------------------------------------------------------
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = {}
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# NO-CACHE MIDDLEWARE (solo uno decorado)
+# LOAD USER DEPENDENCY (en vez de middleware)
+# ------------------------------------------------------------
+from database import AsyncSessionLocal
+from models import User
+
+async def load_user_dep(request: Request):
+    uid = request.session.get("uid")
+    if not uid:
+        return None
+    async with AsyncSessionLocal() as db:
+        return await db.get(User, uid)
+
+# ------------------------------------------------------------
+# NO-CACHE MIDDLEWARE
 # ------------------------------------------------------------
 @app.middleware("http")
 async def no_cache_mw(request: Request, call_next):
@@ -95,40 +111,6 @@ app.include_router(reports_router)
 app.include_router(calendar_router)
 
 # ------------------------------------------------------------
-# LOAD USER – MIDDLEWARE DE CLASE (ORDEN GARANTIZADO)
-# ------------------------------------------------------------
-from starlette.middleware.base import BaseHTTPMiddleware
-from database import AsyncSessionLocal
-from models import User
-
-class LoadUserMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-
-        print("LOAD_USER middleware running")
-        print("REQUEST HAS COOKIE?:", request.cookies)
-
-        request.state.user = None
-
-        # ⭐⭐ AQUÍ SÍ EXISTE request.session SIEMPRE ⭐⭐
-        uid = request.session.get("uid")
-        print("UID SEEN:", uid)
-
-        if uid:
-            async with AsyncSessionLocal() as db:
-                try:
-                    user = await db.get(User, uid)
-                    print("DB RESULT:", user)
-                    request.state.user = user
-                except Exception as e:
-                    print("DB ERROR:", e)
-
-        return await call_next(request)
-
-# 💥 SE AÑADE AQUÍ, EXACTAMENTE AQUÍ.
-# DESPUÉS DE ROUTERS, DESPUÉS DE SessionMiddleware, ANTES DE manejo de rutas.
-app.add_middleware(LoadUserMiddleware)
-
-# ------------------------------------------------------------
 # TEMPLATE CONTEXT
 # ------------------------------------------------------------
 APP_NAME = settings.APP_NAME
@@ -150,50 +132,58 @@ def tpl(request: Request, **extra):
     return ctx
 
 # ------------------------------------------------------------
-# ROOT ROUTE
+# ROOT ROUTE (usa la dependencia de usuario)
 # ------------------------------------------------------------
 @app.api_route("/", methods=["GET", "HEAD"])
-async def dashboard(request: Request):
+async def dashboard(request: Request, user: User = Depends(load_user_dep)):
 
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
-    if not request.session or not request.session.get("uid"):
+    if not user:
         return RedirectResponse("/login", status_code=303)
 
-    return templates.TemplateResponse("dashboard.html", tpl(request))
+    return templates.TemplateResponse(
+        "dashboard.html",
+        tpl(request, user=user)
+    )
+
+# ------------------------------------------------------------
+# HEALTH
+# ------------------------------------------------------------
+@app.get("/health")
+async def health():
+    return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
 
 # ------------------------------------------------------------
 # ERROR HANDLERS
 # ------------------------------------------------------------
 @app.exception_handler(404)
-async def not_found(request: Request, exc):
+async def not_found(request: Request, exc, user: User = Depends(load_user_dep)):
 
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
-    uid = request.session.get("uid")
-    if not uid:
+    if not user:
         return RedirectResponse("/login", status_code=303)
 
     return templates.TemplateResponse(
         "dashboard.html",
-        tpl(request, message="Página no encontrada"),
+        tpl(request, message="Página no encontrada", user=user),
         status_code=404
     )
 
 @app.exception_handler(500)
-async def internal_error(request: Request, exc):
+async def internal_error(request: Request, exc, user: User = Depends(load_user_dep)):
 
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
-    uid = request.session.get("uid")
-    if not uid:
+    if not user:
         return RedirectResponse("/login", status_code=303)
 
     return templates.TemplateResponse(
         "dashboard.html",
-        tpl(request, message="Error interno"),
+        tpl(request, message="Error interno", user=user),
         status_code=500
     )
