@@ -15,7 +15,7 @@ print("SECRET_KEY IN RUNTIME:", settings.SECRET_KEY)
 from auth import router as auth_router
 
 # ------------------------------------------------------------
-# Proxy Headers (Render → HTTPS real)
+# Proxy Headers (Render)
 # ------------------------------------------------------------
 ProxyHeadersMiddleware = None
 try:
@@ -27,19 +27,19 @@ except:
         ProxyHeadersMiddleware = None
 
 # ------------------------------------------------------------
-# APP FASTAPI
+# APP
 # ------------------------------------------------------------
 app = FastAPI(title=settings.APP_NAME)
 print("APP STARTED")
 
 # ------------------------------------------------------------
-# PROXY HEADERS (DEBE IR PRIMERO)
+# PROXY HEADERS
 # ------------------------------------------------------------
 if ProxyHeadersMiddleware:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ------------------------------------------------------------
-# SESSION MIDDLEWARE (SIEMPRE ANTES DE load_user)
+# SESSION MIDDLEWARE (colocado antes que load_user)
 # ------------------------------------------------------------
 app.add_middleware(
     SessionMiddleware,
@@ -47,32 +47,33 @@ app.add_middleware(
     session_cookie="ausencias_session",
     max_age=60 * 60 * 8,
     same_site="none",
-    https_only=True
+    https_only=True,
 )
 
 # ------------------------------------------------------------
 # STATIC & TEMPLATES
 # ------------------------------------------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = {}
 app.state.templates = templates
 
 # ------------------------------------------------------------
-# NO-CACHE MIDDLEWARE
+# NO-CACHE MIDDLEWARE (solo uno decorado)
 # ------------------------------------------------------------
 @app.middleware("http")
 async def no_cache_mw(request: Request, call_next):
     response = await call_next(request)
-    nocache = {"/", "/login", "/register-first-admin", "/register"}
-    if request.url.path in nocache or request.url.path.startswith("/admin"):
+    nocache_paths = {"/", "/login", "/register-first-admin", "/register"}
+    if request.url.path in nocache_paths or request.url.path.startswith("/admin"):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     return response
 
 # ------------------------------------------------------------
-# INCLUDE ROUTERS
+# ROUTERS
 # ------------------------------------------------------------
 from imports_teachers import router as teachers_import_router
 from imports_schedule import router as schedule_import_router
@@ -94,36 +95,38 @@ app.include_router(reports_router)
 app.include_router(calendar_router)
 
 # ------------------------------------------------------------
-# DATABASE IMPORTS PARA load_user
+# LOAD USER – MIDDLEWARE DE CLASE (ORDEN GARANTIZADO)
 # ------------------------------------------------------------
+from starlette.middleware.base import BaseHTTPMiddleware
 from database import AsyncSessionLocal
 from models import User
 
-# ------------------------------------------------------------
-# LOAD USER MIDDLEWARE — HTTP VERSION (INFALIBLE)
-# ------------------------------------------------------------
-@app.middleware("http")
-async def load_user(request: Request, call_next):
-    print("LOAD_USER middleware running")
-    print("REQUEST HAS COOKIE?:", request.cookies)
+class LoadUserMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
 
-    request.state.user = None
+        print("LOAD_USER middleware running")
+        print("REQUEST HAS COOKIE?:", request.cookies)
 
-    # ⭐ SessionMiddleware YA ha corrido aquí
-    uid = request.session.get("uid")
-    print("UID SEEN:", uid)
+        request.state.user = None
 
-    if uid:
-        async with AsyncSessionLocal() as db:
-            try:
-                user = await db.get(User, uid)
-                print("DB RESULT:", user)
-                request.state.user = user
-            except Exception as e:
-                print("DB ERROR:", e)
+        # ⭐⭐ AQUÍ SÍ EXISTE request.session SIEMPRE ⭐⭐
+        uid = request.session.get("uid")
+        print("UID SEEN:", uid)
 
-    response = await call_next(request)
-    return response
+        if uid:
+            async with AsyncSessionLocal() as db:
+                try:
+                    user = await db.get(User, uid)
+                    print("DB RESULT:", user)
+                    request.state.user = user
+                except Exception as e:
+                    print("DB ERROR:", e)
+
+        return await call_next(request)
+
+# 💥 SE AÑADE AQUÍ, EXACTAMENTE AQUÍ.
+# DESPUÉS DE ROUTERS, DESPUÉS DE SessionMiddleware, ANTES DE manejo de rutas.
+app.add_middleware(LoadUserMiddleware)
 
 # ------------------------------------------------------------
 # TEMPLATE CONTEXT
@@ -151,6 +154,7 @@ def tpl(request: Request, **extra):
 # ------------------------------------------------------------
 @app.api_route("/", methods=["GET", "HEAD"])
 async def dashboard(request: Request):
+
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
@@ -160,17 +164,11 @@ async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", tpl(request))
 
 # ------------------------------------------------------------
-# HEALTHCHECK
-# ------------------------------------------------------------
-@app.get("/health")
-async def health():
-    return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
-
-# ------------------------------------------------------------
 # ERROR HANDLERS
 # ------------------------------------------------------------
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
+
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
@@ -186,6 +184,7 @@ async def not_found(request: Request, exc):
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
+
     if request.method == "HEAD":
         return JSONResponse({"ok": True})
 
