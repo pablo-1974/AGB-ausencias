@@ -13,20 +13,29 @@ import calendar
 from database import get_session
 from config import settings
 from auth import admin_required
-from models import Teacher, TeacherStatus, Leave, Absence
+from models import Teacher, TeacherStatus, Leave, Absence, User
+
+# 🔥 PARA CARGAR EL USUARIO LOGUEADO
+from app import load_user_dep
 
 router = APIRouter()
 
+
 # -----------------------------
-# Helpers de plantillas/contexto
+# Helpers plantillas/contexto
 # -----------------------------
 def _templates(request: Request):
     return request.app.state.templates
 
 
-def _ctx(request: Request, **extra):
+def _ctx(request: Request, user: User, **extra):
+    """
+    Helper uniforme que INCLUYE SIEMPRE user en el contexto,
+    porque base.html lo necesita para mostrar menú, rol, etc.
+    """
     base = {
         "request": request,
+        "user": user,
         "title": "Ausencias",
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
@@ -37,45 +46,33 @@ def _ctx(request: Request, **extra):
 
 
 # -----------------------------
-# Sistema de 7 franjas (0..6)
-# 0=1ª, 1=2ª, 2=3ª, 3=Recreo, 4=4ª, 5=5ª, 6=6ª
+# Sistema de 7 franjas
 # -----------------------------
 HOUR_LABELS = ["1ª", "2ª", "3ª", "Recreo", "4ª", "5ª", "6ª"]
 
 def make_mask_all():
-    """Mask con TODAS las 7 franjas ON."""
-    return (1 << 7) - 1   # 0b1111111 = 127
+    return (1 << 7) - 1
 
 def make_mask_range(from_idx: int, to_idx: int) -> int:
-    """Construye una máscara desde/hasta para franjas 0..6."""
-
     if from_idx > to_idx:
         from_idx, to_idx = to_idx, from_idx
-
     mask = 0
     for i in range(from_idx, to_idx + 1):
         mask |= (1 << i)
     return mask
 
 def mask_to_human(mask: int) -> str:
-    """Convierte mask en texto humano, usando las 7 franjas."""
-
     if mask <= 0:
         return "—"
-
     if mask == make_mask_all():
         return "Todas"
 
-    # AHORA: 7 franjas reales (0..6)
     on = [i for i in range(7) if (mask >> i) & 1]
-
     if not on:
         return "—"
 
-    # Comprimir a rangos consecutivos
     ranges: List[Tuple[int, int]] = []
-    start = on[0]
-    prev = on[0]
+    start = prev = on[0]
 
     for i in on[1:]:
         if i == prev + 1:
@@ -95,24 +92,27 @@ def mask_to_human(mask: int) -> str:
 
 
 # ==================================
-# VER AUSENCIAS (con filtros)
+# VER AUSENCIAS
 # ==================================
 @router.get("/absences/manage", response_class=HTMLResponse)
 async def absences_manage(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),    # admin_required ya devuelve un usuario admin
     since: Optional[str] = Query(None, alias="from"),
     until: Optional[str] = Query(None, alias="to"),
 ):
+    user = admin  # 🔥 La plantilla necesita "user", no "admin"
+
     today = date.today()
     try:
         d_from = date.fromisoformat(since) if since else today
-    except Exception:
+    except:
         d_from = today
+
     try:
         d_to = date.fromisoformat(until) if until else today
-    except Exception:
+    except:
         d_to = today
 
     if d_from > d_to:
@@ -134,14 +134,13 @@ async def absences_manage(
         "teacher_id": t.id,
     } for (a, t) in rows]
 
-    info = None
-    if not items:
-        info = "No hay ausencias para el rango seleccionado."
+    info = "No hay ausencias para el rango seleccionado." if not items else None
 
     return _templates(request).TemplateResponse(
         "absences_manage.html",
         _ctx(
             request,
+            user=user,
             title="Ver Ausencias",
             items=items,
             info=info,
@@ -154,19 +153,19 @@ async def absences_manage(
 # CATALOGAR AUSENCIAS
 # =====================================
 ABSENCE_CATEGORIES = [
-    ("A", "Enfermedad de duración superior a tres días"),
+    ("A", "Enfermedad >3 días"),
     ("B", "Matrimonio"),
     ("C", "Embarazo"),
     ("D", "Licencia por estudios"),
     ("E", "Asuntos propios"),
-    ("F", "Actividades de perfeccionamiento"),
-    ("G", "Nacimiento de un hijo, enfermedad de un familiar"),
-    ("H", "Traslado de domicilio, funciones sindicales, c. exámenes …"),
-    ("I", "Deber inexcusable de carácter público o personal"),
-    ("J", "Asistencia a consulta médica"),
-    ("K", "Enfermedad de 1 a tres días"),
-    ("L", "\"Moscosos\" y otros motivos"),
-    ("Z", "Actividad del CENTRO"),
+    ("F", "Perfeccionamiento"),
+    ("G", "Nacimiento hijo / familiar enfermo"),
+    ("H", "Traslado / sindicatos / exámenes"),
+    ("I", "Deber inexcusable"),
+    ("J", "Consulta médica"),
+    ("K", "Enfermedad 1–3 días"),
+    ("L", "Moscosos y otros"),
+    ("Z", "Actividad del centro"),
 ]
 
 def _first_day_of_month(d: date) -> date:
@@ -176,15 +175,18 @@ def _last_day_of_month(d: date) -> date:
     last = calendar.monthrange(d.year, d.month)[1]
     return date(d.year, d.month, last)
 
+
 @router.get("/absences/categorize", response_class=HTMLResponse)
 async def absences_categorize(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
     scope: str = Query("pending", pattern="^(pending|all)$"),
     since: Optional[str] = Query(None, alias="from"),
     until: Optional[str] = Query(None, alias="to"),
 ):
+    user = admin  # 🔥 Pasamos admin como user a la plantilla
+
     today = date.today()
     d_from = date.fromisoformat(since) if since else _first_day_of_month(today)
     d_to = date.fromisoformat(until) if until else _last_day_of_month(today)
@@ -212,15 +214,13 @@ async def absences_categorize(
     } for (a, t) in rows]
 
     categories_map = {code: label for code, label in ABSENCE_CATEGORIES}
-
-    info = None
-    if not items:
-        info = "No hay ausencias para los filtros seleccionados."
+    info = None if items else "No hay ausencias para los filtros seleccionados."
 
     return _templates(request).TemplateResponse(
         "absences_categorize.html",
         _ctx(
             request,
+            user=user,
             title="Catalogar ausencias",
             items=items,
             categories=ABSENCE_CATEGORIES,
@@ -230,11 +230,12 @@ async def absences_categorize(
         ),
     )
 
+
 @router.post("/absences/categorize")
 async def absences_categorize_post(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
     absence_id: int = Form(...),
     category: str = Form(...),
     next_url: Optional[str] = Form(None, alias="next"),
@@ -256,7 +257,7 @@ async def absences_categorize_post(
 
 
 # ==================================
-# NUEVA AUSENCIA (GET/POST)
+# NUEVA AUSENCIA
 # ==================================
 def _teachers_active_on(session: AsyncSession, target: date):
     leave_cover = and_(
@@ -277,15 +278,23 @@ def _teachers_active_on(session: AsyncSession, target: date):
 async def absences_new_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
     d: Optional[str] = Query(None),
 ):
+    user = admin
+
     target = date.fromisoformat(d) if d else date.today()
     teachers = (await session.execute(_teachers_active_on(session, target))).scalars().all()
 
     return _templates(request).TemplateResponse(
         "absences_new.html",
-        _ctx(request, title="Nueva ausencia", target=target, teachers=teachers),
+        _ctx(
+            request,
+            user=user,
+            title="Nueva ausencia",
+            target=target,
+            teachers=teachers,
+        ),
     )
 
 
@@ -293,7 +302,7 @@ async def absences_new_form(
 async def absences_new_create(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
     day: date = Form(...),
     teacher_id: int = Form(...),
     hours_mode: str = Form(...),
@@ -301,13 +310,21 @@ async def absences_new_create(
     hour_to: Optional[int] = Form(None),
     cause: str = Form(...),
 ):
+    user = admin  # Para consistencia, aunque esta ruta solo redirige
+
     cause = (cause or "").strip()
     if not cause:
         teachers = (await session.execute(_teachers_active_on(session, day))).scalars().all()
         return _templates(request).TemplateResponse(
             "absences_new.html",
-            _ctx(request, title="Nueva ausencia", target=day, teachers=teachers,
-                 error="La causa es obligatoria."),
+            _ctx(
+                request,
+                user=user,
+                title="Nueva ausencia",
+                target=day,
+                teachers=teachers,
+                error="La causa es obligatoria.",
+            ),
             status_code=400,
         )
 
@@ -324,28 +341,41 @@ async def absences_new_create(
             teachers = (await session.execute(_teachers_active_on(session, day))).scalars().all()
             return _templates(request).TemplateResponse(
                 "absences_new.html",
-                _ctx(request, title="Nueva ausencia", target=day, teachers=teachers,
-                     error="Selecciona un rango válido de horas."),
+                _ctx(
+                    request,
+                    user=user,
+                    title="Nueva ausencia",
+                    target=day,
+                    teachers=teachers,
+                    error="Selecciona un rango válido de horas.",
+                ),
                 status_code=400,
             )
 
         mask = make_mask_range(fi, ti)
 
-    existing = (await session.execute(
-        select(Absence).where(and_(Absence.teacher_id == teacher_id, Absence.date == day))
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(Absence).where(and_(Absence.teacher_id == teacher_id, Absence.date == day))
+        )
+    ).scalar_one_or_none()
 
     if existing:
         existing.hours_mask = mask
         existing.note = cause
     else:
-        session.add(Absence(
-            teacher_id=teacher_id,
-            date=day,
-            hours_mask=mask,
-            note=cause,
-        ))
+        session.add(
+            Absence(
+                teacher_id=teacher_id,
+                date=day,
+                hours_mask=mask,
+                note=cause,
+            )
+        )
 
     await session.commit()
 
-    return RedirectResponse(f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}", status_code=303)
+    return RedirectResponse(
+        f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}",
+        status_code=303,
+    )
