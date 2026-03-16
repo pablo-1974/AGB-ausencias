@@ -1,4 +1,3 @@
-# auth.py
 from __future__ import annotations
 from typing import Optional
 
@@ -17,7 +16,6 @@ from database import get_session
 from config import settings
 from models import User, Role
 
-# Nombre de la cookie de sesión: úsalo en setup_session y en logout
 COOKIE_NAME = "ausencias_session"
 
 logger = logging.getLogger("uvicorn.error")
@@ -28,31 +26,37 @@ router = APIRouter()
 # Helpers
 # ---------------------------
 async def _get_user_by_email(session: AsyncSession, email: str) -> Optional[User]:
-    return (await session.execute(select(User).where(User.email == email.lower().strip()))).scalar_one_or_none()
+    return (
+        await session.execute(
+            select(User).where(User.email == email.lower().strip())
+        )
+    ).scalar_one_or_none()
+
 
 async def _count_users(session: AsyncSession) -> int:
     return (await session.execute(select(func.count()).select_from(User))).scalar_one()
 
+
 async def _count_admins(session: AsyncSession) -> int:
-    return (await session.execute(
-        select(func.count()).select_from(User).where(User.role == Role.admin)
-    )).scalar_one()
+    return (
+        await session.execute(
+            select(func.count())
+            .select_from(User)
+            .where(User.role == Role.admin)
+        )
+    ).scalar_one()
+
 
 def _hash_password(raw: str) -> str:
-    """
-    Bcrypt sólo usa los **primeros 72 bytes**. Para evitar errores de backend
-    o contraseñas multibyte largas, validamos y lanzamos un 400 controlado.
-    """
     if raw is None:
         raise ValueError("Contraseña vacía")
     try:
-        # Validar tamaño efectivo en bytes (UTF-8)
         if len(raw.encode("utf-8")) > 72:
             raise ValueError("La contraseña no puede superar 72 bytes (bcrypt)")
         return bcrypt.hash(raw)
     except Exception as e:
-        # Evita que un fallo de backend deje el alta en silencio
-        raise ValueError(f"No se pudo generar el hash de la contraseña: {e}")
+        raise ValueError(f"No se pudo generar el hash: {e}")
+
 
 def _verify_password(raw: str, pw_hash: str) -> bool:
     try:
@@ -60,34 +64,43 @@ def _verify_password(raw: str, pw_hash: str) -> bool:
     except Exception:
         return False
 
+
 def _templates(request: Request):
-    # Usa los templates montados en app.state; fallback en caso de que aún no esté
     tpl = getattr(request.app.state, "templates", None)
     if tpl is None:
         from fastapi.templating import Jinja2Templates
+
         tpl = Jinja2Templates(directory="templates")
         request.app.state.templates = tpl
     return tpl
 
+
 # ---------------------------
 # Auth dependencies
 # ---------------------------
-async def current_user(request: Request, session: AsyncSession = Depends(get_session)) -> User:
+async def current_user(
+    request: Request, session: AsyncSession = Depends(get_session)
+) -> User:
     uid = request.session.get("uid") if request.session else None
     if not uid:
         raise HTTPException(status_code=401)
+
     user = await session.get(User, uid)
     if not user:
         raise HTTPException(status_code=401)
+
     if not user.active:
         request.session.clear()
         raise HTTPException(status_code=401)
+
     return user
+
 
 async def admin_required(user: User = Depends(current_user)) -> User:
     if user.role != Role.admin:
         raise HTTPException(status_code=403, detail="Se requieren permisos de administrador")
     return user
+
 
 # ---------------------------
 # Login / Logout
@@ -103,10 +116,10 @@ async def login_page(request: Request):
             "app_name": settings.APP_NAME,
             "institution_name": settings.INSTITUTION_NAME,
             "logo_path": settings.LOGO_PATH,
+            "user": None,
         },
     )
 
-# arriba del archivo ya añadimos: import logging; logger = logging.getLogger("uvicorn.error")
 
 @router.post("/login")
 async def login_post(
@@ -116,10 +129,11 @@ async def login_post(
     session: AsyncSession = Depends(get_session),
 ):
     email_norm = (email or "").strip().lower()
+
     try:
         u = await _get_user_by_email(session, email_norm)
+
         if not u or not _verify_password(password or "", u.password_hash):
-            # En lugar de 401, re-renderizamos login con mensaje de error
             logger.info("Login fallido para %s", email_norm)
             return _templates(request).TemplateResponse(
                 "login.html",
@@ -130,22 +144,20 @@ async def login_post(
                     "institution_name": settings.INSTITUTION_NAME,
                     "logo_path": settings.LOGO_PATH,
                     "error": "Correo o contraseña no válidos",
-                    "email": email_norm,  # para repoblar el campo
+                    "email": email_norm,
+                    "user": None,
                 },
                 status_code=400,
             )
 
-        # OK: establecemos la sesión y redirigimos al dashboard
         request.session["uid"] = u.id
-        
-        print("SESSION AFTER LOGIN:", request.session)   # 🟢 AÑADIR ESTO AQUÍ
-        
+        print("SESSION AFTER LOGIN:", request.session)
+
         logger.info("Login OK para %s (uid=%s)", email_norm, u.id)
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse("/", status_code=303)
 
     except Exception:
-        # Si algo raro pasa (DB, etc.), lo veremos en Events
-        logger.exception("Error inesperado en /login para %s", email_norm)
+        logger.exception("Error inesperado en login para %s", email_norm)
         return _templates(request).TemplateResponse(
             "login.html",
             {
@@ -154,50 +166,48 @@ async def login_post(
                 "app_name": settings.APP_NAME,
                 "institution_name": settings.INSTITUTION_NAME,
                 "logo_path": settings.LOGO_PATH,
-                "error": "Error interno al iniciar sesión. Inténtalo de nuevo.",
+                "error": "Error interno al iniciar sesión.",
                 "email": email_norm,
+                "user": None,
             },
             status_code=500,
         )
 
+
 @router.get("/logout")
 async def logout(request: Request):
-    # Vacía la sesión en servidor
     if request.session:
         request.session.clear()
 
-    # Redirige a /login
-    response = RedirectResponse(url="/login", status_code=303)
+    response = RedirectResponse("/login", status_code=303)
 
-    # Borrar explícitamente la cookie en el cliente.
-    # secure=True si estamos en HTTPS (Render), False si pruebas en local http.
-    is_secure = (request.url.scheme == "https")
+    is_secure = request.url.scheme == "https"
     response.delete_cookie(
-        key=COOKIE_NAME,
-        path="/",
-        samesite="lax",
-        secure=is_secure,
-        domain=None,  # ajusta si alguna vez defines un dominio explícito en SessionMiddleware
+        key=COOKIE_NAME, path="/", samesite="lax", secure=is_secure, domain=None
     )
-
     return response
+
 
 # ---------------------------
 # Registro (primer admin)
 # ---------------------------
+
 @router.get("/register-first-admin")
 async def register_first_admin_page(request: Request, session: AsyncSession = Depends(get_session)):
     total = await _count_users(session)
     if total > 0:
-        return RedirectResponse(url="/register", status_code=303)
+        return RedirectResponse("/register", status_code=303)
+
     return _templates(request).TemplateResponse(
         "register_first.html",
         {
             "request": request,
             "title": "Crear administrador",
             "logo_path": settings.LOGO_PATH,
+            "user": None,
         },
     )
+
 
 @router.post("/register-first-admin")
 async def register_first_admin_post(
@@ -213,14 +223,15 @@ async def register_first_admin_post(
             raise HTTPException(400, "Ya existe al menos un usuario.")
 
         email_norm = email.lower().strip()
-        if settings.ADMIN_EMAIL_DOMAIN and not email_norm.endswith("@" + settings.ADMIN_EMAIL_DOMAIN):
+
+        if settings.ADMIN_EMAIL_DOMAIN and not email_norm.endswith(
+            "@" + settings.ADMIN_EMAIL_DOMAIN
+        ):
             raise HTTPException(400, "Email no autorizado para admin inicial.")
 
-        # Hash seguro (controla errores y tamaño)
         try:
             pw_hash = _hash_password(password)
         except ValueError as ve:
-            logger.exception("Hash error creando primer admin (%s)", email_norm)
             raise HTTPException(400, str(ve))
 
         u = User(
@@ -232,11 +243,9 @@ async def register_first_admin_post(
         )
 
         session.add(u)
-        # Garantiza PK antes de commit; si falla, saltará al except
         await session.flush()
         await session.commit()
 
-        # Si por expiración/driver no quedó el id en u, reférescalo
         if not getattr(u, "id", None):
             await session.refresh(u)
 
@@ -245,33 +254,29 @@ async def register_first_admin_post(
 
     except IntegrityError:
         await session.rollback()
-        logger.exception("IntegrityError creando primer admin (%s)", email)
-        raise HTTPException(400, "El email ya existe o no es válido")
+        raise HTTPException(400, "Email ya existente")
 
     except SQLAlchemyError:
         await session.rollback()
-        logger.exception("SQLAlchemyError creando primer admin")
         raise HTTPException(500, "Error de base de datos")
 
-    except HTTPException:
-        # Ya gestionado arriba; no vuelques doble log
+    except Exception as e:
         await session.rollback()
+        logger.exception("Error creando admin")
         raise
 
-    except Exception:
-        await session.rollback()
-        logger.exception("Error general creando primer admin")
-        raise
 
 # ---------------------------
 # Registro normal
 # ---------------------------
+
 @router.get("/register")
 async def register_page(request: Request):
     return _templates(request).TemplateResponse(
         "register.html",
-        {"request": request, "logo_path": settings.LOGO_PATH},
+        {"request": request, "logo_path": settings.LOGO_PATH, "user": None},
     )
+
 
 @router.post("/register")
 async def register_post(
@@ -293,7 +298,6 @@ async def register_post(
         try:
             pw_hash = _hash_password(password)
         except ValueError as ve:
-            logger.exception("Hash error creando usuario (%s)", email_norm)
             raise HTTPException(400, str(ve))
 
         u = User(
@@ -303,6 +307,7 @@ async def register_post(
             role=role,
             active=True,
         )
+
         session.add(u)
         await session.flush()
         await session.commit()
@@ -313,34 +318,23 @@ async def register_post(
         request.session["uid"] = u.id
         return RedirectResponse("/", status_code=303)
 
-    except IntegrityError:
-        await session.rollback()
-        logger.exception("IntegrityError creando usuario (%s)", email)
-        raise HTTPException(400, "El email ya existe o no es válido")
-
-    except SQLAlchemyError:
-        await session.rollback()
-        logger.exception("SQLAlchemyError creando usuario")
-        raise HTTPException(500, "Error de base de datos")
-
-    except HTTPException:
-        await session.rollback()
-        raise
-
     except Exception:
         await session.rollback()
-        logger.exception("Error general creando usuario")
+        logger.exception("Error creando usuario")
         raise
 
+
 # ---------------------------
-# Cambio de contraseña (propio)
+# Cambio de contraseña
 # ---------------------------
+
 @router.get("/me/password")
 async def me_password_page(request: Request, user: User = Depends(current_user)):
     return _templates(request).TemplateResponse(
         "password_change.html",
         {"request": request, "user": user, "logo_path": settings.LOGO_PATH},
     )
+
 
 @router.post("/me/password")
 async def me_password_post(
@@ -350,54 +344,50 @@ async def me_password_post(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(current_user),
 ):
-    # Validar la contraseña actual
     if not _verify_password(current_password, user.password_hash):
         raise HTTPException(400, "La contraseña actual no es válida")
 
-    # Generar y guardar el nuevo hash
-    try:
-        user.password_hash = _hash_password(new_password)
-    except ValueError as ve:
-        raise HTTPException(400, str(ve))
-
+    user.password_hash = _hash_password(new_password)
     await session.commit()
 
-    # --- CERRAR SESIÓN AUTOMÁTICAMENTE ---
     if request.session:
         request.session.clear()
 
     response = RedirectResponse("/login", status_code=303)
-
-    # Borrar cookie de sesión, igual que en /logout
-    is_secure = (request.url.scheme == "https")
+    is_secure = request.url.scheme == "https"
     response.delete_cookie(
-        key=COOKIE_NAME,
-        path="/",
-        samesite="lax",
-        secure=is_secure,
-        domain=None,
+        key=COOKIE_NAME, path="/", samesite="lax", secure=is_secure, domain=None
     )
-
     return response
+
 
 # ---------------------------
 # Admin: gestión de usuarios
 # ---------------------------
+
 @router.get("/admin/users")
-async def admin_users_list(request: Request, session: AsyncSession = Depends(get_session), admin: User = Depends(admin_required)):
-    res = await session.execute(select(User).order_by(User.role.desc(), User.name.asc()))
+async def admin_users_list(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    res = await session.execute(
+        select(User).order_by(User.role.desc(), User.name.asc())
+    )
     users = res.scalars().all()
     return _templates(request).TemplateResponse(
         "users_list.html",
-        {"request": request, "users": users, "logo_path": settings.LOGO_PATH},
+        {"request": request, "users": users, "logo_path": settings.LOGO_PATH, "user": admin},
     )
+
 
 @router.get("/admin/users/new")
 async def admin_users_new_page(request: Request, admin: User = Depends(admin_required)):
     return _templates(request).TemplateResponse(
         "users_new.html",
-        {"request": request, "logo_path": settings.LOGO_PATH},
+        {"request": request, "logo_path": settings.LOGO_PATH, "user": admin},
     )
+
 
 @router.post("/admin/users/new")
 async def admin_users_new(
@@ -412,15 +402,22 @@ async def admin_users_new(
     email_norm = email.lower().strip()
     if await _get_user_by_email(session, email_norm):
         raise HTTPException(400, "Email ya registrado")
-    try:
-        pw_hash = _hash_password(password)
-    except ValueError as ve:
-        raise HTTPException(400, str(ve))
+
+    pw_hash = _hash_password(password)
     r = Role.admin if role == "admin" else Role.user
-    u = User(name=name.strip(), email=email_norm, password_hash=pw_hash, role=r, active=True)
+
+    u = User(
+        name=name.strip(),
+        email=email_norm,
+        password_hash=pw_hash,
+        role=r,
+        active=True,
+    )
     session.add(u)
     await session.commit()
+
     return RedirectResponse("/admin/users", status_code=303)
+
 
 @router.post("/admin/users/{user_id}/reset-password")
 async def admin_users_reset_password(
@@ -433,12 +430,11 @@ async def admin_users_reset_password(
     u = await session.get(User, user_id)
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
-    try:
-        u.password_hash = _hash_password(new_password)
-    except ValueError as ve:
-        raise HTTPException(400, str(ve))
+
+    u.password_hash = _hash_password(new_password)
     await session.commit()
     return RedirectResponse("/admin/users", status_code=303)
+
 
 @router.post("/admin/users/{user_id}/delete")
 async def admin_users_delete(
@@ -450,20 +446,27 @@ async def admin_users_delete(
     u = await session.get(User, user_id)
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
+
     if u.id == admin.id:
         raise HTTPException(400, "No puedes borrarte a ti mismo")
+
     if u.role == Role.admin:
         admins = await _count_admins(session)
         if admins <= 1:
-            raise HTTPException(400, "Debe quedar al menos un administrador activo")
+            raise HTTPException(400, "Debe quedar al menos un administrador")
+
     await session.delete(u)
     await session.commit()
+
     return RedirectResponse("/admin/users", status_code=303)
 
 
-# cambiar usuario de activo a inactivo
 @router.post("/admin/users/{user_id}/toggle-active")
-async def admin_toggle_active(user_id: int, session: AsyncSession = Depends(get_session), admin: User = Depends(admin_required)):
+async def admin_toggle_active(
+    user_id: int,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
     u = await session.get(User, user_id)
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
@@ -472,18 +475,24 @@ async def admin_toggle_active(user_id: int, session: AsyncSession = Depends(get_
     await session.commit()
 
     return RedirectResponse("/admin/users", status_code=303)
-    
 
-# cambiar role de usuario
+
 @router.post("/admin/users/{user_id}/toggle-role")
-async def admin_toggle_role(user_id: int, session: AsyncSession = Depends(get_session), admin: User = Depends(admin_required)):
+async def admin_toggle_role(
+    user_id: int,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
     u = await session.get(User, user_id)
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
 
-    # Evitar quedarse sin admins
     if u.role == Role.admin:
-        admins = await session.execute(select(func.count()).select_from(User).where(User.role == Role.admin))
+        admins = await session.execute(
+            select(func.count())
+            .select_from(User)
+            .where(User.role == Role.admin)
+        )
         if admins.scalar_one() <= 1:
             raise HTTPException(400, "Debe quedar al menos un administrador")
 
@@ -493,26 +502,12 @@ async def admin_toggle_role(user_id: int, session: AsyncSession = Depends(get_se
     return RedirectResponse("/admin/users", status_code=303)
 
 
-# --- DEBUG: eliminar cuando acabemos ---
-@router.get("/__debug-first-admin")
-async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
-    try:
-        total = await _count_users(session)
-        admins = await _count_admins(session)
-        return {
-            "total_users": int(total or 0),
-            "total_admins": int(admins or 0),
-            "db_url_prefix": (settings.DATABASE_URL[:40] + "...") if hasattr(settings, "DATABASE_URL") else None,
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
+# ---------------------------
+# Admin panel
+# ---------------------------
 @router.get("/admin/panel")
 async def admin_panel(request: Request, admin: User = Depends(admin_required)):
     return _templates(request).TemplateResponse(
         "admin_panel.html",
-        tpl(request, title="Panel del Administrador", user=admin)
+        tpl(request, title="Panel del Administrador", user=admin),
     )
-
-
-
