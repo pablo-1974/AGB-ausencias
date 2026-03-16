@@ -511,7 +511,7 @@ async def __debug_first_admin(session: AsyncSession = Depends(get_session)):
 async def admin_panel(request: Request, admin: User = Depends(admin_required)):
     return _templates(request).TemplateResponse(
         "admin_panel.html",
-        tpl(request, title="Panel del Administrador")
+        tpl(request, title="Panel del Administrador", user=admin)
     )
 
 
