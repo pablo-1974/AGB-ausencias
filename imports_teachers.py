@@ -9,13 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_session
 from config import settings
-from models import Teacher
+from models import Teacher, User
 from auth import admin_required
-from services.imports import import_teachers_from_excel  # ya lo tienes
+from services.imports import import_teachers_from_excel
 
 router = APIRouter()
 
 
+# -----------------------------
+# Helpers plantilla/contexto
+# -----------------------------
 def _templates(request: Request):
     tpl = getattr(request.app.state, "templates", None)
     if tpl is None:
@@ -25,9 +28,10 @@ def _templates(request: Request):
     return tpl
 
 
-def _ctx(request: Request, **extra):
+def _ctx(request: Request, user: User, **extra):
     base = {
         "request": request,
+        "user": user,   # 🔥 NECESARIO para base.html (menú)
         "title": "Importar profesores",
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
@@ -37,72 +41,84 @@ def _ctx(request: Request, **extra):
     return base
 
 
+# --------------------------------------------------------
+# GET /imports/teachers — formulario importar Excel
+# --------------------------------------------------------
 @router.get("/imports/teachers")
 async def imports_teachers_form(
     request: Request,
-    admin=Depends(admin_required),  # proteger
+    admin: User = Depends(admin_required),
 ):
-    # Tu plantilla ya se llama teachers_import.html
+    user = admin
     return _templates(request).TemplateResponse(
-        "teachers_import.html", _ctx(request)
+        "teachers_import.html",
+        _ctx(request, user=user),
     )
 
 
+# --------------------------------------------------------
+# POST /imports/teachers — subir Excel
+# --------------------------------------------------------
 @router.post("/imports/teachers")
 async def imports_teachers_upload(
     request: Request,
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),  # proteger
+    admin: User = Depends(admin_required),
 ):
+    user = admin
+
     filename = (file.filename or "").lower()
     if not filename.endswith((".xlsx", ".xls")):
         return _templates(request).TemplateResponse(
             "teachers_import.html",
-            _ctx(request, error="Formato no soportado. Sube un .xlsx o .xls."),
+            _ctx(request, user=user, error="Formato no soportado. Sube un .xlsx o .xls."),
             status_code=400,
         )
 
     tmp_path = None
     try:
-        # Guardar a un archivo temporal con la extensión correcta (xlsx/xls)
         suffix = os.path.splitext(filename)[1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(await file.read())
             tmp_path = tmp.name
 
-        # Llamar a tu servicio
         imported = await import_teachers_from_excel(tmp_path, session)
 
         return _templates(request).TemplateResponse(
             "teachers_import.html",
-            _ctx(request, imported=imported),
+            _ctx(request, user=user, imported=imported),
         )
 
     except Exception as e:
         return _templates(request).TemplateResponse(
             "teachers_import.html",
-            _ctx(request, error=f"Error importando: {e}"),
+            _ctx(request, user=user, error=f"Error importando: {e}"),
             status_code=400,
         )
     finally:
-        # Limpiar el archivo temporal
         try:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
-        except Exception:
+        except:
             pass
 
 
+# --------------------------------------------------------
+# GET /teachers — listado de profesores importados
+# --------------------------------------------------------
 @router.get("/teachers")
 async def teachers_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),  # puedes quitarlo si quieres que lo vea cualquiera autenticado
+    admin: User = Depends(admin_required),
 ):
+    user = admin
+
     res = await session.execute(select(Teacher).order_by(Teacher.name.asc()))
     teachers = res.scalars().all()
+
     return _templates(request).TemplateResponse(
         "teachers_list.html",
-        _ctx(request, teachers=teachers, title="Profesores"),
+        _ctx(request, user=user, teachers=teachers, title="Profesores"),
     )
