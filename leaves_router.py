@@ -1,9 +1,9 @@
 # leaves_router.py
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, Query, HTTPException
 from fastapi.responses import HTMLResponse
 from starlette.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_, exists, not_
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Optional
@@ -11,70 +11,87 @@ from typing import Optional
 from database import get_session
 from config import settings
 from auth import admin_required
-from models import Teacher, TeacherStatus, Leave
-from services.leaves import close_leave
+from models import Teacher, TeacherStatus, Leave, User
+from services.leaves import close_leave, open_leave, set_substitution
+from services.schedule import clone_teacher_schedule
+
+# 🔥 usuario autenticado (no admin)
+from app import load_user_dep
 
 router = APIRouter()
 
+# -----------------------------
+# Helpers plantilla/contexto
+# -----------------------------
 def _templates(request: Request):
     return request.app.state.templates
 
-def _ctx(request: Request, **extra):
+def _ctx(request: Request, user: User, **extra):
     base = {
         "request": request,
+        "user": user,     # ← base.html necesita user SIEMPRE
         "title": "Bajas",
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
-        "logo_path": settings.LOGO_PATH,
+        "logo_path": settings.LOGO_PATH
     }
     base.update(extra or {})
     return base
 
-#### router GET /leaves/close #####
+
+# ============================================================
+# GET /leaves/close — Finalizar baja
+# ============================================================
 @router.get("/leaves/close")
 async def leaves_close_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
 ):
-    # Profesores que TIENEN una baja/excedencia abierta (end_date NULL)
+    user = admin  # para la plantilla
+
     res = await session.execute(
         select(Leave, Teacher)
         .join(Teacher, Teacher.id == Leave.teacher_id)
         .where(Leave.end_date.is_(None))
         .order_by(Teacher.name.asc())
     )
-    rows = res.all()  # (Leave, Teacher)
-    open_items = [{"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date} for (l, t) in rows]
+    rows = res.all()
+
+    open_items = [
+        {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
+        for (l, t) in rows
+    ]
 
     return _templates(request).TemplateResponse(
         "leaves_close.html",
-        _ctx(request, open_items=open_items, title="Finalizar baja"),
+        _ctx(request, user=user, title="Finalizar baja", open_items=open_items),
     )
 
-#### router POST /leaves/finish #####
+
+# ============================================================
+# POST /leaves/finish — cerrar baja
+# ============================================================
 @router.post("/leaves/finish")
 async def leaves_finish(
     request: Request,
     teacher_id: int = Form(...),
     end_date: date = Form(...),
-    next_url: str | None = Form(None, alias="next"),   # ⬅ recoge 'next' si viene del formulario
+    next_url: str | None = Form(None, alias="next"),
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
 ):
+    user = admin
+
     try:
-        # Cierra la baja + revertir sustitución (estados y horario), y fija substitute_end_date
         await close_leave(session, teacher_id=teacher_id, end_date=end_date)
 
-        # ✅ Si nos pasaron 'next', volvemos a la lista con filtros
         if next_url:
             return RedirectResponse(next_url, status_code=303)
 
-        # ✅ Si no hay 'next', volver a Ver Bajas por defecto
         return RedirectResponse("/leaves", status_code=303)
 
     except Exception as e:
-        # Si hay error, re-pintamos el formulario con el mensaje de error
         res = await session.execute(
             select(Leave, Teacher)
             .join(Teacher, Teacher.id == Leave.teacher_id)
@@ -89,110 +106,93 @@ async def leaves_finish(
 
         return _templates(request).TemplateResponse(
             "leaves_close.html",
-            _ctx(request, open_items=open_items, error=str(e)),
+            _ctx(request, user=user, open_items=open_items, error=str(e)),
             status_code=400,
         )
 
 
-# --- NUEVO: Iniciar baja ---
-
-from services.leaves import open_leave  # ya importaste close_leave arriba; añadimos open_leave
-from fastapi import HTTPException
-
-#### router GET /leaves/new #####
+# ============================================================
+# GET /leaves/new — formulario iniciar baja
+# ============================================================
 @router.get("/leaves/new")
 async def leaves_new_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),  # <-- ajusta si no debe requerir admin
+    admin: User = Depends(admin_required),
 ):
-    """
-    Muestra el formulario de apertura de baja con el listado de profesores.
-    """
-    # Cargar profesores (solo activos, filtra por status)
+    user = admin
+
     q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
     teachers = (await session.execute(q)).scalars().all()
 
     return _templates(request).TemplateResponse(
         "leaves_new.html",
-        _ctx(request, title="Iniciar baja", teachers=teachers),
+        _ctx(request, user=user, title="Iniciar baja", teachers=teachers),
     )
 
-#### router POST /leaves/new #####
+
+# ============================================================
+# POST /leaves/new — crear baja
+# ============================================================
 @router.post("/leaves/new")
 async def leaves_new_create(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
     teacher_id: int = Form(...),
     start_date: date = Form(...),
-    leave_type: str = Form("baja"),    # 'baja' | 'excedencia'
+    leave_type: str = Form("baja"),
     cause: str = Form("Baja"),
-    category: str = Form(...),         # ⬅⬅⬅ NUEVO (obligatorio)
+    category: str = Form(...),
 ):
-    """
-    Procesa el formulario e inicia la baja usando services.leaves.open_leave.
-    """
+    user = admin
 
-    # ----------- Mapeo del tipo de baja -----------
     lt = TeacherStatus.baja if leave_type == "baja" else TeacherStatus.excedencia
 
-    # ----------- VALIDACIÓN DE CATEGORÍA A–L -----------
     if category not in list("ABCDEFGHIJKL"):
-        # Recargar profesores activos para repintar la plantilla
         q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
         teachers = (await session.execute(q)).scalars().all()
 
         return _templates(request).TemplateResponse(
             "leaves_new.html",
-            _ctx(
-                request,
-                title="Iniciar baja",
-                teachers=teachers,
-                error="Debe seleccionar una categoría válida (A–L)."
-            ),
-            status_code=400
+            _ctx(request, user=user, title="Iniciar baja", teachers=teachers,
+                 error="Debe seleccionar una categoría válida (A–L)."),
+            status_code=400,
         )
 
     try:
-        # ----------- CREAR LA BAJA CON CATEGORÍA -----------
         await open_leave(
             session=session,
             teacher_id=teacher_id,
             start_date=start_date,
             leave_type=lt,
             cause=cause or "Baja",
-            category=category,    # ⬅⬅⬅ NUEVO
+            category=category,
         )
-
-        # ✔ Tras crear → volvemos a listado de bajas
         return RedirectResponse("/leaves", status_code=303)
 
     except Exception as e:
-        # Recargar profesores activos para repintar plantilla con error
         q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
         teachers = (await session.execute(q)).scalars().all()
 
         return _templates(request).TemplateResponse(
             "leaves_new.html",
-            _ctx(request, title="Iniciar baja", teachers=teachers, error=str(e)),
-            status_code=400
+            _ctx(request, user=user, title="Iniciar baja", teachers=teachers, error=str(e)),
+            status_code=400,
         )
 
-# --- SUSTITUCIONES ---
-from fastapi import HTTPException
-from sqlalchemy import and_, or_, exists
-from services.leaves import set_substitution
-from services.schedule import clone_teacher_schedule  # <-- te doy esta función más abajo
 
-#### router GET /substitutions/new #####
+# ============================================================
+# GET /substitutions/new — formulario sustitución
+# ============================================================
 @router.get("/substitutions/new")
 async def substitutions_new_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),  # lo afinamos cuando hablemos de roles
+    admin: User = Depends(admin_required),
 ):
-    # Profes a sustituir: Leave abierto (end_date NULL), sin sustituto, y status baja/excedencia
+    user = admin
+
     res = await session.execute(
         select(Leave, Teacher)
         .join(Teacher, Teacher.id == Leave.teacher_id)
@@ -200,7 +200,7 @@ async def substitutions_new_form(
             and_(
                 Leave.end_date.is_(None),
                 Leave.substitute_teacher_id.is_(None),
-                or_(Teacher.status == TeacherStatus.baja, Teacher.status == TeacherStatus.excedencia),
+                or_(Teacher.status == TeacherStatus.baja, Teacher.status == TeacherStatus.excedencia)
             )
         )
         .order_by(Teacher.name.asc())
@@ -211,84 +211,80 @@ async def substitutions_new_form(
         for (l, t) in rows
     ]
 
-    # Exprofes: por defecto, docentes no activos y sin baja abierta
-    # (si prefieres otro criterio de "exprof", lo cambiamos)
     subq_open_leave = (
         select(Leave.id)
         .where(and_(Leave.teacher_id == Teacher.id, Leave.end_date.is_(None)))
         .limit(1)
         .scalar_subquery()
     )
+
     exprofes = (
-        (await session.execute(
+        await session.execute(
             select(Teacher)
-            .where(
-                and_(
-                    Teacher.status == TeacherStatus.exprofe,
-                    subq_open_leave.is_(None)
-                )
-            )
+            .where(and_(Teacher.status == TeacherStatus.exprofe, subq_open_leave.is_(None)))
             .order_by(Teacher.name.asc())
-        )).scalars().all()
-    )
+        )
+    ).scalars().all()
 
     return _templates(request).TemplateResponse(
         "substitutions_new.html",
-        _ctx(request, title="Iniciar sustitución", open_leaves=open_leaves, exprofes=exprofes),
+        _ctx(request, user=user, title="Iniciar sustitución",
+             open_leaves=open_leaves, exprofes=exprofes),
     )
 
-#### router POST /substitutions/new #####
+
+# ============================================================
+# POST /substitutions/new — crear sustitución
+# ============================================================
 @router.post("/substitutions/new")
 async def substitutions_new_create(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
-    teacher_id: int = Form(...),        # sustituido
+    admin: User = Depends(admin_required),
+    teacher_id: int = Form(...),
     start_date: date = Form(...),
-    sub_mode: str = Form(...),          # 'exprof' | 'new'
-    # ARREGLO B: aceptar string opcional, tolerar "" y convertir a int con control
+    sub_mode: str = Form(...),
     exprof_teacher_id: Optional[str] = Form(None),
-    # Datos de nuevo profesor
     new_name: Optional[str] = Form(None),
     new_email: Optional[str] = Form(None),
     new_alias: Optional[str] = Form(None),
 ):
-    # Validaciones de selección
+    user = admin
+
     if sub_mode not in ("exprof", "new"):
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
-            _ctx(request, error="Debes elegir 'Exprofes' o 'Profesor nuevo'."),
+            _ctx(request, user=user, error="Debes elegir 'Exprofes' o 'Profesor nuevo'."),
             status_code=400,
         )
 
-    # Verificar que el profesor a sustituir tiene baja/excedencia abierta y sin sustituto
-    leave_row = (await session.execute(
-        select(Leave)
-        .where(
-            and_(
-                Leave.teacher_id == teacher_id,
-                Leave.end_date.is_(None),
-                Leave.substitute_teacher_id.is_(None),
+    leave_row = (
+        await session.execute(
+            select(Leave).where(
+                and_(
+                    Leave.teacher_id == teacher_id,
+                    Leave.end_date.is_(None),
+                    Leave.substitute_teacher_id.is_(None),
+                )
             )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
+
     if not leave_row:
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
-            _ctx(request, error="El profesor seleccionado no tiene una baja/excedencia abierta sin sustituto."),
+            _ctx(request, user=user, error="El profesor no tiene baja abierta sin sustituto."),
             status_code=400,
         )
 
-    # Resolver el ID del sustituto
-    substitute_teacher_id: Optional[int] = None
+    substitute_teacher_id = None
 
     if sub_mode == "exprof":
-        # ARREGLO B: tolerar cadena vacía y convertir a int de forma segura
         exprof_teacher_id = (exprof_teacher_id or "").strip()
         if not exprof_teacher_id:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                _ctx(request, error="Debes seleccionar un exprofesor para la sustitución."),
+                _ctx(request, user=user, error="Debes seleccionar un exprofesor."),
                 status_code=400,
             )
         try:
@@ -296,65 +292,64 @@ async def substitutions_new_create(
         except ValueError:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                _ctx(request, error="Identificador de exprofesor no válido."),
+                _ctx(request, user=user, error="Identificador de exprofesor no válido."),
                 status_code=400,
             )
 
-        # Activar al exprof como 'activo'
-        sub_t = (await session.execute(select(Teacher).where(Teacher.id == exprof_id))).scalar_one_or_none()
+        sub_t = await session.get(Teacher, exprof_id)
         if not sub_t:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                _ctx(request, error="Exprofesor no encontrado."),
+                _ctx(request, user=user, error="Exprofesor no encontrado."),
                 status_code=404,
             )
         if sub_t.id == teacher_id:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                _ctx(request, error="El sustituto no puede ser el mismo profesor sustituido."),
+                _ctx(request, user=user, error="El sustituto no puede ser el mismo profesor."),
                 status_code=400,
             )
-        
-        # Activar al exprof como activo → NO titular
+
         sub_t.status = TeacherStatus.activo
-        sub_t.titular = False    # ⬅⬅⬅ NUEVO
-        
+        sub_t.titular = False
         substitute_teacher_id = sub_t.id
 
-    else:  # sub_mode == "new"
+    else:  # NEW
         new_name = (new_name or "").strip()
         new_email = (new_email or "").strip()
         new_alias = (new_alias or "").strip()
+
         if not new_name or not new_email or not new_alias:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                _ctx(request, error="Nombre, Email y Alias del nuevo profesor son obligatorios."),
+                _ctx(request, user=user, error="Nombre, Email y Alias son obligatorios."),
                 status_code=400,
             )
-        # Unicidad de alias (y opcionalmente email)
-        exists_alias = (await session.execute(
-            select(Teacher.id).where(Teacher.alias == new_alias)
-        )).scalar_one_or_none()
+
+        exists_alias = (
+            await session.execute(
+                select(Teacher.id).where(Teacher.alias == new_alias)
+            )
+        ).scalar_one_or_none()
+
         if exists_alias:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                _ctx(request, error="El alias ya existe. Elige otro."),
+                _ctx(request, user=user, error="El alias ya existe."),
                 status_code=400,
             )
-        # Crear profesor nuevo como activo
+
         new_t = Teacher(
             name=new_name,
             email=new_email,
             alias=new_alias,
             status=TeacherStatus.activo,
-            titular=False   # ⬅⬅⬅ NUEVO
+            titular=False
         )
         session.add(new_t)
-        
-        await session.flush()  # obtener ID
+        await session.flush()
         substitute_teacher_id = new_t.id
 
-    # Asignar sustitución en la baja (services.leaves.set_substitution hace el commit)
     await set_substitution(
         session=session,
         teacher_id=teacher_id,
@@ -362,7 +357,6 @@ async def substitutions_new_create(
         substitute_teacher_id=substitute_teacher_id,
     )
 
-    # HEREDAR HORARIO: clona el horario del sustituido al sustituto desde start_date
     try:
         await clone_teacher_schedule(
             session,
@@ -371,51 +365,47 @@ async def substitutions_new_create(
             effective_from=start_date
         )
     except Exception as e:
-        # (Puedes decidir también redirigir a /leaves con un sistema de mensajes flash)
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
-            _ctx(request, info="Sustitución creada, pero hubo un problema heredando el horario: " + str(e)),
+            _ctx(request, user=user,
+                 info="Sustitución creada, pero hubo un problema heredando el horario: " + str(e)),
         )
 
-    # ✅ Tras crear sustitución, volver a Ver Bajas
     return RedirectResponse("/leaves", status_code=303)
 
-# VER BAJAS
-from typing import Optional
-from fastapi import Query
-from sqlalchemy.orm import aliased
 
-#### router GET /leaves #####
+# ============================================================
+# GET /leaves — Ver bajas
+# ============================================================
 @router.get("/leaves", response_class=HTMLResponse)
 async def leaves_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin=Depends(admin_required),
+    admin: User = Depends(admin_required),
     status: str = Query("open", pattern="^(open|all)$"),
     with_sub: Optional[str] = Query(None),
     order: str = Query("asc", pattern="^(asc|desc)$"),
 ):
+    user = admin
+
+    from sqlalchemy.orm import aliased
     Sub = aliased(Teacher)
 
-    # Base: join al titular y left join al sustituto
     q = (
         select(Leave, Teacher, Sub)
         .join(Teacher, Teacher.id == Leave.teacher_id)
         .outerjoin(Sub, Sub.id == Leave.substitute_teacher_id)
     )
 
-    # Filtro por estado de la baja
     if status == "open":
         q = q.where(Leave.end_date.is_(None))
 
-    # Filtro por si tiene sustituto o no (en curso o ya cerrado)
     ws = (with_sub or "").strip().lower()
     if ws == "true":
         q = q.where(Leave.substitute_teacher_id.is_not(None))
     elif ws == "false":
         q = q.where(Leave.substitute_teacher_id.is_(None))
 
-    # Orden
     if order == "desc":
         q = q.order_by(Leave.start_date.desc(), Teacher.name.asc())
     else:
@@ -427,7 +417,7 @@ async def leaves_list(
     for lv, t, sub in rows:
         items.append({
             "leave_id": lv.id,
-            "teacher_id": t.id,                # para /leaves/finish
+            "teacher_id": t.id,
             "teacher_name": t.name,
             "start_date": lv.start_date,
             "cause": lv.cause or "",
@@ -436,13 +426,17 @@ async def leaves_list(
             "sub_name": sub.name if sub else None,
         })
 
-    # Pasamos los filtros actuales para poder reconstruir enlaces en la plantilla si quieres
     return _templates(request).TemplateResponse(
         "leaves_list.html",
         _ctx(
             request,
+            user=user,
             title="Bajas (ver)",
             items=items,
-            current_filters={"status": status, "with_sub": with_sub, "order": order},
+            current_filters={
+                "status": status,
+                "with_sub": with_sub,
+                "order": order
+            },
         ),
     )
