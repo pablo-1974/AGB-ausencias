@@ -2,24 +2,62 @@
 
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-6">Estadísticas</h1>
+<h1 class="text-2xl font-bold mb-6">Estadísticas de Bajas</h1>
 
+<!-- FILTROS -->
 <div class="card mb-6">
   <h2 class="text-lg font-semibold mb-4">Filtros</h2>
 
   <form method="get" action="/stats">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
+      <!-- Desde -->
       <div>
         <label class="label">Desde</label>
         <input type="date" name="from" class="input" value="{{ date_from }}">
       </div>
 
+      <!-- Hasta -->
       <div>
         <label class="label">Hasta</label>
         <input type="date" name="to" class="input" value="{{ date_to }}">
       </div>
 
+      <!-- Profesor -->
+      <div>
+        <label class="label">Profesor</label>
+        <select name="teacher_id" class="input">
+          <option value="">Todos</option>
+          {% for t in teachers %}
+            <option value="{{ t.id }}" {% if selected_teacher == t.id %}selected{% endif %}>
+              {{ t.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Categoría -->
+      <div>
+        <label class="label">Categoría</label>
+        <select name="category" class="input">
+          <option value="">Todas</option>
+          {% for c in categories %}
+            <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Estado -->
+      <div>
+        <label class="label">Estado</label>
+        <select name="status" class="input">
+          <option value="all" {% if selected_status == "all" %}selected{% endif %}>Todas</option>
+          <option value="open" {% if selected_status == "open" %}selected{% endif %}>Abiertas</option>
+          <option value="closed" {% if selected_status == "closed" %}selected{% endif %}>Cerradas</option>
+        </select>
+      </div>
+
+      <!-- Botón filtrar -->
       <div class="flex items-end">
         <button class="btn-primary w-full">Filtrar</button>
       </div>
@@ -28,8 +66,9 @@
   </form>
 </div>
 
+<!-- TABLA -->
 <div class="card">
-  <h2 class="text-lg font-semibold mb-4">Listado de bajas</h2>
+  <h2 class="text-lg font-semibold mb-4">Resultados</h2>
 
   {% if not items %}
     <p class="text-gray-500">No hay bajas en este periodo.</p>
@@ -40,6 +79,7 @@
           <th>Profesor</th>
           <th>Inicio</th>
           <th>Fin</th>
+          <th>Días</th>
           <th>Causa</th>
           <th>Categoría</th>
         </tr>
@@ -50,6 +90,7 @@
           <td>{{ row.teacher_name }}</td>
           <td>{{ row.start_date }}</td>
           <td>{{ row.end_date or "—" }}</td>
+          <td>{{ row.days or "—" }}</td>
           <td>{{ row.cause }}</td>
           <td>{{ row.category or "—" }}</td>
         </tr>
