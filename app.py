@@ -100,6 +100,7 @@ from absences_router import router as absences_router
 from reports_router import router as reports_router
 from config_calendar_router import router as calendar_router
 from admin_router import router as admin_router
+from stats_router import router as stats_router
 
 app.include_router(auth_router)
 app.include_router(teachers_import_router)
@@ -111,6 +112,7 @@ app.include_router(absences_router)
 app.include_router(reports_router)
 app.include_router(calendar_router)
 app.include_router(admin_router)
+app.include_router(stats_router)
 
 # ------------------------------------------------------------
 # TEMPLATE CONTEXT
