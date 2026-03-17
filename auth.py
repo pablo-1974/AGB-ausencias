@@ -16,7 +16,6 @@ from passlib.hash import bcrypt
 from database import get_session
 from config import settings
 from models import User, Role
-from app import tpl
 
 COOKIE_NAME = "ausencias_session"
 
@@ -503,13 +502,3 @@ async def admin_toggle_role(
 
     return RedirectResponse("/admin/users", status_code=303)
 
-
-# ---------------------------
-# Admin panel
-# ---------------------------
-@router.get("/admin/panel")
-async def admin_panel(request: Request, admin: User = Depends(admin_required)):
-    return _templates(request).TemplateResponse(
-        "admin_panel.html",
-        tpl(request, title="Panel del Administrador", user=admin),
-    )
