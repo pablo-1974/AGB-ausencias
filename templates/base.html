@@ -78,24 +78,6 @@
       <!-- Inicio -->
       <a class="link px-2 py-1" href="/">Inicio</a>
 
-      <!-- Configurar -->
-      <div class="relative group" x-data="{open:false}">
-        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
-          Configurar
-        </button>
-
-        <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
-
-        <div class="absolute left-0 mt-2 w-60 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
-             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
-
-          <a href="/config/calendar/view" class="block px-2 py-1 link">Calendario escolar</a>
-          <a href="/imports/teachers" class="block px-2 py-1 link">Importar profesores</a>
-          <a href="/imports/guards"   class="block px-2 py-1 link">Importar guardias</a>
-          <a href="/imports/classes"  class="block px-2 py-1 link">Importar clases</a>
-        </div>
-      </div>
-
       <!-- Profesores -->
       <div class="relative group" x-data="{open:false}">
         <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
@@ -147,6 +129,9 @@
         </div>
       </div>
 
+      <!-- Estadísticas -->
+      <a class="link px-2 py-1" href="/stats">Estadísticas</a>
+      
       <!-- Parte diario -->
       <a class="link px-2 py-1" href="/reports/daily">Parte diario</a>
 
@@ -155,8 +140,7 @@
 
       <!-- DERECHA -->
       <div class="ml-auto flex gap-4 items-center">
-        <a class="link px-2 py-1" href="/admin/users">Usuarios</a>
-
+        
         {% if user and user.role.name == "admin" %}
           <a class="link px-2 py-1" href="/admin/panel">Administrador</a>
         {% endif %}
