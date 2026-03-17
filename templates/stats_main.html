@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Estadísticas</h1>
+
+<div class="card mb-6">
+  <h2 class="text-lg font-semibold mb-4">Filtros</h2>
+
+  <form method="get" action="/stats">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+
+      <div>
+        <label class="label">Desde</label>
+        <input type="date" name="from" class="input" value="{{ date_from }}">
+      </div>
+
+      <div>
+        <label class="label">Hasta</label>
+        <input type="date" name="to" class="input" value="{{ date_to }}">
+      </div>
+
+      <div class="flex items-end">
+        <button class="btn-primary w-full">Filtrar</button>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 class="text-lg font-semibold mb-4">Listado de bajas</h2>
+
+  {% if not items %}
+    <p class="text-gray-500">No hay bajas en este periodo.</p>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Profesor</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Causa</th>
+          <th>Categoría</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in items %}
+        <tr>
+          <td>{{ row.teacher_name }}</td>
+          <td>{{ row.start_date }}</td>
+          <td>{{ row.end_date or "—" }}</td>
+          <td>{{ row.cause }}</td>
+          <td>{{ row.category or "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+
+{% endblock %}
