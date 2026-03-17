@@ -1,3 +1,4 @@
+# auth.py
 from __future__ import annotations
 from typing import Optional
 
@@ -15,6 +16,7 @@ from passlib.hash import bcrypt
 from database import get_session
 from config import settings
 from models import User, Role
+from app import tpl
 
 COOKIE_NAME = "ausencias_session"
 
