@@ -44,14 +44,6 @@ def _ctx(request: Request, user: User, **extra):
 
 
 # ======================================================
-#   Helpers ordenación sin tildes
-# ======================================================
-#def _normalize_name(name: str) -> str:
-#    nf = unicodedata.normalize("NFD", name)
-#    return "".join(ch for ch in nf if not unicodedata.combining(ch)).lower()
-
-
-# ======================================================
 #   PROFESORADO ACTUAL: ACTIVO + BAJA SIN SUSTITUTO
 # ======================================================
 async def _get_profesorado_actual(session: AsyncSession):
