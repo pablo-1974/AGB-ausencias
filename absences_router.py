@@ -18,6 +18,8 @@ from models import Teacher, TeacherStatus, Leave, Absence, User
 # 🔥 PARA CARGAR EL USUARIO LOGUEADO
 from app import load_user_dep
 
+from utils import normalize_name
+
 router = APIRouter()
 
 
@@ -285,6 +287,7 @@ async def absences_new_form(
 
     target = date.fromisoformat(d) if d else date.today()
     teachers = (await session.execute(_teachers_active_on(session, target))).scalars().all()
+    teachers = sorted(teachers, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "absences_new.html",
@@ -314,7 +317,8 @@ async def absences_new_create(
 
     cause = (cause or "").strip()
     if not cause:
-        teachers = (await session.execute(_teachers_active_on(session, day))).scalars().all()
+    teachers = (await session.execute(_teachers_active_on(session, target))).scalars().all()
+    teachers = sorted(teachers, key=lambda t: normalize_name(t.name))
         return _templates(request).TemplateResponse(
             "absences_new.html",
             _ctx(
