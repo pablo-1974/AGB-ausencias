@@ -162,9 +162,8 @@ def _make_pdf(items, filename, title, center_name):
 
 @router.get("/teachers/print/all")
 async def teachers_print_all(session: AsyncSession = Depends(get_session)):
-    rows = (
-        await session.execute(select(Teacher).order_by(Teacher.name.asc()))
-    ).scalars().all()
+    rows = (await session.execute(select(Teacher))).scalars().all()
+    rows = sorted(rows, key=lambda t: normalize_name(t.name))
 
     items = [{"name": t.name, "email": t.email or ""} for t in rows]
     return _make_pdf(
@@ -179,11 +178,10 @@ async def teachers_print_all(session: AsyncSession = Depends(get_session)):
 async def teachers_print_activos(session: AsyncSession = Depends(get_session)):
     rows = (
         await session.execute(
-            select(Teacher)
-            .where(Teacher.status == TeacherStatus.activo)
-            .order_by(Teacher.name.asc())
+            select(Teacher).where(Teacher.status == TeacherStatus.activo)
         )
     ).scalars().all()
+    rows = sorted(rows, key=lambda t: normalize_name(t.name))
 
     items = [{"name": t.name, "email": t.email or ""} for t in rows]
     return _make_pdf(
@@ -198,11 +196,10 @@ async def teachers_print_activos(session: AsyncSession = Depends(get_session)):
 async def teachers_print_bajas(session: AsyncSession = Depends(get_session)):
     rows = (
         await session.execute(
-            select(Teacher)
-            .where(Teacher.status.in_([TeacherStatus.baja, TeacherStatus.excedencia]))
-            .order_by(Teacher.name.asc())
+            select(Teacher).where(Teacher.status.in_([TeacherStatus.baja, TeacherStatus.excedencia]))
         )
     ).scalars().all()
+    rows = sorted(rows, key=lambda t: normalize_name(t.name))
 
     items = [{"name": t.name, "email": t.email or ""} for t in rows]
     return _make_pdf(
@@ -217,11 +214,10 @@ async def teachers_print_bajas(session: AsyncSession = Depends(get_session)):
 async def teachers_print_exprofes(session: AsyncSession = Depends(get_session)):
     rows = (
         await session.execute(
-            select(Teacher)
-            .where(Teacher.status == TeacherStatus.exprofe)
-            .order_by(Teacher.name.asc())
+            select(Teacher).where(Teacher.status == TeacherStatus.exprofe)
         )
     ).scalars().all()
+    rows = sorted(rows, key=lambda t: normalize_name(t.name))
 
     items = [{"name": t.name, "email": t.email or ""} for t in rows]
     return _make_pdf(
