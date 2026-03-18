@@ -1,3 +1,4 @@
+# services/pdf_teachers.py
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 )
@@ -8,6 +9,9 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 import os
 
+# 🔥 ORDENACIÓN SIN TILDES
+from utils import normalize_name
+
 
 def generate_teachers_list_pdf(
     path: str,
@@ -15,8 +19,13 @@ def generate_teachers_list_pdf(
     title: str,
     items,
     date_str: str | None = None,
-    logo_path: str = "static/logo.png"   # NUEVO: logo
+    logo_path: str = "static/logo.png"
 ):
+
+    # ======================================================
+    # ORDENACIÓN ALFABÉTICA ESPAÑOLA
+    # ======================================================
+    items = sorted(items, key=lambda it: normalize_name(it["name"]))
 
     styles = getSampleStyleSheet()
 
@@ -47,17 +56,17 @@ def generate_teachers_list_pdf(
 
     doc = SimpleDocTemplate(
         path, pagesize=A4,
-        leftMargin=18*mm, rightMargin=18*mm,
-        topMargin=16*mm, bottomMargin=16*mm
+        leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=16 * mm, bottomMargin=16 * mm
     )
 
     flow = []
 
     # ============================
-    #  CABECERO CON LOGO + TITULO
+    #  CABECERO CON LOGO + TÍTULO
     # ============================
     if os.path.exists(logo_path):
-        logo = Image(logo_path, width=22*mm, height=22*mm)
+        logo = Image(logo_path, width=22 * mm, height=22 * mm)
         logo.hAlign = "CENTER"
         flow.append(logo)
         flow.append(Spacer(1, 4))
@@ -73,7 +82,7 @@ def generate_teachers_list_pdf(
     flow.append(Spacer(1, 10))
 
     # ============================
-    # TABLA (Nº) (NOMBRE) (EMAIL)
+    #   TABLA DE PROFESORADO
     # ============================
     data = []
 
@@ -90,18 +99,21 @@ def generate_teachers_list_pdf(
             Paragraph("", style_email)
         ])
 
-    # Ancho total
+    # ============================
+    #   DIMENSIONES Y ESTILO TABLA
+    # ============================
     page_w, _ = A4
     usable_w = page_w - (doc.leftMargin + doc.rightMargin)
-    
-    num_w = 14 * mm                       # mantiene tu alineación de números
-    name_w = usable_w * 0.60              # 60% para nombres
-    email_w = usable_w * 0.40             # 40% para emails
+
+    num_w = 14 * mm            # columna números
+    name_w = usable_w * 0.60   # nombres
+    email_w = usable_w * 0.40  # emails
 
     table = Table(data, colWidths=[num_w, name_w, email_w])
 
     table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+
         ('LEFTPADDING', (0, 0), (0, -1), 0),
         ('RIGHTPADDING', (0, 0), (0, -1), 0),
 
