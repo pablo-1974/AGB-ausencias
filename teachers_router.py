@@ -16,7 +16,7 @@ from services.pdf_teachers import generate_teachers_list_pdf
 
 from app import load_user_dep   # 🔥 IMPORTANTE: dependencia del usuario
 
-from utils.sort import normalize_name
+from utils import normalize_name
 
 router = APIRouter()
 
