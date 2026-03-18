@@ -15,21 +15,26 @@ from models import Teacher, TeacherStatus, Leave, User
 from services.leaves import close_leave, open_leave, set_substitution
 from services.schedule import clone_teacher_schedule
 
-# 🔥 usuario autenticado (no admin)
+# 🔥 usuario autenticado
 from app import load_user_dep
+
+# 🔥 Nueva ordenación sin tildes
+from utils import normalize_name
 
 router = APIRouter()
 
-# -----------------------------
-# Helpers plantilla/contexto
-# -----------------------------
+
+# -----------------------------------
+# Helpers plantilla / contexto
+# -----------------------------------
 def _templates(request: Request):
     return request.app.state.templates
+
 
 def _ctx(request: Request, user: User, **extra):
     base = {
         "request": request,
-        "user": user,     # ← base.html necesita user SIEMPRE
+        "user": user,
         "title": "Bajas",
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
@@ -48,15 +53,18 @@ async def leaves_close_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    user = admin  # para la plantilla
+    user = admin
 
-    res = await session.execute(
-        select(Leave, Teacher)
-        .join(Teacher, Teacher.id == Leave.teacher_id)
-        .where(Leave.end_date.is_(None))
-        .order_by(Teacher.name.asc())
-    )
-    rows = res.all()
+    rows = (
+        await session.execute(
+            select(Leave, Teacher)
+            .join(Teacher, Teacher.id == Leave.teacher_id)
+            .where(Leave.end_date.is_(None))
+        )
+    ).all()
+
+    # 🔥 ORDEN ALFABÉTICO CORRECTO
+    rows = sorted(rows, key=lambda lt: normalize_name(lt[1].name))
 
     open_items = [
         {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
@@ -70,7 +78,7 @@ async def leaves_close_form(
 
 
 # ============================================================
-# POST /leaves/finish — cerrar baja
+# POST /leaves/finish
 # ============================================================
 @router.post("/leaves/finish")
 async def leaves_finish(
@@ -86,19 +94,20 @@ async def leaves_finish(
     try:
         await close_leave(session, teacher_id=teacher_id, end_date=end_date)
 
-        if next_url:
-            return RedirectResponse(next_url, status_code=303)
-
-        return RedirectResponse("/leaves", status_code=303)
+        return RedirectResponse(next_url or "/leaves", status_code=303)
 
     except Exception as e:
-        res = await session.execute(
-            select(Leave, Teacher)
-            .join(Teacher, Teacher.id == Leave.teacher_id)
-            .where(Leave.end_date.is_(None))
-            .order_by(Teacher.name.asc())
-        )
-        rows = res.all()
+        rows = (
+            await session.execute(
+                select(Leave, Teacher)
+                .join(Teacher, Teacher.id == Leave.teacher_id)
+                .where(Leave.end_date.is_(None))
+            )
+        ).all()
+
+        # 🔥 ORDEN
+        rows = sorted(rows, key=lambda lt: normalize_name(lt[1].name))
+
         open_items = [
             {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
             for (l, t) in rows
@@ -112,7 +121,7 @@ async def leaves_finish(
 
 
 # ============================================================
-# GET /leaves/new — formulario iniciar baja
+# GET /leaves/new — iniciar baja
 # ============================================================
 @router.get("/leaves/new")
 async def leaves_new_form(
@@ -122,8 +131,14 @@ async def leaves_new_form(
 ):
     user = admin
 
-    q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
-    teachers = (await session.execute(q)).scalars().all()
+    rows = (
+        await session.execute(
+            select(Teacher).where(Teacher.status == TeacherStatus.activo)
+        )
+    ).scalars().all()
+
+    # 🔥 ORDEN
+    teachers = sorted(rows, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "leaves_new.html",
@@ -132,7 +147,7 @@ async def leaves_new_form(
 
 
 # ============================================================
-# POST /leaves/new — crear baja
+# POST /leaves/new
 # ============================================================
 @router.post("/leaves/new")
 async def leaves_new_create(
@@ -150,12 +165,18 @@ async def leaves_new_create(
     lt = TeacherStatus.baja if leave_type == "baja" else TeacherStatus.excedencia
 
     if category not in list("ABCDEFGHIJKL"):
-        q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
-        teachers = (await session.execute(q)).scalars().all()
+        rows = (
+            await session.execute(
+                select(Teacher).where(Teacher.status == TeacherStatus.activo)
+            )
+        ).scalars().all()
+
+        teachers = sorted(rows, key=lambda t: normalize_name(t.name))
 
         return _templates(request).TemplateResponse(
             "leaves_new.html",
-            _ctx(request, user=user, title="Iniciar baja", teachers=teachers,
+            _ctx(request, user=user, title="Iniciar baja",
+                 teachers=teachers,
                  error="Debe seleccionar una categoría válida (A–L)."),
             status_code=400,
         )
@@ -169,21 +190,29 @@ async def leaves_new_create(
             cause=cause or "Baja",
             category=category,
         )
+
         return RedirectResponse("/leaves", status_code=303)
 
     except Exception as e:
-        q = select(Teacher).where(Teacher.status == TeacherStatus.activo).order_by(Teacher.name.asc())
-        teachers = (await session.execute(q)).scalars().all()
+
+        rows = (
+            await session.execute(
+                select(Teacher).where(Teacher.status == TeacherStatus.activo)
+            )
+        ).scalars().all()
+
+        teachers = sorted(rows, key=lambda t: normalize_name(t.name))
 
         return _templates(request).TemplateResponse(
             "leaves_new.html",
-            _ctx(request, user=user, title="Iniciar baja", teachers=teachers, error=str(e)),
+            _ctx(request, user=user, title="Iniciar baja",
+                 teachers=teachers, error=str(e)),
             status_code=400,
         )
 
 
 # ============================================================
-# GET /substitutions/new — formulario sustitución
+# GET /substitutions/new — formulario
 # ============================================================
 @router.get("/substitutions/new")
 async def substitutions_new_form(
@@ -193,24 +222,31 @@ async def substitutions_new_form(
 ):
     user = admin
 
-    res = await session.execute(
-        select(Leave, Teacher)
-        .join(Teacher, Teacher.id == Leave.teacher_id)
-        .where(
-            and_(
-                Leave.end_date.is_(None),
-                Leave.substitute_teacher_id.is_(None),
-                or_(Teacher.status == TeacherStatus.baja, Teacher.status == TeacherStatus.excedencia)
+    # 1. Bajas sin sustituto
+    rows = (
+        await session.execute(
+            select(Leave, Teacher)
+            .join(Teacher, Teacher.id == Leave.teacher_id)
+            .where(
+                and_(
+                    Leave.end_date.is_(None),
+                    Leave.substitute_teacher_id.is_(None),
+                    or_(Teacher.status == TeacherStatus.baja,
+                        Teacher.status == TeacherStatus.excedencia)
+                )
             )
         )
-        .order_by(Teacher.name.asc())
-    )
-    rows = res.all()
-    open_leaves = [
-        {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
-        for (l, t) in rows
-    ]
+    ).all()
 
+    open_leaves = sorted(
+        [
+            {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
+            for (l, t) in rows
+        ],
+        key=lambda x: normalize_name(x["teacher_name"])
+    )
+
+    # 2. Exprofes disponibles
     subq_open_leave = (
         select(Leave.id)
         .where(and_(Leave.teacher_id == Teacher.id, Leave.end_date.is_(None)))
@@ -218,13 +254,15 @@ async def substitutions_new_form(
         .scalar_subquery()
     )
 
-    exprofes = (
+    exprofes_raw = (
         await session.execute(
             select(Teacher)
-            .where(and_(Teacher.status == TeacherStatus.exprofe, subq_open_leave.is_(None)))
-            .order_by(Teacher.name.asc())
+            .where(and_(Teacher.status == TeacherStatus.exprofe,
+                        subq_open_leave.is_(None)))
         )
     ).scalars().all()
+
+    exprofes = sorted(exprofes_raw, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "substitutions_new.html",
@@ -234,7 +272,7 @@ async def substitutions_new_form(
 
 
 # ============================================================
-# POST /substitutions/new — crear sustitución
+# POST /substitutions/new
 # ============================================================
 @router.post("/substitutions/new")
 async def substitutions_new_create(
