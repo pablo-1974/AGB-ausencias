@@ -10,7 +10,10 @@
 </div>
 {% endif %}
 
-<form method="post">
+<!-- ================================
+     FORMULARIO PRINCIPAL (EDITAR)
+================================= -->
+<form method="post" class="mb-4">
 
     <!-- Nombre -->
     <div class="mb-3">
@@ -54,10 +57,7 @@
         <label for="selStatus" class="form-label">Estado</label>
         <select id="selStatus" name="status" class="form-select">
             {% for st in estados %}
-            <option
-                value="{{ st.name }}"
-                {% if teacher.status == st %}selected{% endif %}
-            >
+            <option value="{{ st.name }}" {% if teacher.status == st %}selected{% endif %}>
                 {{ st.name }}
             </option>
             {% endfor %}
@@ -78,27 +78,38 @@
         </label>
     </div>
 
-    <div class="d-flex gap-3">
-
-        <!-- Guardar -->
-        <button type="submit" class="btn btn-primary">
-            Guardar cambios
-        </button>
-
-        <!-- Eliminar (marcar como exprofe) -->
-        /teachers/delete/{{ teacher.id }}
-            <button class="btn btn-danger" type="submit">
-                Marcar como Exprofesor
-            </button>
-        </form>
-
-        <!-- Volver -->
-        /teachers/list
-            Volver
-        </a>
-
-    </div>
-
+    <!-- Botón Guardar -->
+    <button type="submit" class="btn btn-primary">
+        Guardar cambios
+    </button>
 </form>
+
+
+<!-- ================================
+     FORMULARIO SECUNDARIO: EXPROFE
+================================= -->
+/teachers/delete/{{ teacher.id }}
+    <button type="submit" class="btn btn-danger">
+        Marcar como Exprofesor
+    </button>
+</form>
+
+
+<!-- ================================
+     BOTONES DE NAVEGACIÓN
+================================= -->
+<div class="d-flex gap-3">
+
+    <!-- Volver -->
+    /teachers/list
+        Volver
+    </a>
+
+    <!-- Crear nuevo profesor -->
+    /teachers/create
+        Añadir profesor nuevo
+    </a>
+
+</div>
 
 {% endblock %}
