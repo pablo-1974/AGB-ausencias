@@ -16,12 +16,12 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import mm
 
 from models import Absence, Leave, Teacher, ScheduleSlot, SchoolCalendar
-from utils import mask_to_hour_list
+from utils import mask_to_hour_list, normalize_name    # <-- 🔥 añadido normalize_name
 from config import settings
 
 
 # ---------------------------------------------------------
-# AUX → Formato de fechas seguidas
+# AUX → Formato fechas
 # ---------------------------------------------------------
 def _format_date_span(dates: List[date]) -> Tuple[str, int]:
     if not dates:
@@ -54,7 +54,7 @@ async def professor_works_day(session: AsyncSession, teacher_id: int, day: date)
 
 
 # ---------------------------------------------------------
-# AUX → ¿Es festivo o vacaciones?
+# AUX → ¿Festivo o vacaciones?
 # ---------------------------------------------------------
 def is_holiday(day: date, cal: SchoolCalendar) -> bool:
     if day < cal.first_day or day > cal.last_day:
@@ -87,7 +87,6 @@ async def working_school_days(
     cur = start
 
     while cur <= end:
-
         weekday = cur.weekday()
 
         if weekday >= 5:
@@ -109,7 +108,7 @@ async def working_school_days(
 
 
 # ---------------------------------------------------------
-# AUSENCIAS compactadas (CORREGIDO)
+# AUSENCIAS compactadas
 # ---------------------------------------------------------
 def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[List[str]]:
     by_key: Dict[Tuple[int, str], Dict[date, int]] = {}
@@ -123,9 +122,10 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
 
     rows: List[List[str]] = []
 
+    # 🔥 ORDEN ESPAÑOL corregido
     for (tid, cat), days in sorted(
         by_key.items(),
-        key=lambda x: (name_by_id.get(x[0][0], ""), x[0][1])
+        key=lambda x: (normalize_name(name_by_id.get(x[0][0], "")), x[0][1])
     ):
         dates = sorted(days.keys())
         if not dates:
@@ -174,7 +174,7 @@ async def build_monthly_report_pdf(
     path_out: str,
 ):
     # ======================================================
-    # 1) Cargar calendario escolar
+    # 1) Calendario
     # ======================================================
     cal = (
         await session.execute(
@@ -183,7 +183,7 @@ async def build_monthly_report_pdf(
     ).scalar_one_or_none()
 
     # ======================================================
-    # 2) AUSENCIAS (todas)
+    # 2) Ausencias
     # ======================================================
     res_abs = await session.execute(
         select(Absence).where(
@@ -193,7 +193,7 @@ async def build_monthly_report_pdf(
     absences = list(res_abs.scalars().all())
 
     # ======================================================
-    # 3) BAJAS
+    # 3) Bajas
     # ======================================================
     res_lv = await session.execute(
         select(Leave).where(
@@ -208,7 +208,7 @@ async def build_monthly_report_pdf(
     leaves = list(res_lv.scalars().all())
 
     # ======================================================
-    # 4) Separar catalogadas / no catalogadas
+    # 4) Separar catalogadas / sin catalogar
     # ======================================================
     catalogadas = [a for a in absences if a.category and a.category != "Z"]
     sin_catalogar = [a for a in absences if not a.category or a.category == "Z"]
@@ -216,7 +216,7 @@ async def build_monthly_report_pdf(
     has_uncategorized = len(sin_catalogar) > 0
 
     # ======================================================
-    # 5) Nombres de todos los profesores involucrados (CORREGIDO)
+    # 5) Nombres de TODOS los profesores involucrados
     # ======================================================
     teacher_ids = {a.teacher_id for a in absences} | {lv.teacher_id for lv in leaves}
 
@@ -265,40 +265,37 @@ async def build_monthly_report_pdf(
         ])
 
     # ======================================================
-    # 8) ORDEN FINAL
+    # 8) ORDEN FINAL (CORREGIDO)
     # ======================================================
-    rows = sorted(rows, key=lambda r: (r[0].lower(), r[1]))
-    
-    
+    rows = sorted(rows, key=lambda r: (normalize_name(r[0]), r[1]))
+
     # ======================================================
-    # 9) AÑADIR AUSENCIAS SIN CATALOGAR (VISTA HTML)
-    #      No afecta al PDF porque el PDF filtra HTML.
+    # 9) AUSENCIAS sin categorizar (solo HTML)
     # ======================================================
-    rows_html = rows.copy()  # versión solo para HTML
-    
+    rows_html = rows.copy()
+
     for a in sin_catalogar:
         name = name_by_id.get(a.teacher_id, f"ID {a.teacher_id}")
         fecha_txt = a.date.strftime("%d/%m/%Y")
         hours_list = mask_to_hour_list(a.hours_mask or 0)
         hours_text = "Todas" if len(hours_list) == 6 else ",".join(str(h) for h in hours_list)
-    
-        # Botón real HTML
+
         cat_btn = (
             f'<a href="/absences/categorize?absence_id={a.id}" '
             f'class="px-2 py-1 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">'
             f'Catalogar</a>'
         )
-    
+
         rows_html.append([
             name,
             fecha_txt,
             hours_text,
-            cat_btn,  # HTML real
+            cat_btn,
             "-"
         ])
-    
+
     # ======================================================
-    # 10) GENERAR PDF (igual que antes)
+    # 10) PDF
     # ======================================================
     doc = SimpleDocTemplate(
         path_out,
@@ -350,7 +347,10 @@ async def build_monthly_report_pdf(
         }
         titulo = f"Parte mensual de ausencias {meses[date_from.month]} de {date_from.year}"
     else:
-        titulo = f"Parte mensual de ausencias ({date_from.strftime('%d/%m/%Y')} – {date_to.strftime('%d/%m/%Y')})"
+        titulo = (
+            f"Parte mensual de ausencias "
+            f"({date_from.strftime('%d/%m/%Y')} – {date_to.strftime('%d/%m/%Y')})"
+        )
 
     elements.append(Paragraph(titulo, style_title))
     elements.append(Spacer(1, 10))
@@ -375,15 +375,15 @@ async def build_monthly_report_pdf(
     )
 
     table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 9),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("FONTSIZE", (0, 1), (-1, -1), 8),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,0), 9),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.black),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("FONTSIZE", (0,1), (-1,-1), 8),
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING", (0,0), (-1,-1), 2),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ]))
 
     elements.append(table)
