@@ -15,6 +15,8 @@ from services.pdf_schedule import generate_schedule_pdf
 # 🔥 Importamos la dependencia correcta del usuario
 from app import load_user_dep
 
+from utils import normalize_name
+
 router = APIRouter()
 
 
@@ -58,9 +60,8 @@ async def schedule_view(
     if not user:
         return RedirectResponse("/login", status_code=303)
 
-    teachers = (
-        await session.execute(select(Teacher).order_by(Teacher.name.asc()))
-    ).scalars().all()
+    teachers = (await session.execute(select(Teacher))).scalars().all()
+    teachers = sorted(teachers, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "schedule_view.html",
@@ -81,9 +82,8 @@ async def schedule_view_post(
     if not user:
         return RedirectResponse("/login", status_code=303)
 
-    teachers = (
-        await session.execute(select(Teacher).order_by(Teacher.name.asc()))
-    ).scalars().all()
+    teachers = (await session.execute(select(Teacher))).scalars().all()
+    teachers = sorted(teachers, key=lambda t: normalize_name(t.name))
 
     # Cargar slots del profesor
     slots = (
