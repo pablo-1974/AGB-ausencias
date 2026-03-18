@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2 class="mb-4">Añadir profesor</h2>
+
+{% if error %}
+<div class="alert alert-danger">
+    {{ error }}
+</div>
+{% endif %}
+
+<form method="post">
+
+    <!-- Nombre -->
+    <div class="mb-3">
+        <label for="inpName" class="form-label">Nombre</label>
+        <input
+            id="inpName"
+            name="name"
+            type="text"
+            class="form-control"
+            required
+        >
+    </div>
+
+    <!-- Email -->
+    <div class="mb-3">
+        <label for="inpEmail" class="form-label">Email</label>
+        <input
+            id="inpEmail"
+            name="email"
+            type="email"
+            class="form-control"
+        >
+    </div>
+
+    <!-- Alias -->
+    <div class="mb-3">
+        <label for="inpAlias" class="form-label">Alias</label>
+        <input
+            id="inpAlias"
+            name="alias"
+            type="text"
+            class="form-control"
+        >
+    </div>
+
+    <!-- Estado -->
+    <div class="mb-3">
+        <label for="selStatus" class="form-label">Estado</label>
+        <select id="selStatus" name="status" class="form-select">
+            {% for st in estados %}
+            <option value="{{ st.name }}">
+                {{ st.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Titular -->
+    <div class="form-check mb-4">
+        <input
+            class="form-check-input"
+            type="checkbox"
+            id="chkTitular"
+            name="titular"
+        >
+        <label for="chkTitular" class="form-check-label">
+            Titular
+        </label>
+    </div>
+
+    <div class="d-flex gap-3">
+
+        <!-- Crear -->
+        <button type="submit" class="btn btn-success">
+            Crear profesor
+        </button>
+
+        <!-- Volver -->
+        /teachers/list
+            Volver
+        </a>
+
+    </div>
+
+</form>
+
+{% endblock %}
