@@ -18,6 +18,7 @@ from models import Absence, Leave, Teacher, ScheduleType, TeacherStatus
 from .schedule import get_teacher_slot, list_teachers_on_guard
 from absences_router import make_mask_all
 
+from utils import normalize_name
 
 # 7 franjas reales
 HOUR_ROWS = [
@@ -140,7 +141,7 @@ async def build_daily_report_pdf(
         # ------------------------
         #     AUSENTES
         # ------------------------
-        for tid in sorted(absent_ids):
+        for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
 
             # 1) Excluir titulares sustituidos
             t = await session.get(Teacher, tid)
@@ -216,14 +217,19 @@ async def build_daily_report_pdf(
         def crush(xs: List[str]) -> str:
             return "\n".join([str(s) for s in xs if s.strip()])
 
+        row_prof_sorted = sorted(row_prof, key=lambda n: normalize_name(n))
+        row_grp_sorted = sorted(row_grp)
+        row_room_sorted = sorted(row_room)
+        row_subj_sorted = sorted(row_subj)
+        
         data.append([
             label,
-            crush(row_prof),
-            crush(row_grp),
-            crush(row_room),
-            crush(row_subj),
+            crush(row_prof_sorted),
+            crush(row_grp_sorted),
+            crush(row_room_sorted),
+            crush(row_subj_sorted),
             "",
-            crush(guard_aliases)
+            crush(guard_aliases),
         ])
 
     # ===================================================================
