@@ -13,6 +13,9 @@ from models import Teacher, User
 from auth import admin_required
 from services.imports import import_teachers_from_excel
 
+# 🔥 ORDENACIÓN SIN TILDES
+from utils import normalize_name
+
 router = APIRouter()
 
 
@@ -31,7 +34,7 @@ def _templates(request: Request):
 def _ctx(request: Request, user: User, **extra):
     base = {
         "request": request,
-        "user": user,   # 🔥 NECESARIO para base.html (menú)
+        "user": user,
         "title": "Importar profesores",
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
@@ -42,7 +45,7 @@ def _ctx(request: Request, user: User, **extra):
 
 
 # --------------------------------------------------------
-# GET /imports/teachers — formulario importar Excel
+# GET /imports/teachers — formulario
 # --------------------------------------------------------
 @router.get("/imports/teachers")
 async def imports_teachers_form(
@@ -85,6 +88,9 @@ async def imports_teachers_upload(
 
         imported = await import_teachers_from_excel(tmp_path, session)
 
+        # 🔥 ORDENACIÓN IMPORTADA
+        imported = sorted(imported, key=lambda it: normalize_name(it.get("name", "")))
+
         return _templates(request).TemplateResponse(
             "teachers_import.html",
             _ctx(request, user=user, imported=imported),
@@ -115,8 +121,10 @@ async def teachers_list(
 ):
     user = admin
 
-    res = await session.execute(select(Teacher).order_by(Teacher.name.asc()))
+    # 🔥 ANTES: order_by SQL → AHORA orden Python con normalize_name
+    res = await session.execute(select(Teacher))
     teachers = res.scalars().all()
+    teachers = sorted(teachers, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "teachers_list.html",
