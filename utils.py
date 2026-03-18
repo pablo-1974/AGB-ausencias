@@ -70,3 +70,22 @@ def require_columns(df, required: List[str]):
     missing = [c for c in required if c.lower() not in cols]
     if missing:
         raise ValueError(f"Faltan columnas obligatorias en Excel: {missing}")
+
+# -----------------------------
+# Ordenación alfabética
+# -----------------------------
+import unicodedata
+
+def normalize_name(name: str) -> str:
+    """
+    Normaliza un nombre quitando tildes y diacríticos para ordenación alfabética:
+    Á -> A, é -> e, ü -> u, etc.
+    Mantiene Ñ como expresión propia.
+    Devuelve siempre minúsculas.
+    """
+    if not name:
+        return ""
+
+    nf = unicodedata.normalize("NFD", name)
+    cleaned = "".join(ch for ch in nf if not unicodedata.combining(ch))
+    return cleaned.lower()
