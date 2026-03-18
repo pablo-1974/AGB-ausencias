@@ -126,6 +126,96 @@ async def teachers_list(
 
 
 # ======================================================
+#   NUEVO: CREAR PROFESOR — GET
+# ======================================================
+@router.get("/teachers/create")
+async def teacher_create_form(
+    request: Request,
+    user: User = Depends(load_user_dep),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    return _templates(request).TemplateResponse(
+        "teachers_create.html",
+        _ctx(request, user=user, estados=list(TeacherStatus)),
+    )
+
+
+# ======================================================
+#   NUEVO: CREAR PROFESOR — POST
+# ======================================================
+@router.post("/teachers/create")
+async def teacher_create_save(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),
+
+    name: str = Form(...),
+    email: str = Form(""),
+    alias: str = Form(""),
+    status: str = Form(...),
+    titular: Optional[str] = Form(None),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    name = name.strip()
+    email = (email or "").strip()
+    alias = (alias or "").strip()
+
+    # VALIDACIONES
+    if not name:
+        return _templates(request).TemplateResponse(
+            "teachers_create.html",
+            _ctx(request, user=user, error="El nombre es obligatorio.", estados=list(TeacherStatus)),
+            status_code=400,
+        )
+
+    # email único
+    if email:
+        dupe_email = (
+            await session.execute(
+                select(Teacher).where(Teacher.email == email)
+            )
+        ).scalar_one_or_none()
+        if dupe_email:
+            return _templates(request).TemplateResponse(
+                "teachers_create.html",
+                _ctx(request, user=user, error="Ese email ya está en uso.", estados=list(TeacherStatus)),
+                status_code=400,
+            )
+
+    # alias único
+    if alias:
+        dupe_alias = (
+            await session.execute(
+                select(Teacher).where(Teacher.alias == alias)
+            )
+        ).scalar_one_or_none()
+        if dupe_alias:
+            return _templates(request).TemplateResponse(
+                "teachers_create.html",
+                _ctx(request, user=user, error="Ese alias ya está en uso.", estados=list(TeacherStatus)),
+                status_code=400,
+            )
+
+    # CREACIÓN
+    new_t = Teacher(
+        name=name,
+        email=email or None,
+        alias=alias or None,
+        status=TeacherStatus[status],
+        titular=bool(titular),
+    )
+
+    session.add(new_t)
+    await session.commit()
+
+    return RedirectResponse("/teachers/list", status_code=303)
+    
+
+# ======================================================
 #   FUNCIÓN AUXILIAR PARA GENERAR PDFs
 # ======================================================
 def _make_pdf(items, filename, title, center_name):
