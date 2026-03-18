@@ -18,7 +18,9 @@ from models import Absence, Leave, Teacher, ScheduleType, TeacherStatus
 from .schedule import get_teacher_slot, list_teachers_on_guard
 from absences_router import make_mask_all
 
+# 🔥 ORDENACIÓN SIN TILDES
 from utils import normalize_name
+
 
 # 7 franjas reales
 HOUR_ROWS = [
@@ -107,22 +109,19 @@ async def build_daily_report_pdf(
     head = ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"]
     data = [head]
 
-    obs_lines: List[str] = []
     weekday_py = the_date.weekday()
-    
+    weekday_name = DAYS.get(weekday_py)
+
     # ==========================================================
-    #   MEJORA 2 — Ausentes con Guardia de RECREO
+    #   Ausentes con Guardia de RECREO
     # ==========================================================
     ausentes_guardia_recreo: List[str] = []
 
     for tid in absent_ids:
         slot = await get_teacher_slot(session, tid, weekday_py, recreo_index)
         if slot and slot.type == ScheduleType.GUARD:
-            gtext = (slot.guard_type or "").upper()
-            if gtext.startswith("G RECREO"):
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
                 ausentes_guardia_recreo.append(name_by_id.get(tid))
-
-    weekday_name = DAYS.get(weekday_py)
 
     # ===================================================================
     #   GENERAR FILAS
@@ -130,7 +129,7 @@ async def build_daily_report_pdf(
     for label, hour_idx in HOUR_ROWS:
 
         # ===========================
-        #   FILA RECREO — SPAN TOTAL
+        #       FILA RECREO
         # ===========================
         if hour_idx == recreo_index:
             data.append(["RECREO"] + [""] * 6)
@@ -143,15 +142,17 @@ async def build_daily_report_pdf(
         # ------------------------
         for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
 
-            # 1) Excluir titulares sustituidos
+            # 1) Excluir docentes en baja con sustituto
             t = await session.get(Teacher, tid)
             if t.status in (TeacherStatus.baja, TeacherStatus.excedencia):
-                leave = (await session.execute(
-                    select(Leave).where(
-                        Leave.teacher_id == tid,
-                        Leave.end_date.is_(None)
+                leave = (
+                    await session.execute(
+                        select(Leave).where(
+                            Leave.teacher_id == tid,
+                            Leave.end_date.is_(None)
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
 
                 if leave and leave.substitute_teacher_id:
                     continue
@@ -166,13 +167,11 @@ async def build_daily_report_pdf(
 
             prof_name = name_by_id.get(tid)
 
-            # ========================================
-            #   MEJORA 1 → EXCLUIR SOLO CLASES ED
-            # ========================================
+            # Excluir SOLO ED
             if slot.type == ScheduleType.CLASS:
                 if (slot.group or "").upper() == "ED":
-                    continue  # SOLO ED no aparece
-                # Clase normal
+                    continue
+
                 row_prof.append(prof_name)
                 row_grp.append(slot.group or "")
                 row_room.append(slot.room or "")
@@ -184,10 +183,8 @@ async def build_daily_report_pdf(
                 gtext = (slot.guard_type or "").upper()
 
                 if gtext.startswith("G RECREO"):
-                    # en recreo → NO va a la tabla, solo a Observaciones (ya añadido)
                     continue
 
-                # guardia normal
                 row_prof.append(prof_name)
                 row_grp.append("guardia")
                 row_room.append("guardia")
@@ -195,7 +192,7 @@ async def build_daily_report_pdf(
                 continue
 
         # ------------------------
-        #   GUARDIAS (NO AUSENTES)
+        #   GUARDIAS NO AUSENTES
         # ------------------------
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
@@ -215,13 +212,15 @@ async def build_daily_report_pdf(
             guard_aliases.append(t.alias or t.name)
 
         def crush(xs: List[str]) -> str:
-            return "\n".join([str(s) for s in xs if s.strip()])
+            return "\n".join([s for s in xs if s.strip()])
 
+        # 🔥 ORDENACIÓN ANTES DE METER A LA TABLA
         row_prof_sorted = sorted(row_prof, key=lambda n: normalize_name(n))
         row_grp_sorted = sorted(row_grp)
         row_room_sorted = sorted(row_room)
         row_subj_sorted = sorted(row_subj)
-        
+        guard_aliases_sorted = sorted(guard_aliases, key=lambda n: normalize_name(n))
+
         data.append([
             label,
             crush(row_prof_sorted),
@@ -229,7 +228,7 @@ async def build_daily_report_pdf(
             crush(row_room_sorted),
             crush(row_subj_sorted),
             "",
-            crush(guard_aliases),
+            crush(guard_aliases_sorted),
         ])
 
     # ===================================================================
@@ -254,18 +253,15 @@ async def build_daily_report_pdf(
     )
     elements.append(Spacer(1, 6))
 
-
     # =======================================================
-    #   OBSERVACIONES FIJAS ARRIBA A LA IZQUIERDA
+    #   OBSERVACIONES
     # =======================================================
     row_h = 72
     recreo_h = 44
 
     parts = []
     if ausentes_guardia_recreo:
-        parts.append(
-            "Ausentes Guardia Recreo: " + "; ".join(ausentes_guardia_recreo)
-        )
+        parts.append("Ausentes Guardia Recreo: " + "; ".join(ausentes_guardia_recreo))
     if observaciones_usuario:
         parts.append(observaciones_usuario)
 
@@ -281,7 +277,7 @@ async def build_daily_report_pdf(
 
     obs_table.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.black),
-        ("ALIGN", (0,0), (-1,-1), "LEFT"),   # ← fijo arriba izquierda
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),
         ("VALIGN", (0,0), (-1,-1), "TOP"),
         ("LEFTPADDING", (0,0), (-1,-1), 4),
         ("RIGHTPADDING", (0,0), (-1,-1), 4),
@@ -290,11 +286,10 @@ async def build_daily_report_pdf(
     ]))
 
     elements.append(obs_table)
-    elements.append(Spacer(1,8))
-
+    elements.append(Spacer(1, 8))
 
     # =======================================================
-    #   TABLA PRINCIPAL DEL PARTE DIARIO
+    #   TABLA PRINCIPAL
     # =======================================================
     col_widths = [
         1.0 * cm,
@@ -322,8 +317,6 @@ async def build_daily_report_pdf(
 
         ("GRID", (0,0), (-1,-1), 0.5, colors.black),
 
-        ("BACKGROUND", (0,4), (-1,4), colors.lightgrey),
-
         ("FONTSIZE", (0,1), (-1,-1), 8),
 
         ("LEFTPADDING", (0,0), (-1,-1), 4),
@@ -332,6 +325,7 @@ async def build_daily_report_pdf(
         ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ])
 
+    # SPAN en recreo
     recreo_row_index = 1 + recreo_index
     ts.add("SPAN", (0, recreo_row_index), (-1, recreo_row_index))
     ts.add("ALIGN", (0, recreo_row_index), (-1, recreo_row_index), "CENTER")
@@ -346,7 +340,7 @@ async def build_daily_report_pdf(
 
 
 # ======================================================================
-#   HTML PREVIEW (idéntico en lógica al PDF)
+#   HTML PREVIEW
 # ======================================================================
 async def build_daily_report_data(
     session: AsyncSession,
@@ -368,17 +362,15 @@ async def build_daily_report_data(
     weekday_py = the_date.weekday()
     weekday_name = DAYS.get(weekday_py)
 
-    # MEJORA 2 — Ausentes con Guardia de Recreo
+    # Guardia recreo
     ausentes_guardia_recreo: List[str] = []
     for tid in absent_ids:
         slot = await get_teacher_slot(session, tid, weekday_py, recreo_index)
         if slot and slot.type == ScheduleType.GUARD:
-            gtext = (slot.guard_type or "").upper()
-            if gtext.startswith("G RECREO"):
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
                 ausentes_guardia_recreo.append(name_by_id.get(tid))
 
     obs_lines: List[str] = []
-
 
     for label, hour_idx in HOUR_ROWS:
 
@@ -391,16 +383,18 @@ async def build_daily_report_data(
         # ------------------------
         #     AUSENTES
         # ------------------------
-        for tid in sorted(absent_ids):
+        for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
 
             t = await session.get(Teacher, tid)
             if t.status in (TeacherStatus.baja, TeacherStatus.excedencia):
-                leave = (await session.execute(
-                    select(Leave).where(
-                        Leave.teacher_id == tid,
-                        Leave.end_date.is_(None)
+                leave = (
+                    await session.execute(
+                        select(Leave).where(
+                            Leave.teacher_id == tid,
+                            Leave.end_date.is_(None)
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
                 if leave and leave.substitute_teacher_id:
                     continue
 
@@ -414,15 +408,11 @@ async def build_daily_report_data(
 
             prof_name = name_by_id.get(tid)
 
-            # MEJORA 1 — excluir solo ED
             if slot.type == ScheduleType.CLASS and (slot.group or "").upper() == "ED":
                 continue
 
-            # Guardias
             if slot.type == ScheduleType.GUARD:
-                gtext = (slot.guard_type or "").upper()
-                if gtext.startswith("G RECREO"):
-                    # guardia recreo de ausente → observaciones
+                if (slot.guard_type or "").upper().startswith("G RECREO"):
                     continue
                 row_prof.append(prof_name)
                 row_grp.append("guardia")
@@ -430,7 +420,6 @@ async def build_daily_report_data(
                 row_subj.append("guardia")
                 continue
 
-            # Clase normal
             if slot.type == ScheduleType.CLASS:
                 row_prof.append(prof_name)
                 row_grp.append(slot.group or "")
@@ -438,7 +427,7 @@ async def build_daily_report_data(
                 row_subj.append(slot.subject or "")
 
         # ------------------------
-        #   GUARDIAS (NO AUSENTES)
+        #   GUARDIAS NO AUSENTES
         # ------------------------
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
@@ -450,8 +439,7 @@ async def build_daily_report_data(
             if not slot or slot.type != ScheduleType.GUARD:
                 continue
 
-            gtext = (slot.guard_type or "").upper()
-            if gtext.startswith("G RECREO"):
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
                 continue
 
             t = await session.get(Teacher, tid)
@@ -460,14 +448,21 @@ async def build_daily_report_data(
         def crush(xs: List[str]):
             return "\n".join([x for x in xs if x.strip()])
 
+        # 🔥 ORDENACIÓN PARA LA VISTA HTML TAMBIÉN
+        row_prof_sorted = sorted(row_prof, key=lambda n: normalize_name(n))
+        row_grp_sorted = sorted(row_grp)
+        row_room_sorted = sorted(row_room)
+        row_subj_sorted = sorted(row_subj)
+        guard_aliases_sorted = sorted(guard_aliases, key=lambda n: normalize_name(n))
+
         rows.append([
             label,
-            crush(row_prof),
-            crush(row_grp),
-            crush(row_room),
-            crush(row_subj),
+            crush(row_prof_sorted),
+            crush(row_grp_sorted),
+            crush(row_room_sorted),
+            crush(row_subj_sorted),
             "",
-            crush(guard_aliases),
+            crush(guard_aliases_sorted),
         ])
 
     # ==========================================================
