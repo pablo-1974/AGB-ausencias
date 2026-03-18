@@ -16,6 +16,8 @@ from services.pdf_teachers import generate_teachers_list_pdf
 
 from app import load_user_dep   # 🔥 IMPORTANTE: dependencia del usuario
 
+from utils.sort import normalize_name
+
 router = APIRouter()
 
 # ======================================================
@@ -44,9 +46,9 @@ def _ctx(request: Request, user: User, **extra):
 # ======================================================
 #   Helpers ordenación sin tildes
 # ======================================================
-def _normalize_name(name: str) -> str:
-    nf = unicodedata.normalize("NFD", name)
-    return "".join(ch for ch in nf if not unicodedata.combining(ch)).lower()
+#def _normalize_name(name: str) -> str:
+#    nf = unicodedata.normalize("NFD", name)
+#    return "".join(ch for ch in nf if not unicodedata.combining(ch)).lower()
 
 
 # ======================================================
@@ -55,7 +57,9 @@ def _normalize_name(name: str) -> str:
 async def _get_profesorado_actual(session: AsyncSession):
     q_activos = select(Teacher).where(Teacher.status == TeacherStatus.activo)
     activos = (await session.execute(q_activos)).scalars().all()
-    activos = sorted(activos, key=lambda t: _normalize_name(t.name))
+    
+    # ORDENACIÓN CORRECTA (sin tildes)
+    activos = sorted(activos, key=lambda t: normalize_name(t.name))
 
     q_bajas = (
         select(Teacher)
@@ -73,8 +77,10 @@ async def _get_profesorado_actual(session: AsyncSession):
     )
 
     ausentes_sin_sustituto = (await session.execute(q_bajas)).scalars().all()
+    
+    # ORDENACIÓN CORRECTA (sin tildes)
     ausentes_sin_sustituto = sorted(
-        ausentes_sin_sustituto, key=lambda t: _normalize_name(t.name)
+        ausentes_sin_sustituto, key=lambda t: normalize_name(t.name)
     )
 
     return activos, ausentes_sin_sustituto
@@ -83,13 +89,17 @@ async def _get_profesorado_actual(session: AsyncSession):
 async def _get_profesorado_titular(session: AsyncSession):
     q = select(Teacher).where(Teacher.titular == True)
     items = (await session.execute(q)).scalars().all()
-    return sorted(items, key=lambda t: _normalize_name(t.name))
+    
+    # ORDENACIÓN CORRECTA (sin tildes)
+    return sorted(items, key=lambda t: normalize_name(t.name))
 
 
 async def _get_profesorado_sustituto(session: AsyncSession):
     q = select(Teacher).where(Teacher.titular == False)
     items = (await session.execute(q)).scalars().all()
-    return sorted(items, key=lambda t: _normalize_name(t.name))
+    
+    # ORDENACIÓN CORRECTA (sin tildes)
+    return sorted(items, key=lambda t: normalize_name(t.name))
 
 
 # ======================================================
