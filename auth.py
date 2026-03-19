@@ -370,7 +370,10 @@ async def me_password_post(
     response.delete_cookie(
         key=COOKIE_NAME, path="/", samesite="lax", secure=is_secure, domain=None
     )
-    return response
+    return _templates(request).TemplateResponse(
+        "password_change.html",
+        _ctx(request, user=user, title="Cambiar contraseña")
+    )
 
 
 # ---------------------------
