@@ -10,9 +10,7 @@
 </div>
 {% endif %}
 
-<!-- ================================
-     FORMULARIO PRINCIPAL (EDITAR)
-================================= -->
+<!-- FORMULARIO PRINCIPAL (EDITAR) -->
 <form method="post" class="mb-4">
 
     <!-- Nombre -->
@@ -82,31 +80,28 @@
     <button type="submit" class="btn btn-primary">
         Guardar cambios
     </button>
+
 </form>
 
 
-<!-- ================================
-     FORMULARIO SECUNDARIO: EXPROFE
-================================= -->
-/teachers/delete/{{ teacher.id }}
+<!-- FORMULARIO SECUNDARIO: MARCAR EXPROFE -->
+<form method="post" action="/teachers/delete/{{ teacher.id }}">
     <button type="submit" class="btn btn-danger">
         Marcar como Exprofesor
     </button>
 </form>
 
 
-<!-- ================================
-     BOTONES DE NAVEGACIÓN
-================================= -->
+<!-- BOTONES DE NAVEGACIÓN -->
 <div class="d-flex gap-3">
 
     <!-- Volver -->
-    /teachers/list
+    <a href="/teachers/list" class="btn btn-secondary">
         Volver
     </a>
 
     <!-- Crear nuevo profesor -->
-    /teachers/create
+    <a href="/teachers/create" class="btn btn-success">
         Añadir profesor nuevo
     </a>
 
