@@ -17,6 +17,8 @@ from database import get_session
 from config import settings
 from models import User, Role
 
+from app.context import ctx as _ctx
+
 COOKIE_NAME = "ausencias_session"
 
 logger = logging.getLogger("uvicorn.error")
