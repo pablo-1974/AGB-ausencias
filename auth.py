@@ -336,15 +336,7 @@ async def me_password_page(
 ):
     return _templates(request).TemplateResponse(
         "password_change.html",
-        {
-            "request": request,
-            "user": user,
-            "title": "Cambiar contraseña",
-            "app_name": settings.APP_NAME,
-            "institution_name": settings.INSTITUTION_NAME,
-            "logo_path": settings.LOGO_PATH,
-            "year": date.today().year,
-        },
+        _ctx(request, user=user, title="Cambiar contraseña")
     )
 
 
