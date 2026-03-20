@@ -13,6 +13,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from passlib.hash import bcrypt
 
+from datetime import date, datetime
+
 from database import get_session
 from config import settings
 from models import User, Role
@@ -332,7 +334,10 @@ async def register_post(
 # ---------------------------
 
 @router.get("/me/password")
-async def me_password_page(request: Request, user: User = Depends(current_user)):
+async def me_password_page(
+    request: Request,
+    user: User = Depends(current_user),
+):
     return _templates(request).TemplateResponse(
         "password_change.html",
         {
@@ -342,7 +347,8 @@ async def me_password_page(request: Request, user: User = Depends(current_user))
             "app_name": settings.APP_NAME,
             "institution_name": settings.INSTITUTION_NAME,
             "logo_path": settings.LOGO_PATH,
-            "year": date.today().year,
+            "now_dt": datetime.now(),
+            "now": date.today(),
         },
     )
 
