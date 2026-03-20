@@ -1,4 +1,10 @@
 # teachers_router.py
+# ======================================================
+# teachers_router.py — RUTAS DE PROFESORADO
+# Documentado para saber qué hace cada ruta, a dónde redirige
+# y si es solo para admin o para cualquier usuario autenticado.
+# ======================================================
+
 from __future__ import annotations
 from datetime import date
 from typing import Optional
@@ -22,7 +28,9 @@ router = APIRouter()
 # ======================================================
 #   Helpers plantillas
 # ======================================================
+
 def _templates(request: Request):
+    """Devuelve el motor de plantillas."""
     return request.app.state.templates
 
 def _ctx(request: Request, user: User, **extra):
@@ -43,8 +51,11 @@ def _ctx(request: Request, user: User, **extra):
 
 # ======================================================
 #   PROFESORADO ACTUAL: ACTIVO + BAJA SIN SUSTITUTO
+#     Helpers internos: obtención de profes según tipo
+#     (Estas funciones no son rutas, solo lógica interna)
 # ======================================================
 async def _get_profesorado_actual(session: AsyncSession):
+    """Devuelve activos + bajas sin sustituto, ordenados."""
     q_activos = select(Teacher).where(Teacher.status == TeacherStatus.activo)
     activos = (await session.execute(q_activos)).scalars().all()
     activos = sorted(activos, key=lambda t: normalize_name(t.name))
@@ -73,20 +84,25 @@ async def _get_profesorado_actual(session: AsyncSession):
 
 
 async def _get_profesorado_titular(session: AsyncSession):
+    """Devuelve solo titulares."""
     q = select(Teacher).where(Teacher.titular == True)
     items = (await session.execute(q)).scalars().all()
     return sorted(items, key=lambda t: normalize_name(t.name))
 
 
 async def _get_profesorado_sustituto(session: AsyncSession):
+    """Devuelve solo sustitutos."""
     q = select(Teacher).where(Teacher.titular == False)
     items = (await session.execute(q)).scalars().all()
     return sorted(items, key=lambda t: normalize_name(t.name))
 
 
 # ======================================================
-#   RUTA PRINCIPAL /teachers/list
+# RUTA: /teachers/list  (acceso: CUALQUIER USUARIO AUTENTICADO)
+# Página informativa, SIN edición.
+# Se muestran profesores según filtro: actual / titular / sustituto.
 # ======================================================
+
 @router.get("/teachers/list")
 async def teachers_list(
     request: Request,
@@ -126,14 +142,17 @@ async def teachers_list(
 
 
 # ======================================================
-#   NUEVO: CREAR PROFESOR — GET
+# RUTA: /teachers/create (GET)  (ACCESO: ADMIN)
+# Muestra formulario de creación de profesor.
+# Redirige a: templates/teachers_create.html
 # ======================================================
+
 @router.get("/teachers/create")
 async def teacher_create_form(
     request: Request,
     user: User = Depends(load_user_dep),
 ):
-    if not user:
+    if not user or user.role.name != "admin":
         return RedirectResponse("/login", status_code=303)
 
     return _templates(request).TemplateResponse(
@@ -143,8 +162,11 @@ async def teacher_create_form(
 
 
 # ======================================================
-#   NUEVO: CREAR PROFESOR — POST
+# RUTA: /teachers/create (POST)  (ACCESO: ADMIN)
+# Crea profesor.
+# IMPORTANTE: después de tu ajuste debería redirigir a /teachers/admin
 # ======================================================
+
 @router.post("/teachers/create")
 async def teacher_create_save(
     request: Request,
@@ -157,7 +179,7 @@ async def teacher_create_save(
     status: str = Form(...),
     titular: Optional[str] = Form(None),
 ):
-    if not user:
+    if not user or user.role.name != "admin":
         return RedirectResponse("/login", status_code=303)
 
     name = name.strip()
@@ -212,7 +234,7 @@ async def teacher_create_save(
     session.add(new_t)
     await session.commit()
 
-    return RedirectResponse("/teachers/list", status_code=303)
+    return RedirectResponse("/teachers/admin", status_code=303)
     
 
 # ======================================================
@@ -237,9 +259,11 @@ def _make_pdf(items, filename, title, center_name):
 
 
 # ======================================================
-#   MENÚ COMPLETO DE PDFS
+# Rutas de PDF (acceso: CUALQUIER USUARIO AUTENTICADO)
+# Generan PDFs del profesorado según estado.
 # ======================================================
 
+# ==== PDF de todos los profesores =====================
 @router.get("/teachers/print/all")
 async def teachers_print_all(session: AsyncSession = Depends(get_session)):
     rows = (await session.execute(select(Teacher))).scalars().all()
@@ -254,6 +278,7 @@ async def teachers_print_all(session: AsyncSession = Depends(get_session)):
     )
 
 
+# ==== PDF de profesores activos =====================
 @router.get("/teachers/print/activos")
 async def teachers_print_activos(session: AsyncSession = Depends(get_session)):
     rows = (
@@ -272,6 +297,7 @@ async def teachers_print_activos(session: AsyncSession = Depends(get_session)):
     )
 
 
+# ==== PDF de profesores en baja/excedencia =====================
 @router.get("/teachers/print/bajas")
 async def teachers_print_bajas(session: AsyncSession = Depends(get_session)):
     rows = (
@@ -292,6 +318,7 @@ async def teachers_print_bajas(session: AsyncSession = Depends(get_session)):
     )
 
 
+# ==== PDF de exprofesores =====================
 @router.get("/teachers/print/exprofes")
 async def teachers_print_exprofes(session: AsyncSession = Depends(get_session)):
     rows = (
@@ -311,8 +338,11 @@ async def teachers_print_exprofes(session: AsyncSession = Depends(get_session)):
 
 
 # ======================================================
-#   NUEVO: EDITAR PROFESOR — GET
+# RUTA: /teachers/edit/{id} (GET)  (ACCESO: ADMIN)
+# Abre formulario de edición.
+# Redirige a: templates/teachers_edit.html
 # ======================================================
+
 @router.get("/teachers/edit/{teacher_id}")
 async def teacher_edit_form(
     teacher_id: int,
@@ -320,7 +350,7 @@ async def teacher_edit_form(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(load_user_dep),
 ):
-    if not user:
+    if not user or user.role.name != "admin":
         return RedirectResponse("/login", status_code=303)
 
     t = await session.get(Teacher, teacher_id)
@@ -334,8 +364,11 @@ async def teacher_edit_form(
 
 
 # ======================================================
-#   NUEVO: EDITAR PROFESOR — POST
+# RUTA: /teachers/edit/{id} (POST)  (ACCESO: ADMIN)
+# Guarda cambios de profesor.
+# Redirige SIEMPRE a /teachers/admin
 # ======================================================
+
 @router.post("/teachers/edit/{teacher_id}")
 async def teacher_edit_save(
     teacher_id: int,
@@ -349,7 +382,7 @@ async def teacher_edit_save(
     status: str = Form(...),
     titular: Optional[str] = Form(None),
 ):
-    if not user:
+    if not user or user.role.name != "admin":
         return RedirectResponse("/login", status_code=303)
 
     t = await session.get(Teacher, teacher_id)
@@ -416,16 +449,18 @@ async def teacher_edit_save(
 
 
 # ======================================================
-#   NUEVO: ELIMINAR (SEGURO)
-#   NO se borra: se marca como EXPROFE
+# RUTA: /teachers/delete/{id}  (POST)  (ACCESO: ADMIN)
+# Eliminación segura: marca como exprofe.
+# Redirige a /teachers/admin
 # ======================================================
+
 @router.post("/teachers/delete/{teacher_id}")
 async def teacher_delete(
     teacher_id: int,
     session: AsyncSession = Depends(get_session),
     user: User = Depends(load_user_dep),
 ):
-    if not user:
+    if not user or user.role.name != "admin":
         return RedirectResponse("/login", status_code=303)
 
     t = await session.get(Teacher, teacher_id)
@@ -437,6 +472,14 @@ async def teacher_delete(
     await session.commit()
 
     return RedirectResponse("/teachers/admin", status_code=303)
+
+
+# ======================================================
+# RUTA: /teachers/admin  (GET)  (ACCESO: SOLO ADMIN)
+# Panel de edición completo del profesorado:
+# lista editable, botones Editar y Eliminar.
+# Redirige a: templates/teachers_admin_list.html
+# ======================================================
 
 @router.get("/teachers/admin")
 async def teachers_admin_list(
