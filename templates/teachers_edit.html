@@ -10,111 +10,74 @@
 </div>
 {% endif %}
 
-<!-- FORMULARIO PRINCIPAL (EDITAR) -->
-<form method="post" class="mb-4">
+<form method="post" class="space-y-4">
 
-    <!-- Nombre -->
-    <div>
-        <label for="inpName" class="form-label">Nombre</label>
-        <input
-            id="inpName"
-            name="name"
-            type="text"
-            class="input w-full text-lg py-2 px-3"
-            value="{{ teacher.name }}"
-            required
-        >
-    </div>
+  <!-- Nombre -->
+  <div>
+    <label class="label">Nombre</label>
+    <input
+      type="text"
+      name="name"
+      class="input w-full text-lg py-2 px-3"
+      value="{{ teacher.name }}"
+      required
+    >
+  </div>
 
-    <!-- Email -->
-    <div>
-        <label for="inpEmail" class="form-label">Email</label>
-        <input
-            id="inpEmail"
-            name="email"
-            type="email"
-            class="input w-full text-lg py-2 px-3"
-            value="{{ teacher.email or '' }}"
-        >
-    </div>
+  <!-- Email -->
+  <div>
+    <label class="label">Email</label>
+    <input
+      type="email"
+      name="email"
+      class="input w-full text-lg py-2 px-3"
+      value="{{ teacher.email or '' }}"
+    >
+  </div>
 
-    <!-- Alias -->
-    <div class="mb-3">
-        <label for="inpAlias" class="form-label">Alias</label>
-        <input
-            id="inpAlias"
-            name="alias"
-            type="text"
-            class="input w-full text-lg py-2 px-3"
-            value="{{ teacher.alias or '' }}"
-        >
-    </div>
+  <!-- Alias -->
+  <div>
+    <label class="label">Alias</label>
+    <input
+      type="text"
+      name="alias"
+      class="input w-full text-lg py-2 px-3"
+      value="{{ teacher.alias or '' }}"
+    >
+  </div>
 
-
-    <!-- Estado -->
-    <div>
-      <label for="selStatus" class="label">Estado</label>
-      <select id="selStatus" name="status" class="input w-full text-lg py-2 px-3">
-        {% for st in estados %}
+  <!-- Estado -->
+  <div>
+    <label class="label">Estado</label>
+    <select name="status" class="input w-full text-lg py-2 px-3">
+      {% for st in estados %}
         <option value="{{ st.name }}" {% if teacher.status == st %}selected{% endif %}>
           {{ st.name }}
         </option>
-        {% endfor %}
-      </select>
-    </div>
+      {% endfor %}
+    </select>
+  </div>
 
+  <!-- Titular -->
+  <div>
+    <input type="checkbox" class="form-check-input" name="titular"
+           {% if teacher.titular %}checked{% endif %}>
+    <label class="form-check-label">Titular</label>
+  </div>
 
-    <!-- Titular -->
-    <div class="form-check mb-4">
-        <input
-            class="form-check-input"
-            type="checkbox"
-            id="chkTitular"
-            name="titular"
-            {% if teacher.titular %}checked{% endif %}
-        >
-        <label for="chkTitular" class="form-check-label">
-            Titular
-        </label>
-    </div>
+  <!-- BOTONES -->
+  <div class="flex gap-3 justify-end">
 
-    
-    <!-- BOTONES -->
-    <div class="flex gap-3 justify-end">
+    <!-- Cancelar -->
+    <a href="/teachers/admin" class="btn-muted">Cancelar</a>
 
-      <!-- Cancelar -->
-      <a href="/teachers/admin" class="btn-muted">Cancelar</a>
-
-      <!-- Guardar -->
-      <button type="submit" class="btn-primary">
-        Guardar cambios
-      </button>
-
-
-</form>
-
-
-<!-- FORMULARIO SECUNDARIO: MARCAR EXPROFE -->
-<form method="post" action="/teachers/delete/{{ teacher.id }}">
-    <button type="submit" class="btn btn-danger">
-        Marcar como Exprofesor
+    <!-- Guardar -->
+    <button type="submit" class="btn-primary">
+      Guardar cambios
     </button>
+
+  </div>
+
 </form>
-
-
-<!-- BOTONES DE NAVEGACIÓN -->
-<div class="d-flex gap-3">
-
-    <!-- Volver -->
-    <a href="/teachers/list" class="btn btn-secondary">
-        Volver
-    </a>
-
-    <!-- Crear nuevo profesor -->
-    <a href="/teachers/create" class="btn btn-success">
-        Añadir profesor nuevo
-    </a>
-
-</div>
 
 {% endblock %}
