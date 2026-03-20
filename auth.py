@@ -332,13 +332,18 @@ async def register_post(
 # ---------------------------
 
 @router.get("/me/password")
-async def me_password_page(
-    request: Request,
-    user: User = Depends(current_user)
-):
+async def me_password_page(request: Request, user: User = Depends(current_user)):
     return _templates(request).TemplateResponse(
         "password_change.html",
-        _ctx(request, user=user, title="Cambiar contraseña")
+        {
+            "request": request,
+            "user": user,
+            "title": "Cambiar contraseña",
+            "app_name": settings.APP_NAME,
+            "institution_name": settings.INSTITUTION_NAME,
+            "logo_path": settings.LOGO_PATH,
+            "year": date.today().year,
+        },
     )
 
 
