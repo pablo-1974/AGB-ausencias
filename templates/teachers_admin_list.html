@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Edición de profesorado</h2>
+
+<div class="mb-4">
+  <a href="/teachers/create" class="btn-primary">Añadir profesor</a>
+</div>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Email</th>
+      <th>Estado</th>
+      <th>Titular</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in lista %}
+    <tr>
+      <td>{{ t.name }}</td>
+      <td>{{ t.email or "" }}</td>
+      <td>{{ t.status.name }}</td>
+      <td>{{ "Sí" if t.titular else "No" }}</td>
+      <td class="text-right">
+        <a href="/teachers/edit/{{ t.id }}" class="btn-muted">Editar</a>
+
+        <form method="post" action="/teachers/delete/{{ t.id }}" style="display:inline">
+          <button class="btn-danger" type="submit">Exprofe</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
