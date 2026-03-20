@@ -510,6 +510,7 @@ async def absences_edit_save(
     hour_from: Optional[int] = Form(None),
     hour_to: Optional[int] = Form(None),
     cause: str = Form(""),
+    category: str = Form(""),
 ):
     user = admin
 
@@ -534,6 +535,7 @@ async def absences_edit_save(
     a.date = date_
     a.hours_mask = mask
     a.note = cause
+    a.category = (category or "").strip()
     await session.commit()
 
     return RedirectResponse("/absences/admin", 303)
