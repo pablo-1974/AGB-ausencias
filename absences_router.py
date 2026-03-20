@@ -383,3 +383,143 @@ async def absences_new_create(
         f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}",
         status_code=303,
     )
+
+
+# ======================================================
+# RUTA: /absences/admin  (GET)  (ACCESO: SOLO ADMIN)
+# Panel de edición completo de ausencias
+# ======================================================
+
+@router.get("/absences/admin")
+async def absences_admin_list(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    user = admin  # la plantilla necesita "user"
+
+    # Obtener todas las ausencias con sus profesores
+    rows = (
+        await session.execute(
+            select(Absence, Teacher)
+            .join(Teacher, Teacher.id == Absence.teacher_id)
+            .order_by(Absence.date.desc(), Teacher.name.asc())
+        )
+    ).all()
+
+    items = [{
+        "id": a.id,
+        "day": a.date,
+        "teacher_name": t.name,
+        "teacher_id": t.id,
+        "hours_str": mask_to_human(a.hours_mask or 0),
+        "cause": (a.note or "").strip(),
+    } for (a, t) in rows]
+
+    return _templates(request).TemplateResponse(
+        "absences_admin_list.html",
+        _ctx(
+            request,
+            user=user,
+            title="Edición de ausencias",
+            items=items,
+        )
+    )
+
+
+# ======================================================
+# RUTA: /absences/edit/{id} (GET)  (ACCESO: ADMIN)
+# Abre formulario de edición de ausencia
+# ======================================================
+
+@router.get("/absences/edit/{absence_id}")
+async def absences_edit_form(
+    absence_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    user = admin
+
+    a = await session.get(Absence, absence_id)
+    if not a:
+        return RedirectResponse("/absences/admin", status_code=303)
+
+    t = await session.get(Teacher, a.teacher_id)
+
+    return _templates(request).TemplateResponse(
+        "absences_edit.html",
+        _ctx(
+            request,
+            user=user,
+            title="Editar ausencia",
+            absence=a,
+            teacher=t,
+            hours_str=mask_to_human(a.hours_mask or 0),
+        ),
+    )
+
+
+# ======================================================
+# RUTA: /absences/edit/{id} (POST)  (ACCESO: ADMIN)
+# Guarda los cambios en la ausencia
+# ======================================================
+
+@router.post("/absences/edit/{absence_id}")
+async def absences_edit_save(
+    absence_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+
+    date_: date = Form(...),
+    hours_mode: str = Form(...),
+    hour_from: Optional[int] = Form(None),
+    hour_to: Optional[int] = Form(None),
+    cause: str = Form(""),
+):
+    user = admin
+
+    a = await session.get(Absence, absence_id)
+    if not a:
+        return RedirectResponse("/absences/admin", status_code=303)
+
+    cause = (cause or "").strip()
+
+    # Reconstruir la máscara de horas
+    if hours_mode == "all":
+        mask = make_mask_all()
+    else:
+        try:
+            fi = int(hour_from)
+            ti = int(hour_to)
+            mask = make_mask_range(fi, ti)
+        except:
+            return RedirectResponse("/absences/admin", status_code=303)
+
+    # Guardar cambios
+    a.date = date_
+    a.hours_mask = mask
+    a.note = cause
+    await session.commit()
+
+    return RedirectResponse("/absences/admin", status_code=303)
+
+
+# ======================================================
+# RUTA: /absences/delete/{id} (POST) (ACCESO: ADMIN)
+# Elimina la ausencia (delete real en este caso)
+# ======================================================
+
+@router.post("/absences/delete/{absence_id}")
+async def absences_delete(
+    absence_id: int,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    a = await session.get(Absence, absence_id)
+    if a:
+        await session.delete(a)
+        await session.commit()
+
+    return RedirectResponse("/absences/admin", status_code=303)
