@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Edición de bajas</h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Profesor</th>
+      <th>Inicio</th>
+      <th>Fin</th>
+      <th>Motivo</th>
+      <th style="width: 140px;"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for l in items %}
+    <tr>
+      <td>{{ l.teacher_name }}</td>
+      <td>{{ l.start_date }}</td>
+      <td>{{ l.end_date or "—" }}</td>
+      <td>{{ l.reason }}</td>
+
+      <td class="text-right flex gap-2 justify-end">
+
+        <a href="/leaves/edit/{{ l.id }}" class="btn-muted btn-sm">Editar</a>
+
+        <form method="post" action="/leaves/delete/{{ l.id }}" style="display:inline">
+          <button type="submit"
+                  class="btn-danger btn-sm"
+                  onclick="return confirm('¿Seguro que deseas eliminar esta baja?');">
+            Eliminar
+          </button>
+        </form>
+
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+
+</table>
+
+{% endblock %}
