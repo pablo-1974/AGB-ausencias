@@ -1,4 +1,11 @@
 # absences_router.py
+# ======================================================
+# absences_router.py — RUTAS DE AUSENCIAS
+# Documentado: indica para qué sirve cada ruta,
+# quién puede acceder (admin / usuario), a qué plantilla
+# redirige y qué hace exactamente.
+# ======================================================
+
 from __future__ import annotations
 
 from datetime import date
@@ -12,10 +19,10 @@ import calendar
 
 from database import get_session
 from config import settings
-from auth import admin_required
+from auth import admin_required              # ← protege rutas admin
 from models import Teacher, TeacherStatus, Leave, Absence, User
 
-# 🔥 PARA CARGAR EL USUARIO LOGUEADO
+# 🔥 Para obtener el usuario logueado (aunque la mayoría son admin)
 from app import load_user_dep
 
 from utils import normalize_name
@@ -23,17 +30,18 @@ from utils import normalize_name
 router = APIRouter()
 
 
-# -----------------------------
-# Helpers plantillas/contexto
-# -----------------------------
+# ======================================================
+# Helpers de plantillas / contexto
+# ======================================================
 def _templates(request: Request):
+    """Devuelve el motor de plantillas."""
     return request.app.state.templates
 
 
 def _ctx(request: Request, user: User, **extra):
     """
-    Helper uniforme que INCLUYE SIEMPRE user en el contexto,
-    porque base.html lo necesita para mostrar menú, rol, etc.
+    Contexto común: incluye SIEMPRE user porque base.html
+    necesita user, rol, logo_path, etc.
     """
     base = {
         "request": request,
@@ -47,15 +55,20 @@ def _ctx(request: Request, user: User, **extra):
     return base
 
 
-# -----------------------------
-# Sistema de 7 franjas
-# -----------------------------
+# ======================================================
+# SISTEMA DE 7 FRANJAS (para representar horas de ausencia)
+# Helpers internos, NO son rutas.
+# ======================================================
 HOUR_LABELS = ["1ª", "2ª", "3ª", "Recreo", "4ª", "5ª", "6ª"]
 
+
 def make_mask_all():
+    """Máscara completa (todas las horas)."""
     return (1 << 7) - 1
 
+
 def make_mask_range(from_idx: int, to_idx: int) -> int:
+    """Máscara para un rango de horas (p. ej. 1ª-3ª)."""
     if from_idx > to_idx:
         from_idx, to_idx = to_idx, from_idx
     mask = 0
@@ -63,7 +76,9 @@ def make_mask_range(from_idx: int, to_idx: int) -> int:
         mask |= (1 << i)
     return mask
 
+
 def mask_to_human(mask: int) -> str:
+    """Convierte la máscara de horas en texto legible."""
     if mask <= 0:
         return "—"
     if mask == make_mask_all():
@@ -93,19 +108,22 @@ def mask_to_human(mask: int) -> str:
     return ", ".join(parts)
 
 
-# ==================================
-# VER AUSENCIAS
-# ==================================
+# ======================================================
+# RUTA: /absences/manage (GET) — ACCESO: SOLO ADMIN
+# Vista principal para ver ausencias en un rango.
+# Plantilla: absences_manage.html
+# ======================================================
 @router.get("/absences/manage", response_class=HTMLResponse)
 async def absences_manage(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),    # admin_required ya devuelve un usuario admin
+    admin: User = Depends(admin_required),   # admin_required → usuario admin
     since: Optional[str] = Query(None, alias="from"),
     until: Optional[str] = Query(None, alias="to"),
 ):
-    user = admin  # 🔥 La plantilla necesita "user", no "admin"
+    user = admin   # base.html necesita "user"
 
+    # Cálculo de rango fechas
     today = date.today()
     try:
         d_from = date.fromisoformat(since) if since else today
@@ -120,6 +138,7 @@ async def absences_manage(
     if d_from > d_to:
         d_from, d_to = d_to, d_from
 
+    # Obtener ausencias y profesores relacionados
     res = await session.execute(
         select(Absence, Teacher)
         .join(Teacher, Teacher.id == Absence.teacher_id)
@@ -151,9 +170,11 @@ async def absences_manage(
     )
 
 
-# =====================================
-# CATALOGAR AUSENCIAS
-# =====================================
+# ======================================================
+# RUTA: /absences/categorize (GET) — SOLO ADMIN
+# Permite clasificar ausencias por categoría.
+# Plantilla: absences_categorize.html
+# ======================================================
 ABSENCE_CATEGORIES = [
     ("A", "Enfermedad >3 días"),
     ("B", "Matrimonio"),
@@ -170,8 +191,10 @@ ABSENCE_CATEGORIES = [
     ("Z", "Actividad del centro"),
 ]
 
+
 def _first_day_of_month(d: date) -> date:
     return date(d.year, d.month, 1)
+
 
 def _last_day_of_month(d: date) -> date:
     last = calendar.monthrange(d.year, d.month)[1]
@@ -187,8 +210,9 @@ async def absences_categorize(
     since: Optional[str] = Query(None, alias="from"),
     until: Optional[str] = Query(None, alias="to"),
 ):
-    user = admin  # 🔥 Pasamos admin como user a la plantilla
+    user = admin   # plantilla necesita user
 
+    # Preparar rango
     today = date.today()
     d_from = date.fromisoformat(since) if since else _first_day_of_month(today)
     d_to = date.fromisoformat(until) if until else _last_day_of_month(today)
@@ -196,6 +220,7 @@ async def absences_categorize(
     if d_from > d_to:
         d_from, d_to = d_to, d_from
 
+    # Consulta
     q = (
         select(Absence, Teacher)
         .join(Teacher, Teacher.id == Absence.teacher_id)
@@ -233,6 +258,10 @@ async def absences_categorize(
     )
 
 
+# ======================================================
+# RUTA: /absences/categorize (POST) — SOLO ADMIN
+# Guarda la categoría seleccionada.
+# ======================================================
 @router.post("/absences/categorize")
 async def absences_categorize_post(
     request: Request,
@@ -245,23 +274,28 @@ async def absences_categorize_post(
     valid_codes = {code for code, _ in ABSENCE_CATEGORIES}
     category = (category or "").strip().upper()
 
+    # Categoría inválida
     if category not in valid_codes:
-        return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
+        return RedirectResponse(next_url or "/absences/categorize?scope=pending", 303)
 
     a = await session.get(Absence, absence_id)
     if not a:
-        return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
+        return RedirectResponse(next_url or "/absences/categorize?scope=pending", 303)
 
     a.category = category
     await session.commit()
 
-    return RedirectResponse(next_url or "/absences/categorize?scope=pending", status_code=303)
+    return RedirectResponse(next_url or "/absences/categorize?scope=pending", 303)
 
 
-# ==================================
-# NUEVA AUSENCIA
-# ==================================
+# ======================================================
+# RUTAS: NUEVA AUSENCIA (GET/POST) — SOLO ADMIN
+# Plantillas: absences_new.html
+# ======================================================
 def _teachers_active_on(session: AsyncSession, target: date):
+    """
+    Devuelve profesores activos ese día (sin baja activa).
+    """
     leave_cover = and_(
         Leave.teacher_id == Teacher.id,
         Leave.start_date <= target,
@@ -313,7 +347,7 @@ async def absences_new_create(
     hour_to: Optional[int] = Form(None),
     cause: str = Form(...),
 ):
-    user = admin  # Para consistencia, aunque esta ruta solo redirige
+    user = admin
 
     cause = (cause or "").strip()
     if not cause:
@@ -332,6 +366,7 @@ async def absences_new_create(
             status_code=400,
         )
 
+    # Convertir horas en máscara
     if hours_mode == "all":
         mask = make_mask_all()
     else:
@@ -358,6 +393,7 @@ async def absences_new_create(
 
         mask = make_mask_range(fi, ti)
 
+    # Guardar o actualizar ausencia
     existing = (
         await session.execute(
             select(Absence).where(and_(Absence.teacher_id == teacher_id, Absence.date == day))
@@ -386,19 +422,17 @@ async def absences_new_create(
 
 
 # ======================================================
-# RUTA: /absences/admin  (GET)  (ACCESO: SOLO ADMIN)
-# Panel de edición completo de ausencias
+# RUTA: /absences/admin (GET) — SOLO ADMIN
+# Panel central de edición de ausencias
 # ======================================================
-
 @router.get("/absences/admin")
 async def absences_admin_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    user = admin  # la plantilla necesita "user"
+    user = admin
 
-    # Obtener todas las ausencias con sus profesores
     rows = (
         await session.execute(
             select(Absence, Teacher)
@@ -411,7 +445,6 @@ async def absences_admin_list(
         "id": a.id,
         "day": a.date,
         "teacher_name": t.name,
-        "teacher_id": t.id,
         "hours_str": mask_to_human(a.hours_mask or 0),
         "cause": (a.note or "").strip(),
     } for (a, t) in rows]
@@ -428,10 +461,9 @@ async def absences_admin_list(
 
 
 # ======================================================
-# RUTA: /absences/edit/{id} (GET)  (ACCESO: ADMIN)
-# Abre formulario de edición de ausencia
+# RUTA: /absences/edit/{id} (GET) — SOLO ADMIN
+# Abre formulario para editar una ausencia
 # ======================================================
-
 @router.get("/absences/edit/{absence_id}")
 async def absences_edit_form(
     absence_id: int,
@@ -443,7 +475,7 @@ async def absences_edit_form(
 
     a = await session.get(Absence, absence_id)
     if not a:
-        return RedirectResponse("/absences/admin", status_code=303)
+        return RedirectResponse("/absences/admin", 303)
 
     t = await session.get(Teacher, a.teacher_id)
 
@@ -461,10 +493,9 @@ async def absences_edit_form(
 
 
 # ======================================================
-# RUTA: /absences/edit/{id} (POST)  (ACCESO: ADMIN)
-# Guarda los cambios en la ausencia
+# RUTA: /absences/edit/{id} (POST) — SOLO ADMIN
+# Guarda los cambios en una ausencia
 # ======================================================
-
 @router.post("/absences/edit/{absence_id}")
 async def absences_edit_save(
     absence_id: int,
@@ -482,11 +513,11 @@ async def absences_edit_save(
 
     a = await session.get(Absence, absence_id)
     if not a:
-        return RedirectResponse("/absences/admin", status_code=303)
+        return RedirectResponse("/absences/admin", 303)
 
     cause = (cause or "").strip()
 
-    # Reconstruir la máscara de horas
+    # Máscara de horas
     if hours_mode == "all":
         mask = make_mask_all()
     else:
@@ -495,7 +526,7 @@ async def absences_edit_save(
             ti = int(hour_to)
             mask = make_mask_range(fi, ti)
         except:
-            return RedirectResponse("/absences/admin", status_code=303)
+            return RedirectResponse("/absences/admin", 303)
 
     # Guardar cambios
     a.date = date_
@@ -503,14 +534,13 @@ async def absences_edit_save(
     a.note = cause
     await session.commit()
 
-    return RedirectResponse("/absences/admin", status_code=303)
+    return RedirectResponse("/absences/admin", 303)
 
 
 # ======================================================
-# RUTA: /absences/delete/{id} (POST) (ACCESO: ADMIN)
-# Elimina la ausencia (delete real en este caso)
+# RUTA: /absences/delete/{id} (POST) — SOLO ADMIN
+# Borra una ausencia (DELETE real)
 # ======================================================
-
 @router.post("/absences/delete/{absence_id}")
 async def absences_delete(
     absence_id: int,
@@ -522,4 +552,4 @@ async def absences_delete(
         await session.delete(a)
         await session.commit()
 
-    return RedirectResponse("/absences/admin", status_code=303)
+    return RedirectResponse("/absences/admin", 303)
