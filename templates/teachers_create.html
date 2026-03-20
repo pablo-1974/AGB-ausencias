@@ -10,80 +10,70 @@
 </div>
 {% endif %}
 
-<form method="post">
+<form method="post" class="space-y-4">
 
-    <!-- Nombre -->
-    <div class="mb-3">
-        <label for="inpName" class="form-label">Nombre</label>
-        <input
-            id="inpName"
-            name="name"
-            type="text"
-            class="form-control"
-            required
-        >
-    </div>
+  <!-- Nombre -->
+  <div>
+    <label for="inpName" class="label">Nombre</label>
+    <input
+      id="inpName"
+      name="name"
+      type="text"
+      class="input w-full text-lg py-2 px-3"
+      required
+    >
+  </div>
 
-    <!-- Email -->
-    <div class="mb-3">
-        <label for="inpEmail" class="form-label">Email</label>
-        <input
-            id="inpEmail"
-            name="email"
-            type="email"
-            class="form-control"
-        >
-    </div>
+  <!-- Email -->
+  <div>
+    <label for="inpEmail" class="label">Email</label>
+    <input
+      id="inpEmail"
+      name="email"
+      type="email"
+      class="input w-full text-lg py-2 px-3"
+    >
+  </div>
 
-    <!-- Alias -->
-    <div class="mb-3">
-        <label for="inpAlias" class="form-label">Alias</label>
-        <input
-            id="inpAlias"
-            name="alias"
-            type="text"
-            class="form-control"
-        >
-    </div>
+  <!-- Alias -->
+  <div>
+    <label for="inpAlias" class="label">Alias</label>
+    <input
+      id="inpAlias"
+      name="alias"
+      type="text"
+      class="input w-full text-lg py-2 px-3"
+    >
+  </div>
 
-    <!-- Estado -->
-    <div class="mb-3">
-        <label for="selStatus" class="form-label">Estado</label>
-        <select id="selStatus" name="status" class="form-select">
-            {% for st in estados %}
-            <option value="{{ st.name }}">
-                {{ st.name }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
+  <!-- Estado -->
+  <div>
+    <label for="selStatus" class="label">Estado</label>
+    <select id="selStatus" name="status" class="input w-full text-lg py-2 px-3">
+      {% for st in estados %}
+      <option value="{{ st.name }}">{{ st.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
 
-    <!-- Titular -->
-    <div class="form-check mb-4">
-        <input
-            class="form-check-input"
-            type="checkbox"
-            id="chkTitular"
-            name="titular"
-        >
-        <label for="chkTitular" class="form-check-label">
-            Titular
-        </label>
-    </div>
+  <!-- Titular -->
+  <div class="form-check mb-4">
+    <input class="form-check-input" type="checkbox" id="chkTitular" name="titular">
+    <label for="chkTitular" class="form-check-label">Titular</label>
+  </div>
 
-    <div class="d-flex gap-3">
+  <!-- BOTONES -->
+  <div class="flex gap-3 justify-end">
 
-        <!-- Crear -->
-        <button type="submit" class="btn btn-success">
-            Crear profesor
-        </button>
+    <!-- Cancelar -->
+    <a href="/teachers/admin" class="btn-muted">Cancelar</a>
 
-        <!-- Volver -->
-        /teachers/list
-            Volver
-        </a>
+    <!-- Guardar -->
+    <button type="submit" class="btn-primary">
+      Crear profesor
+    </button>
 
-    </div>
+  </div>
 
 </form>
 
