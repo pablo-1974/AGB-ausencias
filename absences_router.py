@@ -488,6 +488,8 @@ async def absences_edit_form(
             absence=a,
             teacher=t,
             hours_str=mask_to_human(a.hours_mask or 0),
+            categories=ABSENCE_CATEGORIES,
+            current_category=(a.category or "").strip(),
         ),
     )
 
