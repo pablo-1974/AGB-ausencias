@@ -437,3 +437,22 @@ async def teacher_delete(
     await session.commit()
 
     return RedirectResponse("/teachers/list", status_code=303)
+
+@router.get("/teachers/admin")
+async def teachers_admin_list(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),
+):
+    # Solo admin
+    if not user or user.role.name != "admin":
+        return RedirectResponse("/login", status_code=303)
+
+    # Obtener todos los profesores
+    rows = (await session.execute(select(Teacher))).scalars().all()
+    rows = sorted(rows, key=lambda t: normalize_name(t.name))
+
+    return _templates(request).TemplateResponse(
+        "teachers_admin_list.html",
+        _ctx(request, user=user, lista=rows, title="Edición del profesorado")
+    )
