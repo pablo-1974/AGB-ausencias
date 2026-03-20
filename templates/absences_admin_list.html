@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Edición de ausencias</h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Profesor</th>
+      <th>Horas</th>
+      <th>Causa</th>
+      <th style="width: 140px;"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for a in items %}
+    <tr>
+      <td>{{ a.day }}</td>
+      <td>{{ a.teacher_name }}</td>
+      <td>{{ a.hours_str }}</td>
+      <td>{{ a.cause }}</td>
+
+      <td class="text-right flex gap-2 justify-end">
+
+        <a href="/absences/edit/{{ a.id }}" class="btn-muted btn-sm">Editar</a>
+
+        <form method="post" action="/absences/delete/{{ a.id }}" style="display:inline">
+          <button type="submit"
+                  class="btn-danger btn-sm"
+                  onclick="return confirm('¿Seguro que deseas eliminar esta ausencia?');">
+            Eliminar
+          </button>
+        </form>
+
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+
+</table>
+
+{% endblock %}
