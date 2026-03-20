@@ -19,7 +19,7 @@ from database import get_session
 from config import settings
 from models import User, Role
 
-from app.context import ctx as _ctx
+from context import ctx as _ctx
 
 COOKIE_NAME = "ausencias_session"
 
@@ -340,16 +340,7 @@ async def me_password_page(
 ):
     return _templates(request).TemplateResponse(
         "password_change.html",
-        {
-            "request": request,
-            "user": user,
-            "title": "Cambiar contraseña",
-            "app_name": settings.APP_NAME,
-            "institution_name": settings.INSTITUTION_NAME,
-            "logo_path": settings.LOGO_PATH,
-            "now_dt": datetime.now(),
-            "now": date.today(),
-        },
+        _ctx(request, user=user, title="Cambiar contraseña")
     )
 
 
