@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+
 {% block content %}
 
 <h2 class="mb-4">Edición de profesorado</h2>
 
+<!-- BOTÓN CREAR -->
 <div class="mb-4">
   <a href="/teachers/create" class="btn-primary">Añadir profesor</a>
 </div>
@@ -14,9 +16,10 @@
       <th>Email</th>
       <th>Estado</th>
       <th>Titular</th>
-      <th></th>
+      <th style="width: 150px;"></th>
     </tr>
   </thead>
+
   <tbody>
     {% for t in lista %}
     <tr>
@@ -24,16 +27,26 @@
       <td>{{ t.email or "" }}</td>
       <td>{{ t.status.name }}</td>
       <td>{{ "Sí" if t.titular else "No" }}</td>
-      <td class="text-right">
-        <a href="/teachers/edit/{{ t.id }}" class="btn-muted">Editar</a>
 
+      <td class="text-right flex gap-2 justify-end">
+
+        <!-- EDITAR -->
+        <a href="/teachers/edit/{{ t.id }}" class="btn-muted btn-sm">Editar</a>
+
+        <!-- ELIMINAR -->
         <form method="post" action="/teachers/delete/{{ t.id }}" style="display:inline">
-          <button class="btn-danger" type="submit">Exprofe</button>
+          <button class="btn-danger btn-sm"
+                  type="submit"
+                  onclick="return confirm('¿Seguro que deseas eliminar al profesor {{ t.name }}?');">
+            Eliminar
+          </button>
         </form>
+
       </td>
     </tr>
     {% endfor %}
   </tbody>
+
 </table>
 
 {% endblock %}
