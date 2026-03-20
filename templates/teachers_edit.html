@@ -14,26 +14,26 @@
 <form method="post" class="mb-4">
 
     <!-- Nombre -->
-    <div class="mb-3">
+    <div>
         <label for="inpName" class="form-label">Nombre</label>
         <input
             id="inpName"
             name="name"
             type="text"
-            class="form-control"
+            class="input w-full text-lg py-2 px-3"
             value="{{ teacher.name }}"
             required
         >
     </div>
 
     <!-- Email -->
-    <div class="mb-3">
+    <div>
         <label for="inpEmail" class="form-label">Email</label>
         <input
             id="inpEmail"
             name="email"
             type="email"
-            class="form-control"
+            class="input w-full text-lg py-2 px-3"
             value="{{ teacher.email or '' }}"
         >
     </div>
@@ -45,22 +45,24 @@
             id="inpAlias"
             name="alias"
             type="text"
-            class="form-control"
+            class="input w-full text-lg py-2 px-3"
             value="{{ teacher.alias or '' }}"
         >
     </div>
 
+
     <!-- Estado -->
-    <div class="mb-3">
-        <label for="selStatus" class="form-label">Estado</label>
-        <select id="selStatus" name="status" class="form-select">
-            {% for st in estados %}
-            <option value="{{ st.name }}" {% if teacher.status == st %}selected{% endif %}>
-                {{ st.name }}
-            </option>
-            {% endfor %}
-        </select>
+    <div>
+      <label for="selStatus" class="label">Estado</label>
+      <select id="selStatus" name="status" class="input w-full text-lg py-2 px-3">
+        {% for st in estados %}
+        <option value="{{ st.name }}" {% if teacher.status == st %}selected{% endif %}>
+          {{ st.name }}
+        </option>
+        {% endfor %}
+      </select>
     </div>
+
 
     <!-- Titular -->
     <div class="form-check mb-4">
@@ -76,10 +78,18 @@
         </label>
     </div>
 
-    <!-- Botón Guardar -->
-    <button type="submit" class="btn btn-primary">
+    
+    <!-- BOTONES -->
+    <div class="flex gap-3 justify-end">
+
+      <!-- Cancelar -->
+      <a href="/teachers/admin" class="btn-muted">Cancelar</a>
+
+      <!-- Guardar -->
+      <button type="submit" class="btn-primary">
         Guardar cambios
-    </button>
+      </button>
+
 
 </form>
 
