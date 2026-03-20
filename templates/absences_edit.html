@@ -36,6 +36,19 @@
     <textarea name="cause" class="input w-full text-lg py-2 px-3">{{ absence.note }}</textarea>
   </div>
 
+  <div>
+    <label class="label">Categoría</label>
+    <select name="category" class="input w-full text-lg py-2 px-3">
+      <option value="">— Sin catalogar —</option>
+      {% for code, label in categories %}
+        <option value="{{ code }}"
+                {% if code == current_category %}selected{% endif %}>
+          {{ code }} — {{ label }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  
   <div class="flex justify-end gap-3">
     <a href="/absences/admin" class="btn-muted">Cancelar</a>
     <button type="submit" class="btn-primary">Guardar cambios</button>
