@@ -325,7 +325,7 @@ async def teacher_edit_form(
 
     t = await session.get(Teacher, teacher_id)
     if not t:
-        return RedirectResponse("/teachers/list", status_code=303)
+        return RedirectResponse("/teachers/admin", status_code=303)
 
     return _templates(request).TemplateResponse(
         "teachers_edit.html",
@@ -354,7 +354,7 @@ async def teacher_edit_save(
 
     t = await session.get(Teacher, teacher_id)
     if not t:
-        return RedirectResponse("/teachers/list", status_code=303)
+        return RedirectResponse("/teachers/admin", status_code=303)
 
     name = name.strip()
     email = (email or "").strip()
@@ -412,7 +412,7 @@ async def teacher_edit_save(
 
     await session.commit()
 
-    return RedirectResponse("/teachers/list", status_code=303)
+    return RedirectResponse("/teachers/admin", status_code=303)
 
 
 # ======================================================
@@ -430,13 +430,13 @@ async def teacher_delete(
 
     t = await session.get(Teacher, teacher_id)
     if not t:
-        return RedirectResponse("/teachers/list", status_code=303)
+        return RedirectResponse("/teachers/admin", status_code=303)
 
     # Eliminación segura → marcar como exprofe
     t.status = TeacherStatus.exprofe
     await session.commit()
 
-    return RedirectResponse("/teachers/list", status_code=303)
+    return RedirectResponse("/teachers/admin", status_code=303)
 
 @router.get("/teachers/admin")
 async def teachers_admin_list(
