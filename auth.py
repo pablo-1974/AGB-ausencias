@@ -352,24 +352,25 @@ async def me_password_post(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(current_user),
 ):
+    # Validar contraseña actual
     if not _verify_password(current_password, user.password_hash):
         raise HTTPException(400, "La contraseña actual no es válida")
 
+    # Guardar nueva contraseña
     user.password_hash = _hash_password(new_password)
     await session.commit()
 
+    # Cerrar sesión
     if request.session:
         request.session.clear()
 
+    # Redirigir a login (sin renderizar plantilla)
     response = RedirectResponse("/login", status_code=303)
     is_secure = request.url.scheme == "https"
     response.delete_cookie(
-        key=COOKIE_NAME, path="/", samesite="lax", secure=is_secure, domain=None
+        key=COOKIE_NAME, path="/", samesite="lax", secure=is_secure
     )
-    return _templates(request).TemplateResponse(
-        "password_change.html",
-        _ctx(request, user=user, title="Cambiar contraseña")
-    )
+    return response
 
 
 # ---------------------------
