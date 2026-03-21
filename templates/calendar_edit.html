@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto mt-6 space-y-10">
+
+  <h2 class="text-2xl font-bold">Editar calendario escolar</h2>
+
+  <!-- TARJETA PRINCIPAL -->
+  <div class="bg-white rounded-xl shadow p-6">
+
+    <form method="post" class="space-y-6">
+
+      <!-- Año escolar -->
+      <div>
+        <label class="font-medium">Año escolar</label>
+        <input type="text" name="school_year"
+               class="mt-1 w-full border rounded p-2"
+               value="{{ calendar.school_year }}"
+               required>
+      </div>
+
+      <!-- Fechas curso -->
+      <div>
+        <label class="font-medium">Curso escolar</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+
+          <div>
+            <label class="text-sm text-gray-600">Primer día</label>
+            <input type="date" name="first_day"
+                   class="mt-1 w-full border rounded p-2"
+                   value="{{ calendar.first_day | date('Y-m-d') }}"
+                   required>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-600">Último día</label>
+            <input type="date" name="last_day"
+                   class="mt-1 w-full border rounded p-2"
+                   value="{{ calendar.last_day | date('Y-m-d') }}"
+                   required>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- NAVIDAD -->
+      <div>
+        <label class="font-medium">Vacaciones de Navidad</label>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+
+          <div>
+            <label class="text-sm text-gray-600">Inicio</label>
+            <input type="date" name="xmas_start"
+                   class="mt-1 w-full border rounded p-2"
+                   value="{{ calendar.xmas_start | date('Y-m-d') }}"
+                   required>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-600">Fin</label>
+            <input type="date" name="xmas_end"
+                   class="mt-1 w-full border rounded p-2"
+                   value="{{ calendar.xmas_end | date('Y-m-d') }}"
+                   required>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SEMANA SANTA -->
+      <div>
+        <label class="font-medium">Vacaciones de Semana Santa</label>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+
+          <div>
+            <label class="text-sm text-gray-600">Inicio</label>
+            <input type="date" name="easter_start"
+                   class="mt-1 w-full border rounded p-2"
+                   value="{{ calendar.easter_start | date('Y-m-d') }}"
+                   required>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-600">Fin</label>
+            <input type="date" name="easter_end"
+                   class="mt-1 w-full border rounded p-2"
+                   value="{{ calendar.easter_end | date('Y-m-d') }}"
+                   required>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FESTIVOS -->
+      <div>
+        <label class="font-medium">Festivos individuales</label>
+        <p class="text-sm text-gray-600 mb-1">
+          Escribe fechas separadas por comas (2026-03-19, 2026-05-01)
+        </p>
+
+        <textarea
+          name="other_holidays"
+          class="w-full border rounded p-2 h-24"
+        >{% if calendar.other_holidays %}{{ calendar.other_holidays | join(', ') }}{% endif %}</textarea>
+      </div>
+
+      <div>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          Guardar cambios
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+{% endblock %}
