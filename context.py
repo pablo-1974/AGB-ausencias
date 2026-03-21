@@ -1,9 +1,15 @@
 # context.py
-from datetime import date, datetime
+from datetime import datetime, date
 from config import settings
 
 def ctx(request, user, **extra):
-    now = datetime.now()
+    """
+    Contexto global para TODAS las plantillas.
+    Se asegura de incluir:
+      - now_dt → datetime actual (fecha y hora), necesario para base.html
+      - today  → fecha (opcional)
+    """
+    now_dt = datetime.now()
 
     base = {
         "request": request,
@@ -12,16 +18,15 @@ def ctx(request, user, **extra):
         # Título por defecto
         "title": extra.get("title", settings.APP_NAME),
 
-        # Datos de institución / interfaz
+        # Información institucional
         "app_name": settings.APP_NAME,
         "institution_name": settings.INSTITUTION_NAME,
         "logo_path": settings.LOGO_PATH,
 
-        # Fechas globales para BASE.HTML 🔥
-        "year": now.year,                # año actual
-        "today": now.date(),             # fecha actual (YYYY-MM-DD)
-        "now": now.strftime("%H:%M"),    # hora actual HH:MM (lo que antes usaba el header)
-        "now_dt": now,                   # datetime completo (por si se usa en plantillas)
+        # Variables que necesita el header 🔥
+        "year": now_dt.year,
+        "today": now_dt.date(),
+        "now_dt": now_dt,   # ← ESTA ES LA CLAVE IMPORTANTE
     }
 
     base.update(extra or {})
