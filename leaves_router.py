@@ -704,6 +704,7 @@ async def leaves_edit_form(
     """
     user = admin
 
+    
     l = await session.get(Leave, leave_id)
     if not l:
         return RedirectResponse("/leaves/admin", 303)
@@ -712,8 +713,17 @@ async def leaves_edit_form(
 
     return _templates(request).TemplateResponse(
         "leaves_edit.html",
-        _ctx(request, user=user, title="Editar baja", leave=l, teacher=t),
+        _ctx(
+            request,
+            user=user,
+            title="Editar baja",
+            leave=l,
+            teacher=t,
+            categories=list("ABCDEFGHIJKL"),     # ← NECESARIO
+            current_category=(l.category or ""), # ← NECESARIO
+        ),
     )
+
 
 
 @router.post("/leaves/edit/{leave_id}")
