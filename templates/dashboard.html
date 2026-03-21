@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="text-xl font-semibold mb-4">Panel de control</h1>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 place-items-center">
+
+  <!-- Listado profesores -->
+  <a href="/teachers/list"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: users -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 4.5c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zM5.25 20.25a7 7 0 1113.5 0" />
+      </svg>
+      Listado profesores
+    </div>
+    <div class="text-sm text-gray-600">Ver listados de profesores</div>
+  </a>
+
+
+  <!-- Horario profesores -->
+  <a href="/schedule/view"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: calendar-days -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M8 7V3m8 4V3M4.5 21h15a1.5 1.5 0 001.5-1.5V8.25H3V19.5A1.5 1.5 0 004.5 21z" />
+      </svg>
+      Horario profesores
+    </div>
+    <div class="text-sm text-gray-600">Ver horarios de profesores</div>
+  </a>
+
+
+  <!-- Ausencias -->
+  <a href="/absences/manage"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: clipboard-check -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M9 12l2 2l4-4M9 4h6a2 2 0 012 2v12a2 2 0 01-2 2H9a2 2 0 01-2-2V6a2 2 0 012-2z" />
+      </svg>
+      Ausencias
+    </div>
+    <div class="text-sm text-gray-600">Ver/añadir ausencias</div>
+  </a>
+
+
+  <!-- Ver bajas -->
+  <a href="/leaves"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: warning -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v3.75M12 16.5h.01M3.84 19.2h16.32a1.5 1.5 0 001.3-2.25L13.3 3.45a1.5 1.5 0 00-2.6 0L2.54 16.95a1.5 1.5 0 001.3 2.25z" />
+      </svg>
+      Ver bajas
+    </div>
+  </a>
+
+
+  <!-- Iniciar baja -->
+  <a href="/leaves/new"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: minus-circle -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M15 12H9m3-9a9 9 0 110 18a9 9 0 010-18z" />
+      </svg>
+      Iniciar baja
+    </div>
+  </a>
+
+
+  <!-- Finalizar baja -->
+  <a href="/leaves/close"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: check-circle -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M9 12l2 2l4-4m3 2a9 9 0 11-18 0a9 9 0 0118 0z" />
+      </svg>
+      Finalizar baja
+    </div>
+  </a>
+
+
+  <!-- Iniciar sustitución -->
+  <a href="/substitutions/new"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: arrows -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M4.5 9h9m0 0L10 5.5m3.5 3.5L10 12.5m9.5 2h-9m0 0L14 17.5m-3.5-3.5L14 10.5" />
+      </svg>
+      Iniciar sustitución
+    </div>
+  </a>
+
+
+  <!-- Estadísticas -->
+  <a href="/stats"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: chart bar -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M3 20h18M7 16v-4m5 4V8m5 8v-6" />
+      </svg>
+      Estadísticas
+    </div>
+  </a>
+
+
+  <!-- Catalogar -->
+  <a href="/absences/categorize"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: tag -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M7.5 7.5L16.5 16.5m-7-12h8.25A2.25 2.25 0 0120 6.75v8.25L13.5 21l-8.25-8.25A2.25 2.25 0 014 10.5V6.75A2.25 2.25 0 016.25 4.5h0A2.25 2.25 0 017.5 4.5z" />
+      </svg>
+      Catalogar
+    </div>
+    <div class="text-sm text-gray-600">Catalogar ausencias y/o bajas</div>
+  </a>
+
+
+  <!-- 💠 Parte diario (turquesa claro) -->
+  <a href="/reports/daily"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105 
+            border-2 bg-[#E0F7FA] border-[#4DD0E1] hover:bg-[#B2EBF2]">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: document-text -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-teal-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M8 16h8M8 12h8M8 8h3.5a2 2 0 012 2v.5H16V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2h8" />
+      </svg>
+      Parte diario
+    </div>
+    <div class="text-sm text-gray-600">Resumen del día</div>
+  </a>
+
+
+  <!-- 💗 Parte mensual (rosa claro) -->
+  <a href="/reports/monthly"
+     class="w-60 card hover:shadow-lg transition-transform duration-200 hover:scale-105
+            border-2 bg-[#FCE4EC] border-[#F06292] hover:bg-[#F8BBD0]">
+    <div class="flex items-center gap-2 font-semibold mb-1">
+      <!-- Icon: calendar -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-700"
+           fill="none" viewBox="0 0 24 24" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M8 7V3m8 4V3M4.5 21h15a1.5 1.5 0 001.5-1.5V8.25H3z" />
+      </svg>
+      Parte mensual
+    </div>
+    <div class="text-sm text-gray-600">Informe del mes</div>
+  </a>
+
+</div>
+
+{% endblock %}
