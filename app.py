@@ -165,10 +165,8 @@ async def health():
 @app.exception_handler(404)
 async def not_found(request: Request, exc, user: User = Depends(load_user_dep)):
 
-    if request.method == "HEAD":
-        return JSONResponse({"ok": True})
-
-    if not user:
+    if not user or not isinstance(user, User):
+        # NO renderizar base.html sin user válido
         return RedirectResponse("/login", status_code=303)
 
     return templates.TemplateResponse(
@@ -177,11 +175,11 @@ async def not_found(request: Request, exc, user: User = Depends(load_user_dep)):
         status_code=404
     )
 
+
 @app.exception_handler(500)
 async def internal_error(request: Request, exc, user: User = Depends(load_user_dep)):
 
-    if not user:
-        # En error 500, si el usuario no existe NO podemos renderizar base.html
+    if not user or not isinstance(user, User):
         return RedirectResponse("/login", status_code=303)
 
     return templates.TemplateResponse(
@@ -189,18 +187,3 @@ async def internal_error(request: Request, exc, user: User = Depends(load_user_d
         tpl(request, message="Error interno", user=user),
         status_code=500
     )
-#@app.exception_handler(500)
-#async def internal_error(request: Request, exc, user: User = Depends(load_user_dep)):
-#
-#    if request.method == "HEAD":
-#        return JSONResponse({"ok": True})
-#
-#    if not user:
-#        return RedirectResponse("/login", status_code=303)
-#
-#    return templates.TemplateResponse(
-#        "dashboard.html",
-#        tpl(request, message="Error interno", user=user),
-#        status_code=500
-#    )
-#
