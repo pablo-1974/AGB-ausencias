@@ -5,6 +5,7 @@
 #   - Configuración del calendario escolar (formulario)
 #   - Vista de los 12 meses (procesada)
 #   - Guardado del calendario
+#   - Edición posterior del calendario (añadir/quitar festivos, ajustar fechas)
 #
 # Todas las rutas usan el contexto global ctx() para asegurar
 # coherencia en el header (fecha/hora), menú y datos comunes.
@@ -37,7 +38,7 @@ def _templates(request: Request):
 
 
 # ======================================================
-# GET /config/calendar  — formulario de configuración
+# GET /config/calendar  — formulario de configuración inicial
 # ======================================================
 @router.get("/")
 async def calendar_get(
@@ -59,87 +60,7 @@ async def calendar_get(
 
 
 # ======================================================
-# GET /config/calendar/view  — vista de los 12 meses
-# ======================================================
-@router.get("/view")
-async def calendar_view(
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),
-):
-    """Muestra la vista completa del calendario escolar (12 meses)."""
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
-
-    if not cal:
-        return RedirectResponse("/config/calendar", 303)
-
-    # Construcción de estructura de meses
-    months = []
-    cur = cal.first_day.replace(day=1)
-
-    for _ in range(12):
-        year = cur.year
-        month = cur.month
-
-        # Inicio del mes
-        m1 = cur
-
-        # Inicio del siguiente mes
-        if month == 12:
-            next_m = cur.replace(year=year + 1, month=1, day=1)
-        else:
-            next_m = cur.replace(month=month + 1, day=1)
-
-        # Fin del mes
-        m_last = next_m - timedelta(days=1)
-
-        # Recorrer días del mes
-        days = []
-        d = m1
-        while d <= m_last:
-            if d.weekday() >= 5:
-                kind = "weekend"
-            elif d < cal.first_day or d > cal.last_day:
-                kind = "out"
-            elif cal.xmas_start <= d <= cal.xmas_end:
-                kind = "xmas"
-            elif cal.easter_start <= d <= cal.easter_end:
-                kind = "easter"
-            elif isinstance(cal.other_holidays, list) and d.isoformat() in cal.other_holidays:
-                kind = "holiday"
-            else:
-                kind = "class"
-
-            days.append((d.day, d.weekday(), kind))
-            d += timedelta(days=1)
-
-        months.append({
-            "name": m1.strftime("%B").upper(),
-            "year": m1.year,
-            "first_weekday": m1.weekday(),
-            "days": days,
-        })
-
-        cur = next_m
-
-    return _templates(request).TemplateResponse(
-        "calendar_view.html",
-        ctx(
-            request,
-            admin,
-            title="Calendario escolar",
-            calendar=cal,
-            months=months,
-        ),
-    )
-
-
-# ======================================================
-# POST /config/calendar  — Guardar configuración
+# POST /config/calendar  — Guardar configuración inicial
 # ======================================================
 @router.post("/")
 async def calendar_post(
@@ -181,4 +102,152 @@ async def calendar_post(
     session.add(cal)
     await session.commit()
 
-    return RedirectResponse("/config/calendar", 303)
+    # Tras guardar → vista limpia
+    return RedirectResponse("/config/calendar/view", 303)
+
+
+# ======================================================
+# GET /config/calendar/view  — vista anual (12 meses)
+# ======================================================
+@router.get("/view")
+async def calendar_view(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    """Muestra la vista completa del calendario escolar (12 meses)."""
+    cal = (
+        await session.execute(
+            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+        )
+    ).scalar_one_or_none()
+
+    if not cal:
+        return RedirectResponse("/config/calendar", 303)
+
+    # Construcción de estructura de meses
+    months = []
+    cur = cal.first_day.replace(day=1)
+
+    for _ in range(12):
+        year = cur.year
+        month = cur.month
+        m1 = cur
+
+        # Inicio del mes siguiente
+        if month == 12:
+            next_m = cur.replace(year=year + 1, month=1, day=1)
+        else:
+            next_m = cur.replace(month=month + 1, day=1)
+
+        m_last = next_m - timedelta(days=1)
+
+        # Recorrer días
+        days = []
+        d = m1
+        while d <= m_last:
+            if d.weekday() >= 5:
+                kind = "weekend"
+            elif d < cal.first_day or d > cal.last_day:
+                kind = "out"
+            elif cal.xmas_start <= d <= cal.xmas_end:
+                kind = "xmas"
+            elif cal.easter_start <= d <= cal.easter_end:
+                kind = "easter"
+            elif d.isoformat() in (cal.other_holidays or []):
+                kind = "holiday"
+            else:
+                kind = "class"
+
+            days.append((d.day, d.weekday(), kind))
+            d += timedelta(days=1)
+
+        months.append({
+            "name": m1.strftime("%B").upper(),
+            "year": m1.year,
+            "first_weekday": m1.weekday(),
+            "days": days,
+        })
+
+        cur = next_m
+
+    return _templates(request).TemplateResponse(
+        "calendar_view.html",
+        ctx(
+            request,
+            admin,
+            title="Calendario escolar",
+            calendar=cal,
+            months=months,
+        ),
+    )
+
+
+# ======================================================
+# GET /admin/edit/calendar  — Edición completa del calendario
+# ======================================================
+@router.get("/edit")
+async def calendar_edit(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required)
+):
+    """Pantalla completa para editar fechas y festivos."""
+    cal = (
+        await session.execute(
+            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+        )
+    ).scalar_one_or_none()
+
+    if not cal:
+        return RedirectResponse("/config/calendar", 303)
+
+    return _templates(request).TemplateResponse(
+        "calendar_edit.html",
+        ctx(request, admin, title="Editar calendario", calendar=cal),
+    )
+
+
+# ======================================================
+# POST /admin/edit/calendar  — Guardar cambios de edición
+# ======================================================
+@router.post("/edit")
+async def calendar_edit_post(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+
+    school_year: str = Form(...),
+    first_day: str = Form(...),
+    last_day: str = Form(...),
+    xmas_start: str = Form(...),
+    xmas_end: str = Form(...),
+    easter_start: str = Form(...),
+    easter_end: str = Form(...),
+    other_holidays: str = Form(""),
+):
+    """Guarda los cambios en un calendario existente."""
+    cal = (
+        await session.execute(
+            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+        )
+    ).scalar_one_or_none()
+
+    if not cal:
+        return RedirectResponse("/config/calendar", 303)
+
+    cal.school_year = school_year
+    cal.first_day = date.fromisoformat(first_day)
+    cal.last_day = date.fromisoformat(last_day)
+    cal.xmas_start = date.fromisoformat(xmas_start)
+    cal.xmas_end = date.fromisoformat(xmas_end)
+    cal.easter_start = date.fromisoformat(easter_start)
+    cal.easter_end = date.fromisoformat(easter_end)
+
+    # Procesar festivos
+    festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
+    cal.other_holidays = festivos
+
+    await session.commit()
+
+    return RedirectResponse("/config/calendar/view", 303)
