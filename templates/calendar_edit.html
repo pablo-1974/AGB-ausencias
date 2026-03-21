@@ -93,19 +93,56 @@
         </div>
       </div>
 
-      <!-- FESTIVOS -->
-      <div>
-        <label class="font-medium">Festivos individuales</label>
-        <p class="text-sm text-gray-600 mb-1">
-          Escribe fechas separadas por comas (2026-03-19, 2026-05-01)
-        </p>
+      <!-- ======================================= -->
+      <!-- FESTIVOS INDIVIDUALES (TABLA + BORRADO) -->
+      <!-- ======================================= -->
+      <div class="pt-6 border-t">
 
+        <h3 class="text-xl font-semibold mb-4">Festivos individuales</h3>
+
+        {% if calendar.other_holidays %}
+          <table class="min-w-full border rounded-lg overflow-hidden text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-4 py-2 text-left font-semibold">Fecha</th>
+                <th class="px-4 py-2 text-left font-semibold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in calendar.other_holidays %}
+              <tr class="border-b">
+                <td class="px-4 py-2">{{ h }}</td>
+                <td class="px-4 py-2">
+
+                  <form action="/config/calendar/delete-holiday" method="post"
+                        class="inline">
+                    <input type="hidden" name="holiday_date" value="{{ h }}">
+                    <button class="text-red-600 hover:underline">
+                      Borrar
+                    </button>
+                  </form>
+
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-gray-600 mb-4">
+            No hay festivos individuales registrados.
+          </p>
+        {% endif %}
+
+        <!-- Campo para añadir festivos como antes -->
+        <label class="font-medium mt-6 block">Festivos adicionales (separados por comas)</label>
         <textarea
           name="other_holidays"
           class="w-full border rounded p-2 h-24"
         >{% if calendar.other_holidays %}{{ calendar.other_holidays | join(', ') }}{% endif %}</textarea>
+
       </div>
 
+      <!-- GUARDAR -->
       <div>
         <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
           Guardar cambios
