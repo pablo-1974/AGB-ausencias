@@ -736,6 +736,7 @@ async def leaves_edit_save(
     start_date: date = Form(...),
     end_date: Optional[date] = Form(None),
     reason: str = Form(""),
+    category: str = Form(""),
 ):
     """
     Guarda cambios en una baja:
@@ -750,6 +751,7 @@ async def leaves_edit_save(
     l.start_date = start_date
     l.end_date = end_date
     l.cause = (reason or "").strip()
+    l.category = (category or "").strip()
 
     await session.commit()
 
