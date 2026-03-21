@@ -7,56 +7,44 @@
     Calendario escolar {{ calendar.school_year }}
   </h2>
 
-  <a href="/config/calendar" class="btn-primary px-4 py-2 inline-block mb-4">
-    Editar calendario
-  </a>
+  <!-- Vista limpia: sin botón de editar -->
 
   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
     {% for m in months %}
     <div class="border rounded shadow bg-white p-2">
 
-      <!-- Nombre del mes -->
       <div class="text-center font-bold text-lg mb-1">
         {{ m.name }} {{ m.year }}
       </div>
 
-      <!-- Cabecera de días -->
       <div class="grid grid-cols-7 text-center bg-gray-700 text-white text-xs py-1">
-        <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+        <div>L</div><div>M</div><div>X</div><div>J</div>
+        <div>V</div><div>S</div><div>D</div>
       </div>
 
-      <!-- Cuadrícula -->
       <div class="grid grid-cols-7 text-center text-sm">
 
-        <!-- Huecos antes del día 1 -->
         {% for i in range(m.first_weekday) %}
         <div class="py-1"></div>
         {% endfor %}
 
         {% for d, wd, kind in m.days %}
-
           {% if kind == 'weekend' %}
             <div class="py-1 text-gray-400">{{ d }}</div>
-
           {% elif kind == 'out' %}
             <div class="py-1 text-gray-300">{{ d }}</div>
-
           {% elif kind == 'xmas' %}
             <div class="py-1 bg-green-200 text-green-900 font-semibold rounded">{{ d }}</div>
-
           {% elif kind == 'easter' %}
             <div class="py-1 bg-blue-200 text-blue-900 font-semibold rounded">{{ d }}</div>
-
           {% elif kind == 'holiday' %}
             <div class="py-1 bg-red-200 text-red-900 font-semibold rounded">{{ d }}</div>
-
           {% else %}
             <div class="py-1">{{ d }}</div>
-
           {% endif %}
-
         {% endfor %}
+
       </div>
 
     </div>
