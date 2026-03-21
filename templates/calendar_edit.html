@@ -3,7 +3,7 @@
 
 <div class="max-w-4xl mx-auto mt-6 space-y-10">
 
-  <h2 class="text-2xl font-bold">Editar calendario escolar</h2>
+  <h2 class="text-2xl font-bold mb-4">Editar calendario escolar</h2>
 
   <!-- TARJETA PRINCIPAL -->
   <div class="bg-white rounded-xl shadow p-6">
@@ -93,15 +93,17 @@
         </div>
       </div>
 
+
       <!-- ======================================= -->
-      <!-- FESTIVOS INDIVIDUALES (TABLA + BORRADO) -->
+      <!-- FESTIVOS INDIVIDUALES (TABLA + BORRADO + AÑADIR) -->
       <!-- ======================================= -->
+
       <div class="pt-6 border-t">
 
         <h3 class="text-xl font-semibold mb-4">Festivos individuales</h3>
 
         {% if calendar.other_holidays %}
-          <table class="min-w-full border rounded-lg overflow-hidden text-sm">
+          <table class="min-w-full border rounded-lg overflow-hidden text-sm bg-white">
             <thead class="bg-gray-100">
               <tr>
                 <th class="px-4 py-2 text-left font-semibold">Fecha</th>
@@ -114,10 +116,9 @@
                 <td class="px-4 py-2">{{ h }}</td>
                 <td class="px-4 py-2">
 
-                  <form action="/config/calendar/delete-holiday" method="post"
-                        class="inline">
+                  <form action="/config/calendar/delete-holiday" method="post" class="inline">
                     <input type="hidden" name="holiday_date" value="{{ h }}">
-                    <button class="text-red-600 hover:underline">
+                    <button class="text-red-600 hover:text-red-800">
                       Borrar
                     </button>
                   </form>
@@ -133,7 +134,33 @@
           </p>
         {% endif %}
 
-        <!-- Campo para añadir festivos como antes -->
+
+        <!-- ============================= -->
+        <!-- AÑADIR FESTIVO (form rápido) -->
+        <!-- ============================= -->
+
+        <form action="/config/calendar/add-holiday" method="post" class="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Añadir festivo</label>
+            <input 
+              type="date"
+              name="holiday_date"
+              class="border rounded p-2"
+              required
+            >
+          </div>
+
+          <button 
+            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Añadir
+          </button>
+
+        </form>
+
+
+        <!-- Campo de edición masiva (textarea) -->
         <label class="font-medium mt-6 block">Festivos adicionales (separados por comas)</label>
         <textarea
           name="other_holidays"
@@ -141,6 +168,7 @@
         >{% if calendar.other_holidays %}{{ calendar.other_holidays | join(', ') }}{% endif %}</textarea>
 
       </div>
+
 
       <!-- GUARDAR -->
       <div>
