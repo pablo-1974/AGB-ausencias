@@ -447,6 +447,7 @@ async def absences_admin_list(
         "teacher_name": t.name,
         "hours_str": mask_to_human(a.hours_mask or 0),
         "cause": (a.note or "").strip(),
+        "category": (a.category or "").strip(),
     } for (a, t) in rows]
 
     return _templates(request).TemplateResponse(
