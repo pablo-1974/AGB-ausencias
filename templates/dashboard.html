@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="text-xl font-semibold mb-4">Panel de control</h1>
+
+<div class="space-y-10">
+
+  <!-- ========================================================= -->
+  <!-- 1) FILA 1 -->
+  <!-- ========================================================= -->
+  <div class="card p-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <a href="/teachers/list"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Listado profesores</div>
+          <div class="text-sm text-gray-600">Ver listados de profesores</div>
+        </div>
+      </a>
+
+      <a href="/schedule/view"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Horario profesores</div>
+          <div class="text-sm text-gray-600">Ver horarios de profesores</div>
+        </div>
+      </a>
+
+      <a href="/absences/manage"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Ausencias</div>
+          <div class="text-sm text-gray-600">Ver/añadir ausencias</div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- 2) FILA 2 -->
+  <!-- ========================================================= -->
+  <div class="card p-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <a href="/leaves"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Ver bajas</div>
+          <div class="text-sm text-gray-600">Listado general</div>
+        </div>
+      </a>
+
+      <a href="/leaves/new"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Iniciar baja</div>
+          <div class="text-sm text-gray-600">Registrar nueva baja</div>
+        </div>
+      </a>
+
+      <a href="/leaves/close"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Finalizar baja</div>
+          <div class="text-sm text-gray-600">Cerrar baja activa</div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- 3) FILA 3 -->
+  <!-- ========================================================= -->
+  <div class="card p-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <a href="/substitutions/new"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Iniciar sustitución</div>
+          <div class="text-sm text-gray-600">Asignar sustituto</div>
+        </div>
+      </a>
+
+      <a href="/stats"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg bg-white shadow hover:bg-gray-50 cursor-pointer">
+          <div class="font-semibold">Estadísticas</div>
+          <div class="text-sm text-gray-600">Informes y análisis</div>
+        </div>
+      </a>
+
+      <div class="p-4 border rounded-lg bg-gray-50 shadow text-gray-400 cursor-default">
+        <div class="font-semibold">Próximamente…</div>
+        <div class="text-sm">Funcionalidad futura</div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- 4) FILA 4 (COLORES PERSONALIZADOS) -->
+  <!-- ========================================================= -->
+  <div class="card p-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <!-- Catalogar (ROSA) -->
+      <a href="/absences/categorize"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg shadow cursor-pointer
+                    bg-[#FCE4EC] border-[#F06292] hover:bg-[#F8BBD0]">
+          <div class="font-semibold">Catalogar</div>
+          <div class="text-sm text-gray-700">Ausencias y bajas</div>
+        </div>
+      </a>
+
+      <!-- Parte diario (TURQUESA) -->
+      <a href="/reports/daily"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg shadow cursor-pointer
+                    bg-[#E0F7FA] border-[#4DD0E1] hover:bg-[#B2EBF2]">
+          <div class="font-semibold">Parte diario</div>
+          <div class="text-sm text-gray-700">Resumen del día</div>
+        </div>
+      </a>
+
+      <!-- Parte mensual (ROSA) -->
+      <a href="/reports/monthly"
+         class="block no-underline hover:no-underline transition-transform duration-200 hover:scale-105">
+        <div class="p-4 border rounded-lg shadow cursor-pointer
+                    bg-[#FCE4EC] border-[#F06292] hover:bg-[#F8BBD0]">
+          <div class="font-semibold">Parte mensual</div>
+          <div class="text-sm text-gray-700">Informe mensual</div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
