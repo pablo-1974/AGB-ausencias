@@ -278,3 +278,35 @@ async def calendar_delete_holiday(
 
     await session.commit()
     return RedirectResponse("/config/calendar/edit", 303)
+
+# ======================================================
+# POST /config/calendar/add-holiday — añadir festivo individual
+# ======================================================
+@router.post("/add-holiday")
+async def calendar_add_holiday(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+
+    holiday_date: str = Form(...),
+):
+    """Añade un festivo individual al calendario."""
+    cal = (
+        await session.execute(
+            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+        )
+    ).scalar_one_or_none()
+
+    if not cal:
+        return RedirectResponse("/config/calendar", 303)
+
+    new_date = holiday_date.strip()
+
+    if new_date:
+        existing = cal.other_holidays or []
+        if new_date not in existing:
+            existing.append(new_date)
+            cal.other_holidays = existing
+            await session.commit()
+
+    return RedirectResponse("/config/calendar/edit", 303)
