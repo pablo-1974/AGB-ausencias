@@ -677,6 +677,7 @@ async def leaves_admin_list(
             "start_date": l.start_date,
             "end_date": l.end_date,
             "reason": l.cause or "",
+            "category": (l.category or "").strip(),
         }
         for (l, t) in rows
     ]
