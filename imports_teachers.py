@@ -1,9 +1,19 @@
-# imports_teachers.py
+# ======================================================
+# imports_teachers.py — IMPORTACIÓN DE PROFESORADO
+# ======================================================
+# Permite subir un Excel (.xlsx/.xls) con datos de profesor@s
+# y procesarlo mediante import_teachers_from_excel().
+#
+# Todas las plantillas pasan ahora por el contexto global ctx(),
+# garantizando coherencia visual, fecha/hora en el header y datos comunes.
+# ======================================================
+
 from __future__ import annotations
 
 import os
 import tempfile
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from starlette.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,15 +23,17 @@ from models import Teacher, User
 from auth import admin_required
 from services.imports import import_teachers_from_excel
 
-# 🔥 ORDENACIÓN SIN TILDES
 from utils import normalize_name
+
+# 🔥 Contexto global unificado
+from context import ctx
 
 router = APIRouter()
 
 
-# -----------------------------
-# Helpers plantilla/contexto
-# -----------------------------
+# ======================================================
+# Helpers de plantillas
+# ======================================================
 def _templates(request: Request):
     tpl = getattr(request.app.state, "templates", None)
     if tpl is None:
@@ -31,37 +43,23 @@ def _templates(request: Request):
     return tpl
 
 
-def _ctx(request: Request, user: User, **extra):
-    base = {
-        "request": request,
-        "user": user,
-        "title": "Importar profesores",
-        "app_name": settings.APP_NAME,
-        "institution_name": settings.INSTITUTION_NAME,
-        "logo_path": settings.LOGO_PATH,
-    }
-    base.update(extra or {})
-    return base
-
-
-# --------------------------------------------------------
-# GET /imports/teachers — formulario
-# --------------------------------------------------------
+# ======================================================
+# GET /imports/teachers — formulario de importación
+# ======================================================
 @router.get("/imports/teachers")
 async def imports_teachers_form(
     request: Request,
     admin: User = Depends(admin_required),
 ):
-    user = admin
     return _templates(request).TemplateResponse(
         "teachers_import.html",
-        _ctx(request, user=user),
+        ctx(request, admin, title="Importar profesores"),
     )
 
 
-# --------------------------------------------------------
-# POST /imports/teachers — subir Excel
-# --------------------------------------------------------
+# ======================================================
+# POST /imports/teachers — subir y procesar Excel
+# ======================================================
 @router.post("/imports/teachers")
 async def imports_teachers_upload(
     request: Request,
@@ -69,13 +67,14 @@ async def imports_teachers_upload(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
+    """Procesa un Excel y muestra la lista importada."""
     user = admin
 
     filename = (file.filename or "").lower()
     if not filename.endswith((".xlsx", ".xls")):
         return _templates(request).TemplateResponse(
             "teachers_import.html",
-            _ctx(request, user=user, error="Formato no soportado. Sube un .xlsx o .xls."),
+            ctx(request, user, error="Formato no soportado. Sube un .xlsx o .xls."),
             status_code=400,
         )
 
@@ -88,20 +87,21 @@ async def imports_teachers_upload(
 
         imported = await import_teachers_from_excel(tmp_path, session)
 
-        # 🔥 ORDENACIÓN IMPORTADA
+        # Ordenación alfabética correcta
         imported = sorted(imported, key=lambda it: normalize_name(it.get("name", "")))
 
         return _templates(request).TemplateResponse(
             "teachers_import.html",
-            _ctx(request, user=user, imported=imported),
+            ctx(request, user, imported=imported, title="Importar profesores"),
         )
 
     except Exception as e:
         return _templates(request).TemplateResponse(
             "teachers_import.html",
-            _ctx(request, user=user, error=f"Error importando: {e}"),
+            ctx(request, user, error=f"Error importando: {e}", title="Importar profesores"),
             status_code=400,
         )
+
     finally:
         try:
             if tmp_path and os.path.exists(tmp_path):
@@ -110,23 +110,23 @@ async def imports_teachers_upload(
             pass
 
 
-# --------------------------------------------------------
-# GET /teachers — listado de profesores importados
-# --------------------------------------------------------
+# ======================================================
+# GET /teachers — listado tras importación
+# ======================================================
 @router.get("/teachers")
 async def teachers_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
+    """Listado de profesores importados (solo admin)."""
     user = admin
 
-    # 🔥 ANTES: order_by SQL → AHORA orden Python con normalize_name
     res = await session.execute(select(Teacher))
     teachers = res.scalars().all()
     teachers = sorted(teachers, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "teachers_list.html",
-        _ctx(request, user=user, teachers=teachers, title="Profesores"),
+        ctx(request, user, teachers=teachers, title="Profesores"),
     )
