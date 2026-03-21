@@ -1,4 +1,15 @@
-# config_calendar_router.py
+# ======================================================
+# config_calendar_router.py — CONFIGURACIÓN DEL CALENDARIO ESCOLAR
+# ======================================================
+# Contiene:
+#   - Configuración del calendario escolar (formulario)
+#   - Vista de los 12 meses (procesada)
+#   - Guardado del calendario
+#
+# Todas las rutas usan el contexto global ctx() para asegurar
+# coherencia en el header (fecha/hora), menú y datos comunes.
+# ======================================================
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Depends, Form
@@ -12,37 +23,29 @@ from models import SchoolCalendar, User
 from auth import admin_required
 from datetime import date, timedelta
 
+# 🔥 Contexto global unificado
+from context import ctx
+
 router = APIRouter(prefix="/config/calendar", tags=["calendar"])
 
 
-# ================================
-# Helpers de plantillas y contexto
-# ================================
+# ======================================================
+# Helpers de plantillas (mantiene solo el acceso a Jinja2)
+# ======================================================
 def _templates(request: Request):
     return request.app.state.templates
 
 
-def _ctx(request: Request, user: User, **extra):
-    base = {
-        "request": request,
-        "user": user,   # ← NECESARIO para menú y cabecera
-        "title": "Calendario escolar",
-    }
-    base.update(extra or {})
-    return base
-
-
-# ================================
-# GET /config/calendar  (formulario)
-# ================================
+# ======================================================
+# GET /config/calendar  — formulario de configuración
+# ======================================================
 @router.get("/")
 async def calendar_get(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    user = admin
-
+    """Muestra el formulario de configuración del calendario escolar."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -51,26 +54,20 @@ async def calendar_get(
 
     return _templates(request).TemplateResponse(
         "calendar_config.html",
-        _ctx(
-            request,
-            user=user,
-            title="Configuración del calendario",
-            calendar=cal,
-        ),
+        ctx(request, admin, title="Configuración del calendario", calendar=cal),
     )
 
 
-# ================================
-# GET /config/calendar/view  (vista 12 meses)
-# ================================
+# ======================================================
+# GET /config/calendar/view  — vista de los 12 meses
+# ======================================================
 @router.get("/view")
 async def calendar_view(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    user = admin
-
+    """Muestra la vista completa del calendario escolar (12 meses)."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -78,9 +75,9 @@ async def calendar_view(
     ).scalar_one_or_none()
 
     if not cal:
-        return RedirectResponse("/config/calendar", status_code=303)
+        return RedirectResponse("/config/calendar", 303)
 
-    # Construir 12 meses comenzando desde primer día del mes de cal.first_day
+    # Construcción de estructura de meses
     months = []
     cur = cal.first_day.replace(day=1)
 
@@ -88,18 +85,19 @@ async def calendar_view(
         year = cur.year
         month = cur.month
 
-        # 1º del mes
+        # Inicio del mes
         m1 = cur
-        # 1º del mes siguiente
+
+        # Inicio del siguiente mes
         if month == 12:
             next_m = cur.replace(year=year + 1, month=1, day=1)
         else:
             next_m = cur.replace(month=month + 1, day=1)
 
-        # último día del mes actual
+        # Fin del mes
         m_last = next_m - timedelta(days=1)
 
-        # lista de días
+        # Recorrer días del mes
         days = []
         d = m1
         while d <= m_last:
@@ -130,9 +128,9 @@ async def calendar_view(
 
     return _templates(request).TemplateResponse(
         "calendar_view.html",
-        _ctx(
+        ctx(
             request,
-            user=user,
+            admin,
             title="Calendario escolar",
             calendar=cal,
             months=months,
@@ -140,9 +138,9 @@ async def calendar_view(
     )
 
 
-# ================================
-# POST /config/calendar  (guardar)
-# ================================
+# ======================================================
+# POST /config/calendar  — Guardar configuración
+# ======================================================
 @router.post("/")
 async def calendar_post(
     request: Request,
@@ -158,7 +156,7 @@ async def calendar_post(
     easter_end: str = Form(...),
     other_holidays: str = Form(""),
 ):
-    # Convertir fechas
+    """Guarda un nuevo calendario escolar."""
     fd = date.fromisoformat(first_day)
     ld = date.fromisoformat(last_day)
     xs = date.fromisoformat(xmas_start)
@@ -166,6 +164,7 @@ async def calendar_post(
     es = date.fromisoformat(easter_start)
     ee = date.fromisoformat(easter_end)
 
+    # Lista de festivos adicionales
     festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
 
     cal = SchoolCalendar(
@@ -182,4 +181,4 @@ async def calendar_post(
     session.add(cal)
     await session.commit()
 
-    return RedirectResponse("/config/calendar", status_code=303)
+    return RedirectResponse("/config/calendar", 303)
