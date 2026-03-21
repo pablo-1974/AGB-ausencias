@@ -129,8 +129,14 @@ def tpl(request: Request, **extra):
         "app_name": APP_NAME,
         "institution_name": INSTITUTION_NAME,
         "logo_path": LOGO_PATH,
+
+        # 🔥 para el header
         "now_dt": now,
+        "today": now.date(),
         "now": now,
+
+        # 🔥 para el footer
+        "year": now.year,
     }
     ctx.update(extra or {})
     return ctx
