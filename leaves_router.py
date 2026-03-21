@@ -593,7 +593,7 @@ async def leaves_edit_save(
     leave_id: int,
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_crequired),
+    admin: User = Depends(admin_required),
 
     start_date: date = Form(...),
     end_date: Optional[date] = Form(None),
