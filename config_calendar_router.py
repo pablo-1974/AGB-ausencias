@@ -251,3 +251,30 @@ async def calendar_edit_post(
     await session.commit()
 
     return RedirectResponse("/config/calendar/view", 303)
+
+# ======================================================
+# POST /config/calendar/delete-holiday  — borrar festivo individual
+# ======================================================
+@router.post("/delete-holiday")
+async def calendar_delete_holiday(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+
+    holiday_date: str = Form(...),
+):
+    """Elimina un festivo individual del calendario."""
+    cal = (
+        await session.execute(
+            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+        )
+    ).scalar_one_or_none()
+
+    if not cal:
+        return RedirectResponse("/config/calendar/view", 303)
+
+    # eliminar del array
+    cal.other_holidays = [h for h in (cal.other_holidays or []) if h != holiday_date]
+
+    await session.commit()
+    return RedirectResponse("/config/calendar/edit", 303)
