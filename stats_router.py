@@ -1,39 +1,44 @@
-# stats_router.py
+# ======================================================
+# stats_router.py — ESTADÍSTICAS DE BAJAS
+# ======================================================
+# Permite filtrar y ver estadísticas de bajas por:
+#   - rango de fechas
+#   - profesor
+#   - categoría
+#   - estado (abiertas / cerradas / todas)
+#
+# Usa el contexto global ctx() para unificar fecha, hora
+# y datos comunes en la cabecera.
+# ======================================================
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Depends, Query
+from starlette.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_
 from datetime import date
 
 from database import get_session
-from config import settings
-from models import Leave, Teacher, TeacherStatus, User, SchoolCalendar
+from models import Leave, Teacher, User, SchoolCalendar
 from app import load_user_dep
+
+# 🔥 Contexto global unificado
+from context import ctx
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
+# ======================================================
+# Helper de plantillas
+# ======================================================
 def _templates(request: Request):
     return request.app.state.templates
 
 
-def _ctx(request: Request, user: User, **extra):
-    from datetime import datetime
-    now = datetime.now()
-    base = {
-        "request": request,
-        "user": user,
-        "title": "Estadísticas",
-        "now": now,
-        "app_name": settings.APP_NAME,
-        "institution_name": settings.INSTITUTION_NAME,
-        "logo_path": settings.LOGO_PATH,
-    }
-    base.update(extra or {})
-    return base
-
-
+# ======================================================
+# GET /stats — pantalla principal
+# ======================================================
 @router.get("/")
 async def stats_main(
     request: Request,
@@ -47,11 +52,12 @@ async def stats_main(
     category: str | None = Query(None),
     status: str | None = Query(None, pattern="^(open|closed|all)$"),
 ):
+    """Vista principal de estadísticas de bajas."""
     if not user:
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", 303)
 
     # ------------------------------------
-    # 1) Primer día calendario escolar
+    # 1) Primer día del calendario escolar
     # ------------------------------------
     cal = (
         await session.execute(
@@ -64,7 +70,7 @@ async def stats_main(
     date_to = d_to or today
 
     # ------------------------------------
-    # 2) Construir filtros
+    # 2) Construcción dinámica de filtros
     # ------------------------------------
     conditions = [
         Leave.start_date >= date_from,
@@ -83,7 +89,7 @@ async def stats_main(
         conditions.append(Leave.end_date.is_not(None))
 
     # ------------------------------------
-    # 3) Query de bajas + profesor
+    # 3) Consulta de bajas + profesor
     # ------------------------------------
     q = (
         select(Leave, Teacher)
@@ -95,7 +101,7 @@ async def stats_main(
     rows = (await session.execute(q)).all()
 
     # ------------------------------------
-    # 4) Preparar datos tabla
+    # 4) Formateo de datos para plantilla
     # ------------------------------------
     items = []
     for lv, t in rows:
@@ -110,7 +116,7 @@ async def stats_main(
         })
 
     # ------------------------------------
-    # 5) Datos auxiliares para filtros
+    # 5) Datos auxiliares (para filtros)
     # ------------------------------------
     teachers = (
         (await session.execute(select(Teacher).order_by(Teacher.name)))
@@ -118,13 +124,18 @@ async def stats_main(
         .all()
     )
 
-    categories = ["A","B","C","D","E","F","G","H","I","J","K","L","Z"]
+    categories = ["A", "B", "C", "D", "E", "F", "G", "H",
+                  "I", "J", "K", "L", "Z"]
 
+    # ------------------------------------
+    # 6) Render plantilla
+    # ------------------------------------
     return _templates(request).TemplateResponse(
         "stats_main.html",
-        _ctx(
+        ctx(
             request,
-            user=user,
+            user,
+            title="Estadísticas de bajas",
             items=items,
             date_from=date_from.isoformat(),
             date_to=date_to.isoformat(),
