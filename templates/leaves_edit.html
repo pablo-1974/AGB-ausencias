@@ -32,6 +32,19 @@
               class="input w-full py-2 px-3">{{ leave.cause }}</textarea>
   </div>
 
+  <div>
+    <label class="label">Categoría</label>
+    <select name="category" class="input w-full">
+      <option value="">— Sin categoría —</option>
+      {% for code in categories %}
+        <option value="{{ code }}"
+                {% if code == current_category %}selected{% endif %}>
+          {{ code }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  
   <div class="flex justify-end gap-3">
     <a href="/leaves/admin" class="btn-muted">Cancelar</a>
     <button type="submit" class="btn-primary">Guardar cambios</button>
