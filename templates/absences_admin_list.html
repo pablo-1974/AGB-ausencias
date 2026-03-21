@@ -10,6 +10,7 @@
       <th>Profesor</th>
       <th>Horas</th>
       <th>Causa</th>
+      <th>Categoría</th>
       <th style="width: 140px;"></th>
     </tr>
   </thead>
@@ -21,6 +22,7 @@
       <td>{{ a.teacher_name }}</td>
       <td>{{ a.hours_str }}</td>
       <td>{{ a.cause }}</td>
+      <td>{{ a.category or "—" }}</td>
 
       <td class="text-right flex gap-2 justify-end">
 
