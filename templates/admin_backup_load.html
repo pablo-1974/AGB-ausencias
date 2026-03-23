@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+
+  <h1 class="text-2xl font-bold">Cargar Copia de Seguridad</h1>
+
+  <p class="text-gray-600">
+    Sube un archivo Excel generado por la propia aplicación.  
+    Las tablas <strong>users</strong> y <strong>alembic_version</strong> no se importarán.
+  </p>
+
+  <form action="/admin/backup/load" method="post" enctype="multipart/form-data"
+        onsubmit="return confirm('⚠️ ¿Seguro que quieres cargar esta copia? Se sobrescribirán las tablas permitidas.');">
+    
+    <label class="block mb-4">
+      <span class="font-semibold">Archivo Excel (.xlsx)</span>
+      <input type="file" name="backup_file" required class="mt-2 p-2 border rounded w-full">
+    </label>
+
+    <button class="w-full p-4 rounded-lg font-semibold"
+            style="background-color:#66FF66;">
+      Cargar copia de seguridad
+    </button>
+
+  </form>
+
+</div>
+{% endblock %}
