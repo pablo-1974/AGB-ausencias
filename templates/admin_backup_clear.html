@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+
+  <h1 class="text-2xl font-bold">Vaciar tablas</h1>
+
+  <form action="/admin/backup/clear" 
+        method="POST"
+        onsubmit="return confirm('¿Seguro que quieres vaciar estas tablas seleccionadas? Esta acción no se puede deshacer.');">
+
+    <div class="space-y-4">
+      {% for key, label in valid_tables.items() %}
+        <label class="flex items-center space-x-3">
+          <input type="checkbox" name="tables" value="{{ key }}">
+          <span>{{ label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <button class="mt-6 w-full p-4 rounded-lg font-semibold"
+            style="background-color:#66FF66;">
+      Vaciar tablas seleccionadas
+    </button>
+  </form>
+
+</div>
+{% endblock %}
