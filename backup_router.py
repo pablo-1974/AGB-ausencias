@@ -28,6 +28,16 @@ async def admin_backup(request: Request, admin=Depends(admin_required)):
 
 
 # ---------------------------------------------------------
+# CARGAR COPIA
+# ---------------------------------------------------------
+@router.get("/admin/backup/load")
+async def admin_backup_load_page(request: Request, admin=Depends(admin_required)):
+    return templates.TemplateResponse(
+        "admin_backup_load.html",
+        _ctx(request, user=admin)
+    )
+
+# ---------------------------------------------------------
 # DESCARGAR COPIA
 # ---------------------------------------------------------
 @router.get("/admin/backup/download")
