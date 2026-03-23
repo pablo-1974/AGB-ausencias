@@ -1,35 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <div class="max-w-3xl mx-auto space-y-10">
 
-  <h1 class="text-2xl font-bold mb-6">Copia de Seguridad</h1>
+  <!-- TÍTULO -->
+  <h1 class="text-3xl font-bold mb-8">Copia de Seguridad</h1>
 
-  <!-- Descargar -->
-  <a href="/admin/backup/download">
-    <button class="w-full p-4 rounded-lg font-semibold"
-            style="background-color:#66FF66;">
-      Descargar copia completa (Excel)
-    </button>
-  </a>
 
-  <!-- Vaciar tablas -->
-  <a href="/admin/backup/clear">
-    <button class="w-full p-4 rounded-lg font-semibold"
-            style="background-color:#66FF66;">
-      Vaciar tablas (seleccionar)
-    </button>
-  </a>
+  <!-- ========================================================= -->
+  <!-- 1) DESCARGAR COPIA COMPLETA -->
+  <!-- ========================================================= -->
+  <div class="card p-6 space-y-4">
+    <h2 class="text-xl font-semibold">Descargar copia completa</h2>
 
-  <!-- Cargar copia -->
-  <form action="/admin/backup/load" method="POST" enctype="multipart/form-data"
-        onsubmit="return confirm('¿Seguro que deseas cargar esta copia? Se sobrescribirán datos.')">
-    <input type="file" name="backup_file" required class="mb-4">
-    <button class="w-full p-4 rounded-lg font-semibold"
-            style="background-color:#66FF66;">
-      Cargar copia de seguridad (Excel)
-    </button>
-  </form>
+    <p class="text-gray-600">
+      Genera un archivo Excel con 8 hojas:
+      <strong>INFO, teachers, schedule_slots, absences, leaves, school_calendar, users, alembic_version</strong>.
+    </p>
+
+    <a href="/admin/backup/download">
+      <button
+        class="w-full p-4 text-lg rounded-lg font-semibold transition-all"
+        style="background-color:#66FF66;">
+        Descargar copia completa (Excel)
+      </button>
+    </a>
+  </div>
+
+
+
+  <!-- ========================================================= -->
+  <!-- 2) VACIAR TABLAS (SELECCIONAR) -->
+  <!-- ========================================================= -->
+  <div class="card p-6 space-y-4">
+    <h2 class="text-xl font-semibold">Vaciar tablas</h2>
+
+    <p class="text-gray-600">
+      Selecciona manualmente qué tablas deseas vaciar. <br>
+      <strong>Users</strong> y <strong>alembic_version</strong> nunca se vacían.
+    </p>
+
+    <a href="/admin/backup/clear">
+      <button
+        class="w-full p-4 text-lg rounded-lg font-semibold transition-all"
+        style="background-color:#66FF66;">
+        Vaciar tablas (seleccionar)
+      </button>
+    </a>
+  </div>
+
+
+
+  <!-- ========================================================= -->
+  <!-- 3) CARGAR COPIA DESDE EXCEL -->
+  <!-- ========================================================= -->
+  <div class="card p-6 space-y-4">
+    <h2 class="text-xl font-semibold">Cargar copia de seguridad</h2>
+
+    <p class="text-gray-600">
+      Sube un archivo Excel generado previamente por la aplicación. <br>
+      Las tablas <strong>users</strong> y <strong>alembic_version</strong> se ignorarán.
+    </p>
+
+    <form action="/admin/backup/load" method="post" enctype="multipart/form-data">
+
+      <input
+        type="file"
+        name="backup_file"
+        accept=".xlsx"
+        class="block w-full border p-2 rounded mb-4"
+        required
+      >
+
+      <button
+        type="submit"
+        class="w-full p-4 text-lg rounded-lg font-semibold transition-all"
+        style="background-color:#66FF66;"
+        onclick="return confirm('¿Seguro que quieres cargar esta copia? Esto reemplazará datos existentes.')"
+      >
+        Cargar copia desde Excel
+      </button>
+
+    </form>
+  </div>
 
 </div>
+
 {% endblock %}
