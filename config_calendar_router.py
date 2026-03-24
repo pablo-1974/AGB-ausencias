@@ -207,7 +207,6 @@ async def calendar_edit_post(
     xmas_end: str = Form(...),
     easter_start: str = Form(...),
     easter_end: str = Form(...),
-    other_holidays: str = Form(""),
 ):
     cal = await session.scalar(
         select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -224,8 +223,7 @@ async def calendar_edit_post(
     cal.easter_start = date.fromisoformat(easter_start)
     cal.easter_end = date.fromisoformat(easter_end)
 
-    festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
-    cal.other_holidays = festivos
+    # YA NO TOCAMOS other_holidays AQUÍ
 
     await session.commit()
 
