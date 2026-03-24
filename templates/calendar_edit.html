@@ -28,7 +28,7 @@
             <label class="text-sm text-gray-600">Primer día</label>
             <input type="date" name="first_day"
                    class="mt-1 w-full border rounded p-2"
-                   value="{{ calendar.first_day | date('Y-m-d') }}"
+                   value="{{ calendar.first_day.strftime('%Y-%m-%d') }}"
                    required>
           </div>
 
@@ -36,7 +36,7 @@
             <label class="text-sm text-gray-600">Último día</label>
             <input type="date" name="last_day"
                    class="mt-1 w-full border rounded p-2"
-                   value="{{ calendar.last_day | date('Y-m-d') }}"
+                   value="{{ calendar.last_day.strftime('%Y-%m-%d') }}"
                    required>
           </div>
 
@@ -53,7 +53,7 @@
             <label class="text-sm text-gray-600">Inicio</label>
             <input type="date" name="xmas_start"
                    class="mt-1 w-full border rounded p-2"
-                   value="{{ calendar.xmas_start | date('Y-m-d') }}"
+                   value="{{ calendar.xmas_start.strftime('%Y-%m-%d') }}"
                    required>
           </div>
 
@@ -61,7 +61,7 @@
             <label class="text-sm text-gray-600">Fin</label>
             <input type="date" name="xmas_end"
                    class="mt-1 w-full border rounded p-2"
-                   value="{{ calendar.xmas_end | date('Y-m-d') }}"
+                   value="{{ calendar.xmas_end.strftime('%Y-%m-%d') }}"
                    required>
           </div>
 
@@ -78,7 +78,7 @@
             <label class="text-sm text-gray-600">Inicio</label>
             <input type="date" name="easter_start"
                    class="mt-1 w-full border rounded p-2"
-                   value="{{ calendar.easter_start | date('Y-m-d') }}"
+                   value="{{ calendar.easter_start.strftime('%Y-%m-%d') }}"
                    required>
           </div>
 
@@ -86,7 +86,7 @@
             <label class="text-sm text-gray-600">Fin</label>
             <input type="date" name="easter_end"
                    class="mt-1 w-full border rounded p-2"
-                   value="{{ calendar.easter_end | date('Y-m-d') }}"
+                   value="{{ calendar.easter_end.strftime('%Y-%m-%d') }}"
                    required>
           </div>
 
