@@ -22,14 +22,14 @@
       <div class="col-md-6 mb-3">
         <label class="form-label">Primer día del curso</label>
         <input type="date" name="first_day" class="form-control"
-               value="{{ calendar.first_day | date('Y-m-d') if calendar else '' }}"
+               value="{{ calendar.first_day.strftime('%Y-%m-%d') if calendar else '' }}"
                required>
       </div>
 
       <div class="col-md-6 mb-3">
         <label class="form-label">Último día del curso</label>
         <input type="date" name="last_day" class="form-control"
-               value="{{ calendar.last_day | date('Y-m-d') if calendar else '' }}"
+               value="{{ calendar.last_day.strftime('%Y-%m-%d') if calendar else '' }}"
                required>
       </div>
     </div>
@@ -41,14 +41,14 @@
       <div class="col-md-6 mb-3">
         <label class="form-label">Inicio</label>
         <input type="date" name="xmas_start" class="form-control"
-               value="{{ calendar.xmas_start | date('Y-m-d') if calendar else '' }}"
+               value="{{ calendar.xmas_start.strftime('%Y-%m-%d') if calendar else '' }}"
                required>
       </div>
 
       <div class="col-md-6 mb-3">
         <label class="form-label">Fin</label>
         <input type="date" name="xmas_end" class="form-control"
-               value="{{ calendar.xmas_end | date('Y-m-d') if calendar else '' }}"
+               value="{{ calendar.xmas_end.strftime('%Y-%m-%d') if calendar else '' }}"
                required>
       </div>
     </div>
@@ -60,14 +60,14 @@
       <div class="col-md-6 mb-3">
         <label class="form-label">Inicio</label>
         <input type="date" name="easter_start" class="form-control"
-               value="{{ calendar.easter_start | date('Y-m-d') if calendar else '' }}"
+               value="{{ calendar.easter_start.strftime('%Y-%m-%d') if calendar else '' }}"
                required>
       </div>
 
       <div class="col-md-6 mb-3">
         <label class="form-label">Fin</label>
         <input type="date" name="easter_end" class="form-control"
-               value="{{ calendar.easter_end | date('Y-m-d') if calendar else '' }}"
+               value="{{ calendar.easter_end.strftime('%Y-%m-%d') if calendar else '' }}"
                required>
       </div>
     </div>
