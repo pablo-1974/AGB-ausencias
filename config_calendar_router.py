@@ -36,6 +36,19 @@ def _templates(request: Request):
 
 
 # ------------------------------------------------------
+# Helper: normalizar always other_holidays a lista
+# ------------------------------------------------------
+def normalize_holidays(value):
+    """Convierte lo que venga de DB en una lista real."""
+    if isinstance(value, list):
+        return value[:]   # copia real
+    if not value:
+        return []
+    # Si viene como string tipo "2025-10-31, 2025-12-05"
+    return [h.strip() for h in str(value).split(",") if h.strip()]
+
+
+# ------------------------------------------------------
 # GET /
 # ------------------------------------------------------
 @router.get("/")
@@ -47,6 +60,9 @@ async def calendar_get(
     cal = await session.scalar(
         select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
     )
+
+    if cal:
+        cal.other_holidays = normalize_holidays(cal.other_holidays)
 
     return _templates(request).TemplateResponse(
         "calendar_config.html",
@@ -114,6 +130,8 @@ async def calendar_view(
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
 
+    cal.other_holidays = normalize_holidays(cal.other_holidays)
+
     months = []
     cur = cal.first_day.replace(day=1)
 
@@ -159,13 +177,7 @@ async def calendar_view(
 
     return _templates(request).TemplateResponse(
         "calendar_view.html",
-        ctx(
-            request,
-            admin,
-            title="Calendario escolar",
-            calendar=cal,
-            months=months,
-        ),
+        ctx(request, admin, title="Calendario escolar", calendar=cal, months=months),
     )
 
 
@@ -184,6 +196,8 @@ async def calendar_edit(
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
+
+    cal.other_holidays = normalize_holidays(cal.other_holidays)
 
     return _templates(request).TemplateResponse(
         "calendar_edit.html",
@@ -223,7 +237,7 @@ async def calendar_edit_post(
     cal.easter_start = date.fromisoformat(easter_start)
     cal.easter_end = date.fromisoformat(easter_end)
 
-    # YA NO TOCAMOS other_holidays AQUÍ
+    # NO TOCAMOS other_holidays AQUÍ
 
     await session.commit()
 
@@ -248,11 +262,10 @@ async def calendar_delete_holiday(
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
 
-    existing = cal.other_holidays
-    if not isinstance(existing, list):
-        existing = [h.strip() for h in str(existing).split(",") if h.strip()]
+    existing = normalize_holidays(cal.other_holidays)
 
     cal.other_holidays = [h for h in existing if h != holiday_date]
+    session.add(cal)
 
     await session.commit()
 
@@ -276,17 +289,18 @@ async def calendar_add_holiday(
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
-    print("POST holiday_date recibido =", repr(holiday_date)) # PROVISIONAL
+
     new_date = holiday_date.strip()
 
-    existing = cal.other_holidays
-    if not isinstance(existing, list):
-        existing = [h.strip() for h in str(existing).split(",") if h.strip()]
+    existing = normalize_holidays(cal.other_holidays)
 
     if new_date not in existing:
         existing.append(new_date)
 
-    cal.other_holidays = existing
+    # Forzar cambio real
+    cal.other_holidays = existing[:]
+    session.add(cal)
+
     await session.commit()
 
     return RedirectResponse("/config/calendar/edit", 303)
