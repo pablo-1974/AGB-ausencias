@@ -8,6 +8,7 @@
   <!-- TARJETA PRINCIPAL -->
   <div class="bg-white rounded-xl shadow p-6">
 
+    <!-- FORMULARIO PRINCIPAL -->
     <form method="post" class="space-y-6">
 
       <!-- Año escolar -->
@@ -93,82 +94,12 @@
         </div>
       </div>
 
-
-      <!-- ======================================= -->
-      <!-- FESTIVOS INDIVIDUALES (TABLA + BORRADO + AÑADIR) -->
-      <!-- ======================================= -->
-
-      <div class="pt-6 border-t">
-
-        <h3 class="text-xl font-semibold mb-4">Festivos individuales</h3>
-
-        {% if calendar.other_holidays %}
-          <table class="min-w-full border rounded-lg overflow-hidden text-sm bg-white">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="px-4 py-2 text-left font-semibold">Fecha</th>
-                <th class="px-4 py-2 text-left font-semibold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for h in calendar.other_holidays %}
-              <tr class="border-b">
-                <td class="px-4 py-2">{{ h }}</td>
-                <td class="px-4 py-2">
-
-                  <form action="/config/calendar/delete-holiday" method="post" class="inline">
-                    <input type="hidden" name="holiday_date" value="{{ h }}">
-                    <button class="text-red-600 hover:text-red-800">
-                      Borrar
-                    </button>
-                  </form>
-
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          <p class="text-gray-600 mb-4">
-            No hay festivos individuales registrados.
-          </p>
-        {% endif %}
-
-
-        <!-- ============================= -->
-        <!-- AÑADIR FESTIVO (form rápido) -->
-        <!-- ============================= -->
-
-        <form action="/config/calendar/add-holiday" method="post" class="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Añadir festivo</label>
-            <input 
-              type="date"
-              name="holiday_date"
-              class="border rounded p-2"
-              required
-            >
-          </div>
-
-          <button 
-            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Añadir
-          </button>
-
-        </form>
-
-
-        <!-- Campo de edición masiva (textarea) -->
-        <label class="font-medium mt-6 block">Festivos adicionales (separados por comas)</label>
-        <textarea
-          name="other_holidays"
-          class="w-full border rounded p-2 h-24"
-        >{% if calendar.other_holidays %}{{ calendar.other_holidays | join(', ') }}{% endif %}</textarea>
-
-      </div>
-
+      <!-- FESTIVOS MASIVOS -->
+      <label class="font-medium mt-6 block">Festivos adicionales (separados por comas)</label>
+      <textarea name="other_holidays"
+                class="w-full border rounded p-2 h-24">
+{% if calendar.other_holidays %}{{ calendar.other_holidays | join(', ') }}{% endif %}
+      </textarea>
 
       <!-- GUARDAR -->
       <div>
@@ -180,6 +111,65 @@
     </form>
 
   </div>
+
+  <!-- =============================================== -->
+  <!--             FESTIVOS INDIVIDUALES              -->
+  <!-- =============================================== -->
+  <div class="bg-white rounded-xl shadow p-6">
+
+    <h3 class="text-xl font-semibold mb-4">Festivos individuales</h3>
+
+    {% if calendar.other_holidays %}
+      <table class="min-w-full border rounded-lg overflow-hidden text-sm bg-white">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-4 py-2 text-left font-semibold">Fecha</th>
+            <th class="px-4 py-2 text-left font-semibold">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in calendar.other_holidays %}
+          <tr class="border-b">
+            <td class="px-4 py-2">{{ h }}</td>
+            <td class="px-4 py-2">
+
+              <form action="/config/calendar/delete-holiday" method="post" class="inline">
+                <input type="hidden" name="holiday_date" value="{{ h }}">
+                <button class="text-red-600 hover:text-red-800">
+                  Borrar
+                </button>
+              </form>
+
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-gray-600 mb-4">
+        No hay festivos individuales registrados.
+      </p>
+    {% endif %}
+
+    <!-- FORMULARIO: Añadir festivo -->
+    <form action="/config/calendar/add-holiday" method="post"
+          class="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Añadir festivo</label>
+        <input type="date" name="holiday_date"
+               class="border rounded p-2"
+               required>
+      </div>
+
+      <button class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        Añadir
+      </button>
+
+    </form>
+
+  </div>
+
 </div>
 
 {% endblock %}
