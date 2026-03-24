@@ -22,13 +22,20 @@
   </div>
 
   <div class="flex gap-2 pt-6">
-    <button class="btn-primary">Filtrar</button>
+    <button class="border px-3 py-1" 
+            style="background-color: #50EE9B; color: black; border-radius: 8px;">
+      Filtrar
+    </button>
     <a class="btn-muted inline-flex items-center" href="/absences/manage">Quitar filtros</a>
   </div>
 
   <!-- CTA Nueva ausencia (usa la fecha 'Desde' del filtro) -->
   <div class="pt-6 text-right">
-    <a href="/absences/new?d={{ filters.from }}" class="btn-primary inline-block">Nueva ausencia</a>
+    <a href="/absences/new?d={{ filters.from }}" 
+       class="border px-3 py-1" 
+       style="background-color: #37D9FF; color: black; border-radius: 8px; text-decoration: none; display: inline-block;">
+      Nueva ausencia
+    </a>
   </div>
 </form>
 
