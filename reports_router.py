@@ -111,7 +111,7 @@ async def reports_daily_generate(
     )
 
     filename = f"parte_diario_{fecha.isoformat()}.pdf"
-        return FileResponse(
+    return FileResponse(
         tmp.name,
         media_type="application/pdf",
         filename=filename
