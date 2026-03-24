@@ -29,7 +29,10 @@
       <input type="date" name="to" class="input" value="{{ filters.to }}">
     </div>
     <div class="flex gap-2">
-      <button class="btn-primary">Filtrar</button>
+      <button class="border px-3 py-1" 
+              style="background-color: #37D9FF; color: black; border-radius: 8px;">
+        Filtrar
+      </button>
       <a class="btn-muted inline-flex items-center" href="/absences/categorize">Quitar filtros</a>
     </div>
   </div>
@@ -37,7 +40,11 @@
 
 <!-- CTA Nueva ausencia -->
 <div class="mb-3">
-  <a class="btn-primary inline-flex items-center" href="/absences/new?d={{ filters.from }}">Nueva ausencia</a>
+  <a href="/absences/new?d={{ filters.from }}" 
+     class="border px-3 py-1 inline-flex items-center" 
+     style="background-color: #37D9FF; color: black; border-radius: 8px; text-decoration: none;">
+    Nueva ausencia
+  </a>
 </div>
 
 <div class="card overflow-x-auto">
