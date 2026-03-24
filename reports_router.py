@@ -111,7 +111,11 @@ async def reports_daily_generate(
     )
 
     filename = f"parte_diario_{fecha.isoformat()}.pdf"
-    return FileResponse(tmp.name, "application/pdf", filename=filename)
+        return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=filename
+    )
 
 
 # ======================================================
@@ -226,4 +230,8 @@ async def reports_monthly_pdf(
         )
 
     filename = f"parte_mensual_{date_from}_{date_to}.pdf"
-    return FileResponse(tmp.name, "application/pdf", filename=filename)
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=filename
+    )
