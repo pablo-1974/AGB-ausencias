@@ -391,7 +391,7 @@ async def admin_users_list(
 
     return _templates(request).TemplateResponse(
         "users_list.html",
-        ctx(request, admin, title="Gestión de usuarios", users=users),
+        _ctx(request, admin, title="Gestión de usuarios", users=users),
     )
 
 
@@ -402,7 +402,7 @@ async def admin_users_new_page(
 ):
     return _templates(request).TemplateResponse(
         "users_new.html",
-        ctx(request, admin, title="Nuevo usuario"),
+        _ctx(request, admin, title="Nuevo usuario"),
     )
 
 
