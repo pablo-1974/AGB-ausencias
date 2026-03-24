@@ -23,7 +23,6 @@ from models import SchoolCalendar, User
 from auth import admin_required
 from datetime import date, timedelta
 
-# Contexto global unificado
 from context import ctx
 
 router = APIRouter(prefix="/config/calendar", tags=["calendar"])
@@ -45,11 +44,9 @@ async def calendar_get(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
+    cal = await session.scalar(
+        select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+    )
 
     return _templates(request).TemplateResponse(
         "calendar_config.html",
@@ -82,7 +79,6 @@ async def calendar_post(
     es = date.fromisoformat(easter_start)
     ee = date.fromisoformat(easter_end)
 
-    # Siempre generar lista
     festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
 
     cal = SchoolCalendar(
@@ -111,11 +107,9 @@ async def calendar_view(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
+    cal = await session.scalar(
+        select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+    )
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
@@ -128,7 +122,6 @@ async def calendar_view(
         month = cur.month
         m1 = cur
 
-        # Mes siguiente
         if month == 12:
             next_m = cur.replace(year=year + 1, month=1, day=1)
         else:
@@ -185,11 +178,9 @@ async def calendar_edit(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required)
 ):
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
+    cal = await session.scalar(
+        select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+    )
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
@@ -218,11 +209,9 @@ async def calendar_edit_post(
     easter_end: str = Form(...),
     other_holidays: str = Form(""),
 ):
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
+    cal = await session.scalar(
+        select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+    )
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
@@ -235,7 +224,6 @@ async def calendar_edit_post(
     cal.easter_start = date.fromisoformat(easter_start)
     cal.easter_end = date.fromisoformat(easter_end)
 
-    # Siempre guardar como lista limpia
     festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
     cal.other_holidays = festivos
 
@@ -255,16 +243,13 @@ async def calendar_delete_holiday(
 
     holiday_date: str = Form(...),
 ):
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
+    cal = await session.scalar(
+        select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+    )
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
 
-    # Siempre convertir a lista
     existing = cal.other_holidays
     if not isinstance(existing, list):
         existing = [h.strip() for h in str(existing).split(",") if h.strip()]
@@ -287,24 +272,18 @@ async def calendar_add_holiday(
 
     holiday_date: str = Form(...),
 ):
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
+    cal = await session.scalar(
+        select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
+    )
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
 
     new_date = holiday_date.strip()
 
-    # Convertir siempre a lista
     existing = cal.other_holidays
     if not isinstance(existing, list):
-        if not existing:
-            existing = []
-        else:
-            existing = [h.strip() for h in str(existing).split(",") if h.strip()]
+        existing = [h.strip() for h in str(existing).split(",") if h.strip()]
 
     if new_date not in existing:
         existing.append(new_date)
