@@ -2,13 +2,12 @@
 # config_calendar_router.py — CONFIGURACIÓN DEL CALENDARIO ESCOLAR
 # ======================================================
 # Contiene:
-#   - Configuración del calendario escolar (formulario)
-#   - Vista de los 12 meses (procesada)
-#   - Guardado del calendario
-#   - Edición posterior del calendario (añadir/quitar festivos, ajustar fechas)
+#   - Configuración del calendario escolar
+#   - Vista anual (12 meses)
+#   - Edición del calendario
+#   - Añadir / borrar festivos
 #
-# Todas las rutas usan el contexto global ctx() para asegurar
-# coherencia en el header (fecha/hora), menú y datos comunes.
+# Totalmente adaptado a ctx() y a JSONB seguro para other_holidays.
 # ======================================================
 
 from __future__ import annotations
@@ -24,29 +23,28 @@ from models import SchoolCalendar, User
 from auth import admin_required
 from datetime import date, timedelta
 
-# 🔥 Contexto global unificado
+# Contexto global unificado
 from context import ctx
 
 router = APIRouter(prefix="/config/calendar", tags=["calendar"])
 
 
-# ======================================================
-# Helpers de plantillas (mantiene solo el acceso a Jinja2)
-# ======================================================
+# ------------------------------------------------------
+# Helpers plantillas
+# ------------------------------------------------------
 def _templates(request: Request):
     return request.app.state.templates
 
 
-# ======================================================
-# GET /config/calendar  — formulario de configuración inicial
-# ======================================================
+# ------------------------------------------------------
+# GET /
+# ------------------------------------------------------
 @router.get("/")
 async def calendar_get(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    """Muestra el formulario de configuración del calendario escolar."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -59,9 +57,9 @@ async def calendar_get(
     )
 
 
-# ======================================================
-# POST /config/calendar  — Guardar configuración inicial
-# ======================================================
+# ------------------------------------------------------
+# POST /
+# ------------------------------------------------------
 @router.post("/")
 async def calendar_post(
     request: Request,
@@ -77,7 +75,6 @@ async def calendar_post(
     easter_end: str = Form(...),
     other_holidays: str = Form(""),
 ):
-    """Guarda un nuevo calendario escolar."""
     fd = date.fromisoformat(first_day)
     ld = date.fromisoformat(last_day)
     xs = date.fromisoformat(xmas_start)
@@ -85,7 +82,7 @@ async def calendar_post(
     es = date.fromisoformat(easter_start)
     ee = date.fromisoformat(easter_end)
 
-    # Lista de festivos adicionales
+    # Siempre generar lista
     festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
 
     cal = SchoolCalendar(
@@ -102,20 +99,18 @@ async def calendar_post(
     session.add(cal)
     await session.commit()
 
-    # Tras guardar → vista limpia
     return RedirectResponse("/config/calendar/view", 303)
 
 
-# ======================================================
-# GET /config/calendar/view  — vista anual (12 meses)
-# ======================================================
+# ------------------------------------------------------
+# GET /view
+# ------------------------------------------------------
 @router.get("/view")
 async def calendar_view(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    """Muestra la vista completa del calendario escolar (12 meses)."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -123,9 +118,8 @@ async def calendar_view(
     ).scalar_one_or_none()
 
     if not cal:
-        return RedirectResponse("/config/calendar", 303)
+        return RedirectResponse("/config/calendar/", 303)
 
-    # Construcción de estructura de meses
     months = []
     cur = cal.first_day.replace(day=1)
 
@@ -134,7 +128,7 @@ async def calendar_view(
         month = cur.month
         m1 = cur
 
-        # Inicio del mes siguiente
+        # Mes siguiente
         if month == 12:
             next_m = cur.replace(year=year + 1, month=1, day=1)
         else:
@@ -142,7 +136,6 @@ async def calendar_view(
 
         m_last = next_m - timedelta(days=1)
 
-        # Recorrer días
         days = []
         d = m1
         while d <= m_last:
@@ -183,16 +176,15 @@ async def calendar_view(
     )
 
 
-# ======================================================
-# GET /admin/edit/calendar  — Edición completa del calendario
-# ======================================================
+# ------------------------------------------------------
+# GET /edit
+# ------------------------------------------------------
 @router.get("/edit")
 async def calendar_edit(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required)
 ):
-    """Pantalla completa para editar fechas y festivos."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -200,7 +192,7 @@ async def calendar_edit(
     ).scalar_one_or_none()
 
     if not cal:
-        return RedirectResponse("/config/calendar", 303)
+        return RedirectResponse("/config/calendar/", 303)
 
     return _templates(request).TemplateResponse(
         "calendar_edit.html",
@@ -208,9 +200,9 @@ async def calendar_edit(
     )
 
 
-# ======================================================
-# POST /admin/edit/calendar  — Guardar cambios de edición
-# ======================================================
+# ------------------------------------------------------
+# POST /edit
+# ------------------------------------------------------
 @router.post("/edit")
 async def calendar_edit_post(
     request: Request,
@@ -226,7 +218,6 @@ async def calendar_edit_post(
     easter_end: str = Form(...),
     other_holidays: str = Form(""),
 ):
-    """Guarda los cambios en un calendario existente."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -234,7 +225,7 @@ async def calendar_edit_post(
     ).scalar_one_or_none()
 
     if not cal:
-        return RedirectResponse("/config/calendar", 303)
+        return RedirectResponse("/config/calendar/", 303)
 
     cal.school_year = school_year
     cal.first_day = date.fromisoformat(first_day)
@@ -244,7 +235,7 @@ async def calendar_edit_post(
     cal.easter_start = date.fromisoformat(easter_start)
     cal.easter_end = date.fromisoformat(easter_end)
 
-    # Procesar festivos
+    # Siempre guardar como lista limpia
     festivos = [h.strip() for h in other_holidays.split(",") if h.strip()]
     cal.other_holidays = festivos
 
@@ -252,9 +243,10 @@ async def calendar_edit_post(
 
     return RedirectResponse("/config/calendar/view", 303)
 
-# ======================================================
-# POST /config/calendar/delete-holiday  — borrar festivo individual
-# ======================================================
+
+# ------------------------------------------------------
+# POST /delete-holiday
+# ------------------------------------------------------
 @router.post("/delete-holiday")
 async def calendar_delete_holiday(
     request: Request,
@@ -263,7 +255,6 @@ async def calendar_delete_holiday(
 
     holiday_date: str = Form(...),
 ):
-    """Elimina un festivo individual del calendario."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -271,17 +262,23 @@ async def calendar_delete_holiday(
     ).scalar_one_or_none()
 
     if not cal:
-        return RedirectResponse("/config/calendar/view", 303)
+        return RedirectResponse("/config/calendar/", 303)
 
-    # eliminar del array
-    cal.other_holidays = [h for h in (cal.other_holidays or []) if h != holiday_date]
+    # Siempre convertir a lista
+    existing = cal.other_holidays
+    if not isinstance(existing, list):
+        existing = [h.strip() for h in str(existing).split(",") if h.strip()]
+
+    cal.other_holidays = [h for h in existing if h != holiday_date]
 
     await session.commit()
+
     return RedirectResponse("/config/calendar/edit", 303)
 
-# ======================================================
-# POST /config/calendar/add-holiday — añadir festivo individual
-# ======================================================
+
+# ------------------------------------------------------
+# POST /add-holiday
+# ------------------------------------------------------
 @router.post("/add-holiday")
 async def calendar_add_holiday(
     request: Request,
@@ -290,7 +287,6 @@ async def calendar_add_holiday(
 
     holiday_date: str = Form(...),
 ):
-    """Añade un festivo individual al calendario."""
     cal = (
         await session.execute(
             select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
@@ -298,15 +294,22 @@ async def calendar_add_holiday(
     ).scalar_one_or_none()
 
     if not cal:
-        return RedirectResponse("/config/calendar", 303)
+        return RedirectResponse("/config/calendar/", 303)
 
     new_date = holiday_date.strip()
 
-    if new_date:
-        existing = cal.other_holidays or []
-        if new_date not in existing:
-            existing.append(new_date)
-            cal.other_holidays = existing
-            await session.commit()
+    # Convertir siempre a lista
+    existing = cal.other_holidays
+    if not isinstance(existing, list):
+        if not existing:
+            existing = []
+        else:
+            existing = [h.strip() for h in str(existing).split(",") if h.strip()]
+
+    if new_date not in existing:
+        existing.append(new_date)
+
+    cal.other_holidays = existing
+    await session.commit()
 
     return RedirectResponse("/config/calendar/edit", 303)
