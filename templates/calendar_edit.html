@@ -94,10 +94,6 @@
         </div>
       </div>
 
-      <!-- FESTIVOS MASIVOS -->
-      <label class="font-medium mt-6 block">Festivos adicionales (separados por comas)</label>
-      <textarea name="other_holidays"
-                class="w-full border rounded p-2 h-24">
 {% if calendar.other_holidays %}{{ calendar.other_holidays | join(', ') }}{% endif %}
       </textarea>
 
