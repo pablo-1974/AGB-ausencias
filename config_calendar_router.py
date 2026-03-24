@@ -278,7 +278,7 @@ async def calendar_add_holiday(
 
     if not cal:
         return RedirectResponse("/config/calendar/", 303)
-
+    print("POST holiday_date recibido =", repr(holiday_date)) # PROVISIONAL
     new_date = holiday_date.strip()
 
     existing = cal.other_holidays
