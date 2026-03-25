@@ -62,40 +62,73 @@ def _alias_classes(df: pd.DataFrame) -> pd.DataFrame:
 # Excel esperado (tolerante en cabeceras):
 #   nombre, email
 # -----------------------------------------
-# services/imports.py  (sustituye SOLO esta función)
 async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
     df = pd.read_excel(path)
-    df = _norm_cols(df)  # Permite 'Nombre'/'Email' etc.
+    df = _norm_cols(df)  # normaliza cabeceras a minúsculas
     require_columns(df, ["nombre", "email"])
 
     cnt = 0
+
     for _, r in df.iterrows():
-        name = str(r["nombre"]).strip() if pd.notna(r.get("nombre")) else ""
-        email = str(r["email"]).strip().lower() if pd.notna(r.get("email")) else ""
+        # ------------------------------------
+        # NOMBRE Y EMAIL (obligatorios)
+        # ------------------------------------
+        name = str(r.get("nombre", "")).strip() if pd.notna(r.get("nombre")) else ""
+        email = str(r.get("email", "")).strip().lower() if pd.notna(r.get("email")) else ""
+
         if not name or not email:
             continue
 
-        # alias en excel (opcional) o alias = name
-        alias = None
-        if "alias" in df.columns and pd.notna(r.get("alias")):
-            alias = str(r.get("alias")).strip()
-        if not alias:
+        # ------------------------------------
+        # ALIAS (opcional)
+        # Convertimos SIEMPRE a string
+        # ------------------------------------
+        alias_raw = r.get("alias", None)
+
+        if pd.notna(alias_raw):
+            alias = str(alias_raw).strip()
+        else:
             alias = name
 
-        existing = (await session.execute(select(Teacher).where(Teacher.email == email))).scalar_one_or_none()
+        # alias vacíos / nan / None → name
+        if not alias or alias.lower() in ("nan", "none", "null"):
+            alias = name
+
+        # ------------------------------------
+        # ¿Existe ya por email?
+        # ------------------------------------
+        existing = (
+            await session.execute(
+                select(Teacher).where(Teacher.email == email)
+            )
+        ).scalar_one_or_none()
+
         if existing:
             changed = False
+
+            # Actualizar nombre
             if existing.name != name:
                 existing.name = name
                 changed = True
-            if hasattr(existing, "alias") and getattr(existing, "alias", None) != alias:
+
+            # Actualizar alias (siempre string)
+            if hasattr(existing, "alias") and existing.alias != alias:
                 existing.alias = alias
                 changed = True
+
             if changed:
-                cnt += 1  # si quieres contar updates; si no, quítalo
+                cnt += 1
             continue
 
-        data = {"name": name, "email": email}
+        # ------------------------------------
+        # Crear profesor nuevo
+        # ------------------------------------
+        data = {
+            "name": name,
+            "email": email,
+        }
+
+        # Añadir alias explícitamente
         if hasattr(Teacher, "alias"):
             data["alias"] = alias
 
