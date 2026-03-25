@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto mt-6 space-y-8">
+
+  <h2 class="text-2xl font-bold">Bajas y sustituciones</h2>
+
+  {% if error %}
+    <div class="bg-red-100 border border-red-300 text-red-700 p-3 rounded">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  <table class="min-w-full bg-white border rounded shadow text-sm">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="px-4 py-2 text-left">Profesor</th>
+        <th class="px-4 py-2 text-left">Inicio</th>
+        <th class="px-4 py-2 text-left">Fin</th>
+        <th class="px-4 py-2 text-left">Sustituto</th>
+        <th class="px-4 py-2 text-left">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+        <tr class="border-b">
+          <td class="px-4 py-2">{{ it.teacher_name }}</td>
+          <td class="px-4 py-2">{{ it.start_date }}</td>
+          <td class="px-4 py-2">{{ it.end_date or '-' }}</td>
+          <td class="px-4 py-2">
+            {% if it.sub_name %}
+              {{ it.sub_name }}
+              <br>
+              <small class="text-gray-500">desde {{ it.sub_start_date }}</small>
+            {% else %}
+              <span class="text-gray-400">Sin sustituto</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 space-y-2">
+
+            {% if it.sub_name %}
+            <form action="/substitutions/end" method="post">
+              <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
+              <input type="date" name="end_date" class="border p-1 rounded" required>
+              <button class="bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700">
+                Finalizar sustitución
+              </button>
+            </form>
+            {% endif %}
+
+            <a href="/substitutions/new"
+               class="block bg-green-600 text-white px-3 py-1 rounded text-center">
+               Añadir sustituto
+            </a>
+
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+
+{% endblock %}
