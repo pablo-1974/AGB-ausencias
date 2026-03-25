@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto mt-6 space-y-8">
+
+  <h2 class="text-2xl font-bold">Crear sustitución</h2>
+
+  {% if error %}
+    <div class="bg-red-100 border border-red-300 text-red-700 p-3 rounded">{{ error }}</div>
+  {% endif %}
+  {% if info %}
+    <div class="bg-blue-100 border border-blue-300 text-blue-800 p-3 rounded">{{ info }}</div>
+  {% endif %}
+
+  <form method="post" class="space-y-6">
+
+    <div>
+      <label class="font-semibold">Profesor con baja activa</label>
+      <select name="teacher_id" class="border p-2 rounded w-full" required>
+        {% for it in open_leaves %}
+          <option value="{{ it.teacher_id }}">
+            {{ it.teacher_name }} — desde {{ it.start_date }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="font-semibold">Fecha de inicio de sustitución</label>
+      <input type="date" name="start_date" class="border p-2 rounded w-full" required>
+    </div>
+
+    <div>
+      <label class="font-semibold">Modo</label>
+      <select name="sub_mode" class="border p-2 rounded w-full" required>
+        <option value="exprof">Exprofesor</option>
+        <option value="new">Nuevo profesor</option>
+      </select>
+    </div>
+
+    <div id="exprof-block">
+      <label class="font-semibold">Seleccionar exprofesor</label>
+      <select name="exprof_teacher_id" class="border p-2 rounded w-full">
+        {% for e in exprofes %}
+          <option value="{{ e.id }}">{{ e.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div id="new-block">
+      <label class="font-semibold">Nuevo profesor</label>
+      <input name="new_name" class="border p-2 rounded w-full mb-2" placeholder="Nombre">
+      <input name="new_email" class="border p-2 rounded w-full mb-2" placeholder="Email">
+      <input name="new_alias" class="border p-2 rounded w-full" placeholder="Alias">
+    </div>
+
+    <button class="bg-green-600 text-white px-4 py-2 rounded">Crear sustitución</button>
+  </form>
+
+</div>
+
+{% endblock %}
