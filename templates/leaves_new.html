@@ -31,6 +31,7 @@
     <div>
       <label class="font-semibold">Tipo</label>
       <select name="leave_type" class="border p-2 rounded w-full">
+        <option value="" selected disabled>Selecciona tipo</option>
         <option value="baja">Baja</option>
         <option value="excedencia">Excedencia</option>
       </select>
@@ -38,12 +39,12 @@
 
     <div>
       <label class="font-semibold">Causa</label>
-      <input type="text" name="cause" value="Baja" class="border p-2 rounded w-full">
+      <input type="text" name="cause" required class="border p-2 rounded w-full">
     </div>
 
     <div>
       <label class="font-semibold">Categoría (A–L)</label>
-      <input type="text" maxlength="1" name="category" required 
+      <input type="text" maxlength="1" name="category" 
              class="border p-2 rounded w-full">
     </div>
 
