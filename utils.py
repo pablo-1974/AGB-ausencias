@@ -1,6 +1,6 @@
 # utils.py
 from typing import List
-import unicodeddata
+import unicodedata
 
 # ---------------------------
 # Bitmask de horas (1ª..6ª)
