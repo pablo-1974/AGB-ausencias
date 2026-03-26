@@ -69,32 +69,38 @@
       <input name="new_alias" id="new_alias" class="border p-2 rounded w-full" placeholder="Alias">
     </div>
     
-    <script>
-    function toggleFields() {
-      const mode = document.querySelector('input[name="sub_mode"]:checked').value;
-      const exBlock = document.getElementById('exprof-block');
-      const newBlock = document.getElementById('new-block');
-      
-      // Elementos internos para cambiar el 'required' dinámicamente
-      const exSelect = document.getElementById('exprof_select');
-      const newInputs = [
-        document.getElementById('new_name'),
-        document.getElementById('new_email'),
-        document.getElementById('new_alias')
-      ];
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
+      Crear sustitución
+    </button>
+  </form>
+
+</div>
+
+<script>
+  function toggleFields() {
+    const mode = document.querySelector('input[name="sub_mode"]:checked').value;
+    const exBlock = document.getElementById('exprof-block');
+    const newBlock = document.getElementById('new-block');
     
-      if (mode === 'exprof') {
-        exBlock.classList.remove('hidden');
-        newBlock.classList.add('hidden');
-        
-        exSelect.required = true;
-        newInputs.forEach(input => { input.required = false; });
-      } else {
-        exBlock.classList.add('hidden');
-        newBlock.classList.remove('hidden');
-        
-        exSelect.required = false;
-        newInputs.forEach(input => { input.required = true; });
-      }
+    const exSelect = document.getElementById('exprof_select');
+    const newInputs = [
+      document.getElementById('new_name'),
+      document.getElementById('new_email'),
+      document.getElementById('new_alias')
+    ];
+  
+    if (mode === 'exprof') {
+      exBlock.classList.remove('hidden');
+      newBlock.classList.add('hidden');
+      exSelect.required = true;
+      newInputs.forEach(input => { input.required = false; });
+    } else {
+      exBlock.classList.add('hidden');
+      newBlock.classList.remove('hidden');
+      exSelect.required = false;
+      newInputs.forEach(input => { input.required = true; });
     }
-    </script>
+  }
+</script>
+
+{% endblock %}
