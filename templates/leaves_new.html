@@ -16,6 +16,7 @@
     <div>
       <label class="font-semibold">Profesor</label>
       <select name="teacher_id" class="w-full border p-2 rounded" required>
+        <option value="" selected disabled>Selecciona un profesor</option>
         {% for t in teachers %}
           <option value="{{ t.id }}">{{ t.name }}</option>
         {% endfor %}
