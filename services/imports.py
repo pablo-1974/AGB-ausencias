@@ -62,18 +62,18 @@ def _alias_classes(df: pd.DataFrame) -> pd.DataFrame:
 # Excel esperado (tolerante en cabeceras):
 #   nombre, email
 # -----------------------------------------
-async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
-    # ✅ LEER SIEMPRE TODO COMO STR - SUPER IMPORTANTE
+async def import_teachers_from_excel(path: str, session: AsyncSession):
+    # ✅ LEER SIEMPRE TODO COMO STRING
     df = pd.read_excel(path, dtype=str)
 
-    df = _norm_cols(df)  # normaliza cabeceras a minúsculas
+    df = _norm_cols(df)  # normaliza cabeceras
     require_columns(df, ["nombre", "email"])
 
-    cnt = 0
+    imported_list = []   # ✅ YA NO USAMOS cnt
 
     for _, r in df.iterrows():
         # ------------------------------------
-        # NOMBRE Y EMAIL (obligatorios)
+        # NOMBRE / EMAIL (obligatorios)
         # ------------------------------------
         name = (r.get("nombre") or "").strip()
         email = (r.get("email") or "").strip().lower()
@@ -82,22 +82,16 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
             continue
 
         # ------------------------------------
-        # ALIAS (opcional)
-        # SIEMPRE STRING, NUNCA INT
+        # ALIAS (opcional, siempre string)
         # ------------------------------------
         alias_raw = r.get("alias")
+        alias = str(alias_raw).strip() if alias_raw else name
 
-        if alias_raw:
-            alias = str(alias_raw).strip()
-        else:
-            alias = name
-
-        # alias vacíos / nan / None → name
-        if not alias or alias.lower() in ("nan", "none", "null", ""):
+        if not alias or alias.lower() in ("", "nan", "none", "null"):
             alias = name
 
         # ------------------------------------
-        # ¿Existe ya por email?
+        # ¿Existe ya por e‑mail?
         # ------------------------------------
         existing = (
             await session.execute(
@@ -108,36 +102,38 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
         if existing:
             changed = False
 
-            # Actualizar nombre
             if existing.name != name:
                 existing.name = name
                 changed = True
 
-            # Actualizar alias
             if hasattr(existing, "alias") and existing.alias != alias:
                 existing.alias = alias
                 changed = True
 
             if changed:
-                cnt += 1
+                imported_list.append({
+                    "name": name,
+                    "email": email,
+                    "alias": alias,
+                })
+
             continue
 
         # ------------------------------------
         # Crear profesor nuevo
         # ------------------------------------
-        data = {
+        data = {"name": name, "email": email, "alias": alias}
+        session.add(Teacher(**data))
+
+        imported_list.append({
             "name": name,
             "email": email,
-        }
-
-        if hasattr(Teacher, "alias"):
-            data["alias"] = alias
-
-        session.add(Teacher(**data))
-        cnt += 1
+            "alias": alias,
+        })
 
     await session.commit()
-    return cnt
+    return imported_list     # ✅ ✅ ¡ESTO es lo que necesitaba tu router!
+    
 
 # -----------------------------------------
 # Guardias (sólo guardias)
