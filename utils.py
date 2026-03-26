@@ -1,5 +1,6 @@
 # utils.py
 from typing import List
+import unicodeddata
 
 # ---------------------------
 # Bitmask de horas (1ª..6ª)
@@ -61,31 +62,55 @@ def hour_label(idx: int) -> str:
 
 
 # ---------------------------
+# Normalización de columnas
+# ---------------------------
+
+def normalize_columns(df):
+    """
+    Convierte SIEMPRE las cabeceras a strings seguros.
+    Evita errores como: 'int' object is not iterable.
+    """
+    new_cols = []
+    for c in df.columns:
+        try:
+            col = str(c).strip().lower()
+        except Exception:
+            col = "col_unknown"
+        new_cols.append(col)
+    df = df.copy()
+    df.columns = new_cols
+    return df
+
+
+# ---------------------------
 # Validaciones Excel
 # ---------------------------
 
 def require_columns(df, required: List[str]):
-    """Lanza ValueError si faltan columnas."""
-    cols = [c.strip().lower() for c in df.columns]
-    missing = [c for c in required if c.lower() not in cols]
+    """
+    Valida que existan columnas requeridas en el DataFrame.
+    TOTALMENTE SEGURO: convierte a string antes de comparar.
+    Evita errores típicos de cabeceras numéricas, vacías o 'nan'.
+    """
+    df_cols = {str(c).strip().lower() for c in df.columns}
+    req_cols = {str(c).strip().lower() for c in required}
+
+    missing = req_cols - df_cols
     if missing:
-        raise ValueError(f"Faltan columnas obligatorias en Excel: {missing}")
+        raise ValueError(f"Faltan columnas obligatorias en Excel: {sorted(missing)}")
+
 
 # -----------------------------
 # Ordenación alfabética
 # -----------------------------
-import unicodedata
 
 def normalize_name(name: str) -> str:
     """
-    Normaliza un nombre quitando tildes y diacríticos para ordenación alfabética:
-    Á -> A, é -> e, ü -> u, etc.
-    Mantiene Ñ como expresión propia.
-    Devuelve siempre minúsculas.
+    Normaliza un nombre quitando tildes y diacríticos para ordenación alfabética.
+    Mantiene Ñ. Devuelve siempre minúsculas.
     """
     if not name:
         return ""
-
-    nf = unicodedata.normalize("NFD", name)
-    cleaned = "".join(ch for ch in nf if not unicodedata.combining(ch))
+    nf = unicodeddata.normalize("NFD", name)
+    cleaned = "".join(ch for ch in nf if not unicodeddata.combining(ch))
     return cleaned.lower()
