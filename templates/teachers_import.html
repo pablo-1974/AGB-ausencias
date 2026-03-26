@@ -1,24 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h1 class="text-lg font-semibold mb-4">Importar listado de profesores</h1>
 
 {% if error %}
-  <div class="mb-3 p-3 rounded border border-red-200 bg-red-50 text-red-800 text-sm">{{ error }}</div>
+  <div class="mb-3 p-3 rounded border border-red-200 bg-red-50 text-red-800 text-sm">
+    {{ error }}
+  </div>
 {% endif %}
 {% if info %}
-  <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{{ info }}</div>
+  <div class="mb-3 p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">
+    {{ info }}
+  </div>
 {% endif %}
 
-<form action="/imports/teachers" method="post" enctype="multipart/form-data" class="card space-y-3 max-w-xl">
+/imports/teachers
   <div>
     <label class="label">Archivo Excel</label>
     <input type="file" name="file" accept=".xlsx,.xls" required class="input">
-    <p class="text-xs text-gray-500 mt-1">Debe tener columnas: <b>nombre</b>, <b>email</b>.</p>
+    <p class="text-xs text-gray-500 mt-1">
+      Debe tener columnas: <b>nombre</b>, <b>email</b>, y opcionalmente <b>alias</b>.
+    </p>
   </div>
   <button class="btn-primary">Importar</button>
 </form>
 
+
 {% if imported is defined %}
-  <div class="mt-4 text-sm">Importados: <b>{{ imported }}</b></div>
+  <div class="mt-6 p-4 border rounded bg-gray-50">
+
+    <h2 class="font-semibold mb-2">
+      Profesores importados: {{ imported|length }}
+    </h2>
+
+    {% if imported|length > 0 %}
+      <ul class="list-disc ml-6 text-sm">
+        {% for p in imported %}
+          <li>
+            {{ p.name }} — {{ p.email }}{% if p.alias %} (alias: {{ p.alias }}){% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-600 text-sm">No se han importado profesores nuevos.</p>
+    {% endif %}
+
+  </div>
 {% endif %}
+
 {% endblock %}
