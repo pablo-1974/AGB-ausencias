@@ -13,23 +13,29 @@
   {% endif %}
 
   <form method="post" class="space-y-6">
-
+    <!-- Profesor a sustituir -->
     <div>
       <label class="font-semibold">Profesor con baja activa</label>
       <select name="teacher_id" class="border p-2 rounded w-full" required>
+        <option value="">-- seleccionar --</option>
         {% for it in open_leaves %}
           <option value="{{ it.teacher_id }}">
             {{ it.teacher_name }} — desde {{ it.start_date }}
           </option>
         {% endfor %}
       </select>
+      <p class="text-xs text-gray-500 mt-1">
+        Profesores en baja/excedencia que aún no tienen sustituto.
+      </p>
     </div>
-
+    
+    <!-- Fecha inicio sustitución -->
     <div>
       <label class="font-semibold">Fecha de inicio de sustitución</label>
       <input type="date" name="start_date" class="border p-2 rounded w-full" required>
     </div>
-
+    
+    <!-- Modo sustituto -->
     <div>
       <label class="font-semibold">Modo</label>
       <select name="sub_mode" class="border p-2 rounded w-full" required>
