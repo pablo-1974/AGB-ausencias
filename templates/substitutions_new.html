@@ -1,1 +1,100 @@
-c
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto mt-6 space-y-8">
+
+  <h2 class="text-2xl font-bold">Crear sustitución</h2>
+
+  {% if error %}
+    <div class="bg-red-100 border border-red-300 text-red-700 p-3 rounded">{{ error }}</div>
+  {% endif %}
+  {% if info %}
+    <div class="bg-blue-100 border border-blue-300 text-blue-800 p-3 rounded">{{ info }}</div>
+  {% endif %}
+
+  <form method="post" class="space-y-6">
+    <!-- Profesor a sustituir -->
+    <div>
+      <label class="font-semibold">Profesor con baja activa</label>
+      <select name="teacher_id" class="border p-2 rounded w-full" required>
+        <option value="">-- seleccionar --</option>
+        {% for it in open_leaves %}
+          <option value="{{ it.teacher_id }}">
+            {{ it.teacher_name }} — desde {{ it.start_date }}
+          </option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-500 mt-1">
+        Profesores en baja/excedencia que aún no tienen sustituto.
+      </p>
+    </div>
+    
+    <!-- Fecha inicio sustitución -->
+    <div>
+      <label class="font-semibold">Fecha de inicio de sustitución</label>
+      <input type="date" name="start_date" class="border p-2 rounded w-full" required>
+    </div>
+
+    <!-- Modo sustituto con Radio Buttons -->
+    <div class="space-y-4">
+      <label class="font-semibold block">Modo de sustitución</label>
+      <div class="flex items-center space-x-6">
+        <label class="flex items-center cursor-pointer">
+          <input type="radio" name="sub_mode" value="exprof" class="mr-2 w-4 h-4" onclick="toggleFields()" required>
+          <span>Exprofesor</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input type="radio" name="sub_mode" value="new" class="mr-2 w-4 h-4" onclick="toggleFields()" required>
+          <span>Nuevo profesor</span>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Bloque Exprofesor (Oculto inicialmente) -->
+    <div id="exprof-block" class="hidden mt-4">
+      <label class="font-semibold">Seleccionar exprofesor</label>
+      <select name="exprof_teacher_id" id="exprof_select" class="border p-2 rounded w-full">
+        <option value="" selected disabled>Elija un exprofesor...</option>
+        {% for e in exprofes %}
+          <option value="{{ e.id }}">{{ e.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    
+    <!-- Bloque Nuevo Profesor (Oculto inicialmente) -->
+    <div id="new-block" class="hidden mt-4 space-y-2">
+      <label class="font-semibold">Datos del nuevo profesor</label>
+      <input name="new_name" id="new_name" class="border p-2 rounded w-full" placeholder="Nombre completo">
+      <input name="new_email" id="new_email" type="email" class="border p-2 rounded w-full" placeholder="Email">
+      <input name="new_alias" id="new_alias" class="border p-2 rounded w-full" placeholder="Alias">
+    </div>
+    
+    <script>
+    function toggleFields() {
+      const mode = document.querySelector('input[name="sub_mode"]:checked').value;
+      const exBlock = document.getElementById('exprof-block');
+      const newBlock = document.getElementById('new-block');
+      
+      // Elementos internos para cambiar el 'required' dinámicamente
+      const exSelect = document.getElementById('exprof_select');
+      const newInputs = [
+        document.getElementById('new_name'),
+        document.getElementById('new_email'),
+        document.getElementById('new_alias')
+      ];
+    
+      if (mode === 'exprof') {
+        exBlock.classList.remove('hidden');
+        newBlock.classList.add('hidden');
+        
+        exSelect.required = true;
+        newInputs.forEach(input => { input.required = false; });
+      } else {
+        exBlock.classList.add('hidden');
+        newBlock.classList.remove('hidden');
+        
+        exSelect.required = false;
+        newInputs.forEach(input => { input.required = true; });
+      }
+    }
+    </script>
