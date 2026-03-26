@@ -111,6 +111,6 @@ def normalize_name(name: str) -> str:
     """
     if not name:
         return ""
-    nf = unicodeddata.normalize("NFD", name)
+    nf = unicodedata.normalize("NFD", name)
     cleaned = "".join(ch for ch in nf if not unicodeddata.combining(ch))
     return cleaned.lower()
