@@ -63,7 +63,9 @@ def _alias_classes(df: pd.DataFrame) -> pd.DataFrame:
 #   nombre, email
 # -----------------------------------------
 async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
-    df = pd.read_excel(path)
+    # ✅ LEER SIEMPRE TODO COMO STR - SUPER IMPORTANTE
+    df = pd.read_excel(path, dtype=str)
+
     df = _norm_cols(df)  # normaliza cabeceras a minúsculas
     require_columns(df, ["nombre", "email"])
 
@@ -73,25 +75,25 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
         # ------------------------------------
         # NOMBRE Y EMAIL (obligatorios)
         # ------------------------------------
-        name = str(r.get("nombre", "")).strip() if pd.notna(r.get("nombre")) else ""
-        email = str(r.get("email", "")).strip().lower() if pd.notna(r.get("email")) else ""
+        name = (r.get("nombre") or "").strip()
+        email = (r.get("email") or "").strip().lower()
 
         if not name or not email:
             continue
 
         # ------------------------------------
         # ALIAS (opcional)
-        # Convertimos SIEMPRE a string
+        # SIEMPRE STRING, NUNCA INT
         # ------------------------------------
-        alias_raw = r.get("alias", None)
+        alias_raw = r.get("alias")
 
-        if pd.notna(alias_raw):
+        if alias_raw:
             alias = str(alias_raw).strip()
         else:
             alias = name
 
         # alias vacíos / nan / None → name
-        if not alias or alias.lower() in ("nan", "none", "null"):
+        if not alias or alias.lower() in ("nan", "none", "null", ""):
             alias = name
 
         # ------------------------------------
@@ -111,7 +113,7 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
                 existing.name = name
                 changed = True
 
-            # Actualizar alias (siempre string)
+            # Actualizar alias
             if hasattr(existing, "alias") and existing.alias != alias:
                 existing.alias = alias
                 changed = True
@@ -128,7 +130,6 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
             "email": email,
         }
 
-        # Añadir alias explícitamente
         if hasattr(Teacher, "alias"):
             data["alias"] = alias
 
@@ -137,7 +138,6 @@ async def import_teachers_from_excel(path: str, session: AsyncSession) -> int:
 
     await session.commit()
     return cnt
-
 
 # -----------------------------------------
 # Guardias (sólo guardias)
