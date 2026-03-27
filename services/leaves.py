@@ -78,9 +78,15 @@ async def open_leave(
         raise HTTPException(400, "Solo se puede iniciar baja a un profesor activo.")
 
     if leave_type == TeacherStatus.baja:
-        if category not in list("ABCDEFGHIJKL"):
-            raise HTTPException(400, "Categoría inválida.")
+        # Si se pasó categoría, validarla
+        if category:
+            if category not in list("ABCDEFGHIJKL"):
+                raise HTTPException(status_code=400, detail="Categoría inválida. Debe ser A–L.")
+        else:
+            # Permitir iniciar baja sin catalogación
+            category = None
     else:
+        # Excedencias no llevan categoría
         category = None
 
     # Buscar baja existente solapada
