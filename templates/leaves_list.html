@@ -17,50 +17,62 @@
         <th class="px-4 py-2 text-left">Profesor</th>
         <th class="px-4 py-2 text-left">Inicio</th>
         <th class="px-4 py-2 text-left">Fin</th>
-        <th class="px-4 py-2 text-left">Sustituto</th>
+        <th class="px-4 py-2 text-left">Cadena</th>
         <th class="px-4 py-2 text-left">Acciones</th>
       </tr>
     </thead>
-
     <tbody>
       {% for it in items %}
-      <tr class="border-b">
-        <td class="px-4 py-2">{{ it.teacher_name }}</td>
-        <td class="px-4 py-2">{{ it.start_date }}</td>
-        <td class="px-4 py-2">{{ it.end_date or '-' }}</td>
+        <tr class="border-b">
 
-        <!-- Sustituto -->
-        <td class="px-4 py-2">
-          {% if it.sub_name %}
-            {{ it.sub_name }}<br>
-            <small class="text-gray-500">desde {{ it.sub_start_date }}</small>
-          {% else %}
-            <span class="text-gray-400">Sin sustituto</span>
-          {% endif %}
-        </td>
+          <!-- Profesor -->
+          <td class="px-4 py-2 font-medium">
+            {{ it.teacher_name }}
+          </td>
 
-        <!-- Acciones -->
-        <td class="px-4 py-2 space-y-2">
+          <!-- Inicio -->
+          <td class="px-4 py-2">
+            {{ it.start_date }}
+          </td>
 
-          {% if it.sub_name %}
-          <!-- ✅ Finalizar sustitución -->
-          <form action="/substitutions/end" method="post" class="space-y-2">
-            <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
-            <input type="date" name="end_date" class="border p-1 rounded w-full" required>
-            <button class="bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 w-full">
-              Finalizar sustitución
-            </button>
-          </form>
-          {% endif %}
+          <!-- Fin -->
+          <td class="px-4 py-2">
+            {{ it.end_date or "-" }}
+          </td>
 
-          <!-- ✅ Añadir sustituto -->
-          <a href="/substitutions/new?teacher_id={{ it.teacher_id }}"
-             class="block bg-green-600 text-white px-3 py-1 rounded text-center hover:bg-green-700">
-             Añadir sustituto
-          </a>
+          <!-- ✅ Cadena bonita -->
+          <td class="px-4 py-2 text-sm text-blue-700">
+            {% if it.chain %}
+              {{ it.teacher_name }}
+              {% for node in it.chain %}
+                {% if loop.last %}
+                  → <span class="font-semibold text-green-700">{{ node }}</span>
+                {% else %}
+                  → {{ node }}
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <span class="text-gray-400">Sin cadena</span>
+            {% endif %}
+          </td>
 
-        </td>
-      </tr>
+          <!-- Acciones -->
+          <td class="px-4 py-2 space-y-2">
+
+            {% if it.sub_name %}
+              /substitutions/end
+                <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
+                <input type="date" name="end_date" required class="border p-1 rounded w-full">
+                <button class="w-full bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700">
+                  Finalizar sustitución
+                </button>
+              </form>
+            {% endif %}
+
+            /substitutions/new?teacher_id={{ it.teacher_id }}
+
+          </td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>
