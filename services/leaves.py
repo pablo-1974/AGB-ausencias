@@ -55,21 +55,19 @@ async def get_substitution_chain(session: AsyncSession, teacher_id: int) -> List
 async def _activate_professor(session: AsyncSession, prof_id: int):
     """
     Activa prof_id como el ÚNICO profesor ACTIVO de la cadena.
-    Todo lo que está por debajo pasa a EXPROFE.
-    Los superiores permanecen en su estado (baja/excedencia).
+    Todo lo inferior pasa a EXPROFE.
     """
-
     teacher = await session.get(Teacher, prof_id)
     if not teacher:
         raise HTTPException(404, "Profesor no encontrado.")
 
-    # 1) Activar este profesor
+    # 1) Activar
     teacher.status = TeacherStatus.activo
 
-    # 2) Obtener cadena por debajo
+    # 2) Obtener cadena inferior
     chain = await get_substitution_chain(session, prof_id)
 
-    # 3) Degradar todo lo inferior
+    # 3) Degradar sustitutos por debajo
     cur = prof_id
     for sid in chain:
         sub = await session.get(Teacher, sid)
@@ -77,6 +75,7 @@ async def _activate_professor(session: AsyncSession, prof_id: int):
             sub.status = TeacherStatus.exprofe
             sub.titular = False
 
+            # borrar slots clonados
             flag = f"substitution:{cur}"
             slots = await session.scalars(
                 select(ScheduleSlot).where(
@@ -91,7 +90,7 @@ async def _activate_professor(session: AsyncSession, prof_id: int):
 
         cur = sid
 
-    # 4) Romper sustitución del que activamos
+    # 4) Romper sustitución del activado
     lv = await _get_open_leave(session, prof_id)
     if lv:
         lv.substitute_teacher_id = None
@@ -127,6 +126,7 @@ async def open_leave(
     else:
         category = None
 
+    # Si ya existe baja solapada → actualizar
     existing = await session.scalar(
         select(Leave).where(
             and_(
@@ -145,6 +145,7 @@ async def open_leave(
         await session.commit()
         return existing
 
+    # Crear baja nueva
     lv = Leave(
         teacher_id=teacher_id,
         start_date=start_date,
@@ -193,6 +194,7 @@ async def set_substitution(
     lv.substitute_start_date = start_date
     lv.substitute_end_date = None
 
+    # Activar sustituto
     sub = await session.get(Teacher, substitute_teacher_id)
     sub.status = TeacherStatus.activo
     sub.titular = False
@@ -224,6 +226,7 @@ async def end_substitution(
     sub.status = TeacherStatus.exprofe
     sub.titular = False
 
+    # borrar slots clonados
     flag = f"substitution:{teacher_id}"
     slots = await session.scalars(
         select(ScheduleSlot).where(
@@ -254,12 +257,14 @@ async def close_leave_cascade(
 
     lv.end_date = end_date
 
-    # Activar profesor (regla general)
+    # Activar profesor
     await _activate_professor(session, teacher_id)
 
     # SI ES TITULAR → desmontar toda la cadena
     prof = await session.get(Teacher, teacher_id)
     if prof.titular:
+
+        # 1) Degradar la cadena actual abajo del titular
         chain = await get_substitution_chain(session, teacher_id)
         cur = teacher_id
 
@@ -269,8 +274,7 @@ async def close_leave_cascade(
             sub.titular = False
 
             flag = f"substitution:{cur}"
-            slots = await session.scalars(
-                select(ScheduleSlot).where(
+            slots = await sessionheduleSlot).where(
                     and_(ScheduleSlot.teacher_id == sid, ScheduleSlot.source == flag)
                 )
             )
@@ -283,6 +287,19 @@ async def close_leave_cascade(
                 lv_s.substitute_end_date = end_date
 
             cur = sid
+
+        # ✅ 2) Degradar sustitutos “colgados” (actividad fantasma)
+        old_subs = await session.execute(
+            select(Teacher).where(
+                and_(
+                    Teacher.titular == False,
+                    Teacher.status == TeacherStatus.activo
+                )
+            )
+        )
+        for t in old_subs.scalars():
+            t.status = TeacherStatus.exprofe
+            t.titular = False
 
     await session.commit()
     return lv
