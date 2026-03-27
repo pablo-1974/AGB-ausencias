@@ -21,58 +21,65 @@
         <th class="px-4 py-2 text-left">Acciones</th>
       </tr>
     </thead>
+
     <tbody>
       {% for it in items %}
-        <tr class="border-b">
+      <tr class="border-b">
 
-          <!-- Profesor -->
-          <td class="px-4 py-2 font-medium">
+        <!-- Profesor -->
+        <td class="px-4 py-2 font-medium">
+          {{ it.teacher_name }}
+        </td>
+
+        <!-- Inicio -->
+        <td class="px-4 py-2">
+          {{ it.start_date }}
+        </td>
+
+        <!-- Fin -->
+        <td class="px-4 py-2">
+          {{ it.end_date or "-" }}
+        </td>
+
+        <!-- ✅ Cadena bonita con marcado del último activo -->
+        <td class="px-4 py-2 text-sm text-blue-700">
+          {% if it.chain %}
             {{ it.teacher_name }}
-          </td>
+            {% for node in it.chain %}
+              {% if loop.last %}
+                → <span class="font-semibold text-green-700">{{ node }}</span>
+              {% else %}
+                → {{ node }}
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <span class="text-gray-400">Sin cadena</span>
+          {% endif %}
+        </td>
 
-          <!-- Inicio -->
-          <td class="px-4 py-2">
-            {{ it.start_date }}
-          </td>
+        <!-- Acciones -->
+        <td class="px-4 py-2 space-y-2">
 
-          <!-- Fin -->
-          <td class="px-4 py-2">
-            {{ it.end_date or "-" }}
-          </td>
+          <!-- Finalizar sustitución -->
+          {% if it.sub_name %}
+          <form action="/substitutions/end" method="post" class="space-y-2">
+            <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
+            <input type="date" name="end_date" required class="border p-1 rounded w-full">
+            <button class="w-full bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700">
+              Finalizar sustitución
+            </button>
+          </form>
+          {% endif %}
 
-          <!-- ✅ Cadena bonita -->
-          <td class="px-4 py-2 text-sm text-blue-700">
-            {% if it.chain %}
-              {{ it.teacher_name }}
-              {% for node in it.chain %}
-                {% if loop.last %}
-                  → <span class="font-semibold text-green-700">{{ node }}</span>
-                {% else %}
-                  → {{ node }}
-                {% endif %}
-              {% endfor %}
-            {% else %}
-              <span class="text-gray-400">Sin cadena</span>
-            {% endif %}
-          </td>
+          <!-- Añadir sustituto -->
+          <a href="/substitutions/new?teacher_id={{ it.teacher_id }}"
+             class="block bg-green-600 text-white px-3 py-1 rounded text-center">
+             Añadir sustituto
+          </a>
 
-          <!-- Acciones -->
-          <td class="px-4 py-2 space-y-2">
+        </td>
 
-            {% if it.sub_name %}
-              /substitutions/end
-                <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
-                <input type="date" name="end_date" required class="border p-1 rounded w-full">
-                <button class="w-full bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700">
-                  Finalizar sustitución
-                </button>
-              </form>
-            {% endif %}
-
-            /substitutions/new?teacher_id={{ it.teacher_id }}
-
-          </td>
-        </tr>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
