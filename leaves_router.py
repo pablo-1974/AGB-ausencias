@@ -129,7 +129,7 @@ async def leaves_new_create(
     start_date: date = Form(...),
     leave_type: str = Form("baja"),
     cause: str = Form("Baja"),
-    category: str = Form(...),
+    category: Optional[str] = Form(None),
 ):
     lt = TeacherStatus.baja if leave_type == "baja" else TeacherStatus.excedencia
 
