@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Editar baja</h2>
+<h2 class="mb-4 text-2xl font-bold">Editar baja</h2>
 
-<form method="post" class="space-y-4">
+<form method="post" class="space-y-6 max-w-3xl">
 
+  <!-- Profesor -->
   <div>
     <label class="label">Profesor</label>
     <div class="input w-full py-2 px-3 bg-gray-100">
@@ -12,6 +13,7 @@
     </div>
   </div>
 
+  <!-- Fecha inicio -->
   <div>
     <label class="label">Fecha inicio</label>
     <input type="date" name="start_date"
@@ -19,6 +21,7 @@
            value="{{ leave.start_date }}">
   </div>
 
+  <!-- Fecha fin -->
   <div>
     <label class="label">Fecha fin</label>
     <input type="date" name="end_date"
@@ -26,26 +29,65 @@
            value="{{ leave.end_date }}">
   </div>
 
+  <!-- Motivo -->
   <div>
     <label class="label">Motivo</label>
-    <textarea name="reason"
-              class="input w-full py-2 px-3">{{ leave.cause }}</textarea>
+    <textarea name="reason" class="input w-full py-2 px-3">{{ leave.cause }}</textarea>
   </div>
 
-  <div>
-    <label class="label">Categoría</label>
-    <select name="category" class="input w-full">
-      <option value="">— Sin categoría —</option>
-      {% for code in categories %}
-        <option value="{{ code }}"
-                {% if code == current_category %}selected{% endif %}>
-          {{ code }}
-        </option>
-      {% endfor %}
-    </select>
+  <!-- ✅ CATEGORIZACIÓN (estilo absences_categorize) -->
+  <div x-data="{ open: false }">
+
+    <label class="label">Categoría (A–L)</label>
+
+    <!-- Botón para abrir/cerrar panel -->
+    <button type="button"
+            class="px-3 py-1 mt-1 text-red-600 hover:text-red-800 font-semibold border rounded"
+            @click="open = !open">
+      Catalogar categoría
+    </button>
+
+    <!-- Panel -->
+    <div x-show="open" x-cloak class="mt-3 border rounded p-3 bg-gray-50">
+
+      {% if current_category %}
+        <p class="mb-2">
+          Categoría actual:
+          <span class="font-semibold text-base px-2 py-1">{{ current_category }}</span>
+        </p>
+      {% else %}
+        <p class="text-sm text-gray-600 mb-2">
+          Selecciona una categoría A–L.  
+          Si lo dejas en blanco, quedará sin catalogar.
+        </p>
+      {% endif %}
+
+      <!-- Radios -->
+      <div class="space-y-2 max-w-xl">
+        {% for code in categories %}
+          <label class="flex items-center gap-3">
+            <input
+              type="radio"
+              name="category"
+              value="{{ code }}"
+              {% if code == current_category %}checked{% endif %}
+            >
+            <span class="font-semibold text-base">{{ code }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <!-- Opción para eliminar categoría -->
+      <label class="flex items-center gap-3 mt-4">
+        <input type="radio" name="category" value="">
+        <span class="text-sm text-gray-600">Dejar sin categoría</span>
+      </label>
+
+    </div>
   </div>
-  
-  <div class="flex justify-end gap-3">
+
+  <!-- Botones -->
+  <div class="flex justify-end gap-3 pt-2">
     <a href="/leaves/admin" class="btn-muted">Cancelar</a>
     <button type="submit" class="btn-primary">Guardar cambios</button>
   </div>
