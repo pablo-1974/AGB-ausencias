@@ -372,6 +372,7 @@ async def leaves_list(
     items = [
         {
             "leave_id": lv.id,
+            "teacher_id": t.id,
             "teacher_name": t.name,
             "start_date": lv.start_date,
             "end_date": lv.end_date,
