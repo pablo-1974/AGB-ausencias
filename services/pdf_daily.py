@@ -313,3 +313,134 @@ async def build_daily_report_pdf(
 
     elements.append(table)
     doc.build(elements)
+
+# ======================================================================
+#   HTML PREVIEW (usado por reports_router.py)
+# ======================================================================
+async def build_daily_report_data(
+    session: AsyncSession,
+    the_date: date,
+    observaciones_usuario: str | None = None,
+    recreo_index: int = 3,
+):
+    """
+    Versión HTML del parte diario — usa la MISMA lógica de cadenas
+    que el PDF: solo el último de la cadena si está de baja/excedencia.
+    """
+
+    absent_ids, hours_by_teacher = await _teachers_absent_that_day(session, the_date)
+
+    if absent_ids:
+        q_teach = select(Teacher.id, Teacher.name).where(Teacher.id.in_(absent_ids))
+        name_by_id = {tid: n for tid, n in (await session.execute(q_teach)).all()}
+    else:
+        name_by_id = {}
+
+    head = ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"]
+    rows = []
+
+    weekday_py = the_date.weekday()
+    weekday_name = DAYS.get(weekday_py)
+
+    # Guardia recreo
+    ausentes_guardia_recreo: List[str] = []
+    for tid in absent_ids:
+        slot = await get_teacher_slot(session, tid, weekday_py, recreo_index)
+        if slot and slot.type == ScheduleType.GUARD:
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
+                ausentes_guardia_recreo.append(name_by_id.get(tid))
+
+    parts = []
+    if ausentes_guardia_recreo:
+        parts.append("Ausentes Guardia Recreo: " + "; ".join(ausentes_guardia_recreo))
+    if observaciones_usuario:
+        parts.append(observaciones_usuario)
+    obs_text = "; ".join(parts) if parts else "—"
+
+    # ==========================================================
+    #   GENERAR FILAS HTML (idéntico al PDF)
+    # ==========================================================
+    for label, hour_idx in HOUR_ROWS:
+
+        if hour_idx == recreo_index:
+            rows.append(["RECREO", "", "", "", "", "", ""])
+            continue
+
+        row_prof, row_grp, row_room, row_subj = [], [], [], []
+
+        # AUSENTES
+        for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
+
+            mask = hours_by_teacher.get(tid, 0)
+            if not _is_absent(mask, hour_idx):
+                continue
+
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+            if not slot:
+                continue
+
+            prof_name = name_by_id.get(tid)
+
+            if slot.type == ScheduleType.CLASS:
+                if (slot.group or "").upper() == "ED":
+                    continue
+                row_prof.append(prof_name)
+                row_grp.append(slot.group or "")
+                row_room.append(slot.room or "")
+                row_subj.append(slot.subject or "")
+                continue
+
+            if slot.type == ScheduleType.GUARD:
+                gtext = (slot.guard_type or "").upper()
+                if gtext.startswith("G RECREO"):
+                    continue
+                row_prof.append(prof_name)
+                row_grp.append("guardia")
+                row_room.append("guardia")
+                row_subj.append("guardia")
+                continue
+
+        # GUARDIAS ACTIVOS NO AUSENTES
+        guard_ids = await list_teachers_on_guard(
+            session, weekday_py, hour_idx, absent_ids
+        )
+
+        guard_aliases = []
+        for tid in guard_ids:
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+            if not slot or slot.type != ScheduleType.GUARD:
+                continue
+
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
+                continue
+
+            teacher = await session.get(Teacher, tid)
+            if teacher.status != TeacherStatus.activo:
+                continue
+
+            if tid in absent_ids:
+                continue
+
+            guard_aliases.append(teacher.alias or teacher.name)
+
+        def crush(xs: List[str]):
+            return "\n".join([x for x in xs if x.strip()])
+
+        rows.append([
+            label,
+            crush(sorted(row_prof, key=normalize_name)),
+            crush(sorted(row_grp)),
+            crush(sorted(row_room)),
+            crush(sorted(row_subj)),
+            "",
+            crush(sorted(guard_aliases, key=normalize_name)),
+        ])
+
+    return {
+        "title": f"Ausencias del día ({weekday_name} {the_date.strftime('%d/%m/%Y')})",
+        "weekday_name": weekday_name,
+        "date_str": the_date.isoformat(),
+        "head": head,
+        "rows": rows,
+        "obs_text": obs_text,
+    }
