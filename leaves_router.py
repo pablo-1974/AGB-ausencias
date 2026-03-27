@@ -16,40 +16,35 @@ from datetime import date
 from typing import Optional
 
 from database import get_session
-from config import settings
 from auth import admin_required
 from models import Teacher, TeacherStatus, Leave, User
 from utils import normalize_name
+from context import ctx
 
 from services.leaves import (
     open_leave,
     close_leave_cascade,
     set_substitution,
     end_substitution,
-    get_substitution_chain,
+    get_substitution_chain
 )
 
 from services.schedule import clone_teacher_schedule
-from context import ctx
 
 router = APIRouter()
 
-
-# ============================================================
-# Helpers de plantillas
-# ============================================================
 def _templates(request: Request):
     return request.app.state.templates
 
 
 # ============================================================
-# 1) Formulario: Finalizar baja (titular o sustituto)
+# Finalizar baja
 # ============================================================
 @router.get("/leaves/close")
 async def leaves_close_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required)
+    admin: User = Depends(admin_required),
 ):
     rows = (
         await session.execute(
@@ -61,12 +56,12 @@ async def leaves_close_form(
 
     open_items = [
         {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
-        for (l, t) in sorted(rows, key=lambda r: normalize_name(r[1].name))
+        for (l,t) in sorted(rows, key=lambda r: normalize_name(r[1].name))
     ]
 
     return _templates(request).TemplateResponse(
         "leaves_close.html",
-        ctx(request, admin, title="Finalizar baja", open_items=open_items),
+        ctx(request, admin, title="Finalizar baja", open_items=open_items)
     )
 
 
@@ -77,7 +72,7 @@ async def leaves_finish(
     end_date: date = Form(...),
     next_url: str | None = Form(None),
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required)
+    admin: User = Depends(admin_required),
 ):
     try:
         await close_leave_cascade(session, teacher_id, end_date)
@@ -86,12 +81,12 @@ async def leaves_finish(
         return _templates(request).TemplateResponse(
             "leaves_close.html",
             ctx(request, admin, error=str(e)),
-            status_code=400
+            status_code=400,
         )
 
 
 # ============================================================
-# 2) Iniciar baja
+# Crear baja
 # ============================================================
 @router.get("/leaves/new")
 async def leaves_new_form(
@@ -109,7 +104,7 @@ async def leaves_new_form(
 
     return _templates(request).TemplateResponse(
         "leaves_new.html",
-        ctx(request, admin, title="Iniciar baja", teachers=teachers),
+        ctx(request, admin, title="Iniciar baja", teachers=teachers)
     )
 
 
@@ -134,7 +129,7 @@ async def leaves_new_create(
             start_date=start_date,
             leave_type=lt,
             cause=cause,
-            category=category,
+            category=category
         )
         return RedirectResponse("/leaves", 303)
 
@@ -144,24 +139,25 @@ async def leaves_new_create(
                 select(Teacher).where(Teacher.status == TeacherStatus.activo)
             )
         ).scalars().all()
+
         teachers = sorted(rows, key=lambda t: normalize_name(t.name))
+
         return _templates(request).TemplateResponse(
             "leaves_new.html",
             ctx(request, admin, title="Iniciar baja", teachers=teachers, error=str(e)),
-            status_code=400,
+            status_code=400
         )
 
 
 # ============================================================
-# 3) Crear sustitución (cadena infinita)
+# Crear sustitución
 # ============================================================
 @router.get("/substitutions/new")
 async def substitutions_new_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required)
+    admin: User = Depends(admin_required),
 ):
-    # Bajas abiertas
     raw = (
         await session.execute(
             select(Leave, Teacher)
@@ -173,12 +169,11 @@ async def substitutions_new_form(
     open_leaves = sorted(
         [
             {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
-            for (l, t) in raw
+            for (l,t) in raw
         ],
-        key=lambda x: normalize_name(x["teacher_name"]),
+        key=lambda x: normalize_name(x["teacher_name"])
     )
 
-    # Exprofes disponibles
     ex_raw = (
         await session.execute(
             select(Teacher).where(Teacher.status == TeacherStatus.exprofe)
@@ -189,7 +184,7 @@ async def substitutions_new_form(
 
     return _templates(request).TemplateResponse(
         "substitutions_new.html",
-        ctx(request, admin, title="Iniciar sustitución", open_leaves=open_leaves, exprofes=exprofes),
+        ctx(request, admin, title="Iniciar sustitución", open_leaves=open_leaves, exprofes=exprofes)
     )
 
 
@@ -207,7 +202,6 @@ async def substitutions_new_create(
     new_email: Optional[str] = Form(None),
     new_alias: Optional[str] = Form(None),
 ):
-    # Verificar baja activa
     lv = await session.scalar(
         select(Leave).where(
             and_(
@@ -219,80 +213,74 @@ async def substitutions_new_create(
     if not lv:
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
-            ctx(request, admin, error="El profesor no tiene baja activa."),
-            status_code=400,
+            ctx(request, admin, error="El profesor no tiene baja activa"),
+            status_code=400
         )
 
-    # Determinar sustituto
-    if sub_mode == "exprof":
+    if sub_mode=="exprof":
         if not exprof_teacher_id:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                ctx(request, admin, error="Debes seleccionar un exprofesor."),
-                status_code=400,
+                ctx(request, admin, error="Debes seleccionar un exprofesor"),
+                status_code=400
             )
         sub = await session.get(Teacher, int(exprof_teacher_id))
         if not sub:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                ctx(request, admin, error="Exprofesor no encontrado."),
-                status_code=404,
+                ctx(request, admin, error="Exprofesor no encontrado"),
+                status_code=404
             )
         substitute_id = sub.id
         sub.status = TeacherStatus.activo
         sub.titular = False
 
-    elif sub_mode == "new":
+    elif sub_mode=="new":
         if not new_name or not new_email or not new_alias:
             return _templates(request).TemplateResponse(
                 "substitutions_new.html",
-                ctx(request, admin, error="Nombre, email y alias obligatorios"),
-                status_code=400,
+                ctx(request, admin, error="Campos obligatorios"),
+                status_code=400
             )
         new_t = Teacher(
             name=new_name.strip(),
             email=new_email.strip(),
             alias=new_alias.strip(),
             status=TeacherStatus.activo,
-            titular=False,
+            titular=False
         )
         session.add(new_t)
         await session.flush()
         substitute_id = new_t.id
+
     else:
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
             ctx(request, admin, error="Modo inválido"),
-            status_code=400,
+            status_code=400
         )
 
-    # Crear sustitución
-    await set_substitution(
-        session=session,
-        teacher_id=teacher_id,
-        start_date=start_date,
-        substitute_teacher_id=substitute_id
-    )
+    # registrar sustitución
+    await set_substitution(session, teacher_id, start_date, substitute_id)
 
-    # Clonar horario
     try:
         await clone_teacher_schedule(
             session,
             source_teacher_id=teacher_id,
             target_teacher_id=substitute_id,
-            effective_from=start_date,
+            effective_from=start_date
         )
     except Exception as e:
         return _templates(request).TemplateResponse(
             "substitutions_new.html",
-            ctx(request, admin, info=f"Sustituto creado, pero fallo clonando horario: {e}"),
+            ctx(request, admin, info=f"Sustituto creado, pero fallo clonando horario: {e}")
         )
 
     return RedirectResponse("/leaves", 303)
 
 
 # ============================================================
-# 4) Finalizar SÓLO sustitución (no la baja)
+# Finalizar sustitución
 # ============================================================
 @router.post("/substitutions/end")
 async def substitution_end_route(
@@ -300,7 +288,7 @@ async def substitution_end_route(
     teacher_id: int = Form(...),
     end_date: date = Form(...),
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required)
+    admin: User = Depends(admin_required),
 ):
     try:
         await end_substitution(session, teacher_id, end_date)
@@ -309,12 +297,12 @@ async def substitution_end_route(
         return _templates(request).TemplateResponse(
             "leaves_list.html",
             ctx(request, admin, error=str(e)),
-            status_code=400,
+            status_code=400
         )
 
 
 # ============================================================
-# 5) Listado completo de bajas y sustituciones
+# Listado de bajas
 # ============================================================
 @router.get("/leaves", response_class=HTMLResponse)
 async def leaves_list(
@@ -339,23 +327,28 @@ async def leaves_list(
         q = q.where(Leave.end_date.is_(None))
 
     if with_sub:
-        ws = with_sub.lower()
-        if ws == "true":
+        if with_sub.lower() == "true":
             q = q.where(Leave.substitute_teacher_id.is_not(None))
-        elif ws == "false":
+        elif with_sub.lower() == "false":
             q = q.where(Leave.substitute_teacher_id.is_(None))
 
-    if order == "desc":
-        q = q.order_by(Leave.start_date.desc())
-    else:
-        q = q.order_by(Leave.start_date.asc())
+    q = q.order_by(Leave.start_date.desc() if order=="desc" else Leave.start_date.asc())
 
     rows = (await session.execute(q)).all()
 
-    items = [
-        {
+    items = []
+
+    for lv, t, sub in rows:
+        chain_ids = await get_substitution_chain(session, t.id)
+        chain_names = []
+        for cid in chain_ids:
+            c = await session.get(Teacher, cid)
+            if c:
+                chain_names.append(c.name)
+
+        items.append({
             "leave_id": lv.id,
-            "teacher_id": t.id,  # ✅ necesario para finalizar sustitución
+            "teacher_id": t.id,
             "teacher_name": t.name,
             "start_date": lv.start_date,
             "end_date": lv.end_date,
@@ -363,11 +356,10 @@ async def leaves_list(
             "sub_name": sub.name if sub else None,
             "sub_start_date": lv.substitute_start_date,
             "sub_end_date": lv.substitute_end_date,
-        }
-        for lv, t, sub in rows
-    ]
+            "chain": chain_names
+        })
 
     return _templates(request).TemplateResponse(
         "leaves_list.html",
-        ctx(request, admin, title="Bajas (ver)", items=items),
+        ctx(request, admin, title="Bajas y sustituciones", items=items),
     )
