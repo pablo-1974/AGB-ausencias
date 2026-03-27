@@ -54,30 +54,30 @@ async def get_substitution_chain(session: AsyncSession, teacher_id: int) -> List
 # ===================================================================
 async def _activate_professor(session: AsyncSession, prof_id: int):
     """
-    Activa prof_id como el único profesor ACTIVO de la cadena.
-    Todo lo que esté por debajo en la cadena pasa a EXPROFE.
-    Los superiores permanecen en el estado que tenían (baja/excedencia).
+    Activa prof_id como el ÚNICO profesor ACTIVO de la cadena.
+    Todo lo que está por debajo pasa a EXPROFE.
+    Los superiores permanecen en su estado (baja/excedencia).
     """
 
     teacher = await session.get(Teacher, prof_id)
     if not teacher:
         raise HTTPException(404, "Profesor no encontrado.")
 
-    # 1) Activar a este profesor (si es titular, mantiene titular=True)
+    # 1) Activar este profesor
     teacher.status = TeacherStatus.activo
 
-    # 2) Obtener la cadena completa que cuelga de él
+    # 2) Obtener cadena por debajo
     chain = await get_substitution_chain(session, prof_id)
 
-    # 3) Para cada sustituto más profundo → exprofe y limpiar horarios clonados
-    cur_id = prof_id
+    # 3) Degradar todo lo inferior
+    cur = prof_id
     for sid in chain:
         sub = await session.get(Teacher, sid)
         if sub:
             sub.status = TeacherStatus.exprofe
             sub.titular = False
 
-            flag = f"substitution:{cur_id}"
+            flag = f"substitution:{cur}"
             slots = await session.scalars(
                 select(ScheduleSlot).where(
                     and_(
@@ -89,10 +89,9 @@ async def _activate_professor(session: AsyncSession, prof_id: int):
             for s in slots:
                 await session.delete(s)
 
-        # avanzar en la cadena
-        cur_id = sid
+        cur = sid
 
-    # Desmontar sustitución en leave del profesor activado
+    # 4) Romper sustitución del que activamos
     lv = await _get_open_leave(session, prof_id)
     if lv:
         lv.substitute_teacher_id = None
@@ -102,7 +101,7 @@ async def _activate_professor(session: AsyncSession, prof_id: int):
 
 
 # ===================================================================
-# Abrir una baja (baja o excedencia)
+# Abrir una baja
 # ===================================================================
 async def open_leave(
     session: AsyncSession,
@@ -113,7 +112,6 @@ async def open_leave(
     category: Optional[str] = None,
 ) -> Leave:
 
-    # Validaciones básicas
     if leave_type not in (TeacherStatus.baja, TeacherStatus.excedencia):
         raise HTTPException(400, "Tipo de baja no válido.")
 
@@ -129,7 +127,6 @@ async def open_leave(
     else:
         category = None
 
-    # Bajas solapadas
     existing = await session.scalar(
         select(Leave).where(
             and_(
@@ -140,7 +137,6 @@ async def open_leave(
     )
 
     if existing:
-        # Actualizar baja existente
         if existing.start_date > start_date:
             existing.start_date = start_date
         existing.cause = cause
@@ -149,7 +145,6 @@ async def open_leave(
         await session.commit()
         return existing
 
-    # Crear baja nueva
     lv = Leave(
         teacher_id=teacher_id,
         start_date=start_date,
@@ -157,8 +152,8 @@ async def open_leave(
         cause=cause,
         category=category
     )
-    session.add(lv)
 
+    session.add(lv)
     teacher.status = leave_type
 
     await session.commit()
@@ -166,7 +161,7 @@ async def open_leave(
 
 
 # ===================================================================
-# Asignar sustituto (añadir nodo al final de la cadena)
+# Asignar sustituto
 # ===================================================================
 async def set_substitution(
     session: AsyncSession,
@@ -175,7 +170,6 @@ async def set_substitution(
     substitute_teacher_id: int,
 ) -> Leave:
 
-    # Obtener la baja del profesor
     lv = await session.scalar(
         select(Leave).where(
             and_(
@@ -186,7 +180,6 @@ async def set_substitution(
         )
     )
 
-    # Si no existía baja → crearla automáticamente
     if not lv:
         lv = await open_leave(
             session,
@@ -200,7 +193,6 @@ async def set_substitution(
     lv.substitute_start_date = start_date
     lv.substitute_end_date = None
 
-    # Activar al sustituto
     sub = await session.get(Teacher, substitute_teacher_id)
     sub.status = TeacherStatus.activo
     sub.titular = False
@@ -217,30 +209,21 @@ async def end_substitution(
     teacher_id: int,
     end_date: date
 ):
-    """
-    Finaliza la sustitución del profesor sustituido (teacher_id).
-    El sustituto se degrada a exprofe.
-    El profesor sustituido NO se activa, porque sigue de baja.
-    """
-
     lv = await _get_open_leave(session, teacher_id)
     if not lv:
-        raise HTTPException(404, "No hay baja abierta para este profesor.")
+        raise HTTPException(404, "No hay baja abierta.")
 
     sub_id = lv.substitute_teacher_id
     if not sub_id:
         return
 
-    # Cerrar relación de sustitución
     lv.substitute_end_date = end_date
     lv.substitute_teacher_id = None
 
-    # Degradar sustituto
     sub = await session.get(Teacher, sub_id)
     sub.status = TeacherStatus.exprofe
     sub.titular = False
 
-    # Limpiar slots clonados
     flag = f"substitution:{teacher_id}"
     slots = await session.scalars(
         select(ScheduleSlot).where(
@@ -257,16 +240,13 @@ async def end_substitution(
 
 
 # ===================================================================
-# Finalizar la BAJA o EXCEDENCIA de cualquier miembro de la cadena
+# Finalizar la BAJA COMPLETA (cierre en cascada)
 # ===================================================================
 async def close_leave_cascade(
     session: AsyncSession,
     teacher_id: int,
     end_date: date
 ) -> Leave:
-    """
-    Cierra la baja de teacher_id y ajusta TODA la cadena.
-    """
 
     lv = await _get_open_leave(session, teacher_id)
     if not lv:
@@ -274,13 +254,12 @@ async def close_leave_cascade(
 
     lv.end_date = end_date
 
-    # Activar al profesor
+    # Activar profesor (regla general)
     await _activate_professor(session, teacher_id)
 
-    # Caso especial: si teacher_id es el TITULAR
+    # SI ES TITULAR → desmontar toda la cadena
     prof = await session.get(Teacher, teacher_id)
     if prof.titular:
-        # Cerrar cadena completa
         chain = await get_substitution_chain(session, teacher_id)
         cur = teacher_id
 
@@ -292,10 +271,7 @@ async def close_leave_cascade(
             flag = f"substitution:{cur}"
             slots = await session.scalars(
                 select(ScheduleSlot).where(
-                    and_(
-                        ScheduleSlot.teacher_id == sid,
-                        ScheduleSlot.source == flag
-                    )
+                    and_(ScheduleSlot.teacher_id == sid, ScheduleSlot.source == flag)
                 )
             )
             for s in slots:
@@ -312,6 +288,5 @@ async def close_leave_cascade(
     return lv
 
 
-# Alias
 async def close_leave(session, teacher_id: int, end_date: date):
     return await close_leave_cascade(session, teacher_id, end_date)
