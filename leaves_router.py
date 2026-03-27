@@ -156,35 +156,41 @@ async def leaves_new_create(
 async def substitutions_new_form(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),
+    admin: User = Depends(admin_required)
 ):
+    # ✅ SOLO profesores al final de la cadena
     raw = (
         await session.execute(
             select(Leave, Teacher)
             .join(Teacher, Teacher.id == Leave.teacher_id)
-            .where(Leave.end_date.is_(None))
+            .where(
+                and_(
+                    Leave.end_date.is_(None),
+                    Leave.substitute_teacher_id.is_(None)   # ✅ clave
+                )
+            )
         )
     ).all()
 
     open_leaves = sorted(
         [
             {"teacher_id": t.id, "teacher_name": t.name, "start_date": l.start_date}
-            for (l,t) in raw
+            for (l, t) in raw
         ],
-        key=lambda x: normalize_name(x["teacher_name"])
+        key=lambda x: normalize_name(x["teacher_name"]),
     )
 
+    # Exprofes disponibles
     ex_raw = (
         await session.execute(
             select(Teacher).where(Teacher.status == TeacherStatus.exprofe)
         )
     ).scalars().all()
-
     exprofes = sorted(ex_raw, key=lambda t: normalize_name(t.name))
 
     return _templates(request).TemplateResponse(
         "substitutions_new.html",
-        ctx(request, admin, title="Iniciar sustitución", open_leaves=open_leaves, exprofes=exprofes)
+        ctx(request, admin, title="Iniciar sustitución", open_leaves=open_leaves, exprofes=exprofes),
     )
 
 
