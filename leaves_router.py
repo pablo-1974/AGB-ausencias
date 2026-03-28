@@ -369,3 +369,115 @@ async def leaves_list(
         "leaves_list.html",
         ctx(request, admin, title="Bajas y sustituciones", items=items),
     )
+
+# ============================================================
+# 5) ADMINISTRACIÓN DE BAJAS (LISTAR / EDITAR / BORRAR)
+# ============================================================
+
+@router.get("/leaves/admin", response_class=HTMLResponse)
+async def leaves_admin_list(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    """Panel de administración: editar o borrar bajas."""
+    user = admin
+
+    rows = (
+        await session.execute(
+            select(Leave, Teacher)
+            .join(Teacher, Teacher.id == Leave.teacher_id)
+            .order_by(Leave.start_date.desc(), Teacher.name.asc())
+        )
+    ).all()
+
+    items = [
+        {
+            "id": l.id,
+            "teacher_name": t.name,
+            "start_date": l.start_date,
+            "end_date": l.end_date,
+            "reason": l.cause or "",
+            "category": (l.category or "").strip(),
+        }
+        for (l, t) in rows
+    ]
+
+    return _templates(request).TemplateResponse(
+        "leaves_admin_list.html",
+        ctx(request, user, title="Edición de bajas", items=items),
+    )
+
+
+@router.get("/leaves/edit/{leave_id}", response_class=HTMLResponse)
+async def leaves_edit_form(
+    leave_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    """Formulario de edición de una baja."""
+    user = admin
+
+    l = await session.get(Leave, leave_id)
+    if not l:
+        return RedirectResponse("/leaves/admin", 303)
+
+    t = await session.get(Teacher, l.teacher_id)
+
+    return _templates(request).TemplateResponse(
+        "leaves_edit.html",
+        ctx(
+            request,
+            user,
+            title="Editar baja",
+            leave=l,
+            teacher=t,
+            categories=list("ABCDEFGHIJKL"),
+            current_category=(l.category or ""),
+        ),
+    )
+
+
+@router.post("/leaves/edit/{leave_id}")
+async def leaves_edit_save(
+    leave_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+
+    start_date: date = Form(...),
+    end_date: Optional[date] = Form(None),
+    reason: str = Form(""),
+    category: str = Form(""),
+):
+    """Guarda cambios en una baja."""
+    user = admin
+
+    l = await session.get(Leave, leave_id)
+    if not l:
+        return RedirectResponse("/leaves/admin", 303)
+
+    l.start_date = start_date
+    l.end_date = end_date
+    l.cause = (reason or "").strip()
+    l.category = (category or "").strip()
+
+    await session.commit()
+
+    return RedirectResponse("/leaves/admin", 303)
+
+
+@router.post("/leaves/delete/{leave_id}")
+async def leaves_delete(
+    leave_id: int,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    """Borra permanentemente una baja."""
+    l = await session.get(Leave, leave_id)
+    if l:
+        await session.delete(l)
+        await session.commit()
+
+    return RedirectResponse("/leaves/admin", 303)
