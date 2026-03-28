@@ -268,8 +268,10 @@ async def close_leave_cascade(
             # Borrar horarios clonados
             slots = await session.scalars(
                 select(ScheduleSlot).where(
-                    and_(ScheduleSlot.teacher_id == tid,
-                         ScheduleSlot.source.contains("substitution:"))
+                    and_(
+                        ScheduleSlot.teacher_id == tid,
+                        ScheduleSlot.source.contains("substitution:")
+                    )
                 )
             )
             for s in slots:
@@ -287,8 +289,9 @@ async def close_leave_cascade(
     for t in old_subs.scalars():
         t.status = TeacherStatus.exprofe
         t.titular = False
-    return lv
 
+    await session.commit()
+    return lv
 
 async def close_leave(session, teacher_id: int, end_date: date):
     return await close_leave_cascade(session, teacher_id, end_date)
