@@ -23,7 +23,7 @@ from config import settings
 from services.leaves import get_substitution_chain
 
 
-# ----------------------------------------------  
+# ----------------------------------------------
 # AUX ― Filtros de fechas (no se modifica)
 # ----------------------------------------------
 def _format_date_span(dates: List[date]) -> Tuple[str, int]:
@@ -149,7 +149,7 @@ def _build_rows(absences: List[Absence], name_by_id: Dict[int, str]) -> List[Lis
 
 
 # =====================================================================
-# PARTE MENSUAL — VERSION FINAL
+# PARTE MENSUAL — VERSION FINAL (CORREGIDA)
 # =====================================================================
 async def build_monthly_report_pdf(
     session: AsyncSession,
@@ -205,46 +205,55 @@ async def build_monthly_report_pdf(
     rows = _build_rows(catalogadas, name_by_id)
 
     # =====================================================================
-    # 7) BAJAS + TODA LA CADENA
+    # 7) BAJAS — SIN DUPLICADOS Y SIN HEREDAR CADENAS  ✅ CORREGIDO
     # =====================================================================
+
+    bajas_por_profesor = {}
+
     for lv in leaves:
+        tid = lv.teacher_id
 
-        # Construir cadena completa: titular + sustitutos
-        chain_ids = [lv.teacher_id] + await get_substitution_chain(session, lv.teacher_id)
+        start = max(lv.start_date, date_from)
+        end = lv.end_date or date_to
+        end = min(end, date_to)
 
-        for tid in chain_ids:
-            teacher = await session.get(Teacher, tid)
+        if tid not in bajas_por_profesor:
+            bajas_por_profesor[tid] = (start, end, lv.category)
+        else:
+            old_start, old_end, old_cat = bajas_por_profesor[tid]
+            new_start = min(old_start, start)
+            new_end = max(old_end, end)
+            bajas_por_profesor[tid] = (new_start, new_end, old_cat or lv.category)
 
-            # ✅ Mostrar solo BAJA o EXCEDENCIA
-            if teacher.status not in (TeacherStatus.baja, TeacherStatus.excedencia):
-                continue
+    # UNA sola fila por profesor con baja
+    for tid, (start, end, cat) in bajas_por_profesor.items():
+        teacher = await session.get(Teacher, tid)
+        if not teacher:
+            continue
 
-            # Fechas del periodo mostrado
-            start = max(lv.start_date, date_from)
-            end = lv.end_date or date_to
-            end = min(end, date_to)
+        if teacher.status not in (TeacherStatus.baja, TeacherStatus.excedencia):
+            continue
 
-            # Días lectivos trabajados por ese profesor
-            if cal:
-                n_days = await working_school_days(session, cal, tid, start, end)
-            else:
-                n_days = sum(
-                    1 for i in range((end - start).days + 1)
-                    if (start + timedelta(days=i)).weekday() < 5
-                )
+        if cal:
+            n_days = await working_school_days(session, cal, tid, start, end)
+        else:
+            n_days = sum(
+                1 for i in range((end - start).days + 1)
+                if (start + timedelta(days=i)).weekday() < 5
+            )
 
-            if lv.end_date:
-                fecha_txt = f"del {start.strftime('%d/%m/%Y')} al {end.strftime('%d/%m/%Y')}"
-            else:
-                fecha_txt = f"desde {start.strftime('%d/%m/%Y')}"
+        if end:
+            fecha_txt = f"del {start.strftime('%d/%m/%Y')} al {end.strftime('%d/%m/%Y')}"
+        else:
+            fecha_txt = f"desde {start.strftime('%d/%m/%Y')}"
 
-            rows.append([
-                teacher.name,
-                fecha_txt,
-                "Todas",
-                lv.category,
-                str(n_days),
-            ])
+        rows.append([
+            teacher.name,
+            fecha_txt,
+            "Todas",
+            cat or "",
+            str(n_days),
+        ])
 
     # Orden final
     rows = sorted(rows, key=lambda r: (normalize_name(r[0]), r[1]))
