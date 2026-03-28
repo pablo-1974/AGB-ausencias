@@ -286,7 +286,7 @@ async def close_leave_cascade(
     )
     for t in old_subs.scalars():
         t.status = TeacherStatus.exprofe
-        t.titular)
+        t.titular = False
     return lv
 
 
