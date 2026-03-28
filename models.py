@@ -11,10 +11,17 @@ import enum
 from datetime import datetime
 
 
+# ---------------------------------------------------------
+# Base
+# ---------------------------------------------------------
 class Base(DeclarativeBase):
+    """Base declarativa común para todos los modelos."""
     pass
 
 
+# ---------------------------------------------------------
+# Enums de la aplicación
+# ---------------------------------------------------------
 class Role(str, enum.Enum):
     admin = "admin"
     user = "user"
@@ -32,6 +39,24 @@ class TeacherStatus(str, enum.Enum):
     exprofe = "exprofe"
 
 
+# ---------------------------------------------------------
+# MODELO User  ✅ (faltaba en tu archivo)
+# ---------------------------------------------------------
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[Role] = mapped_column(SAEnum(Role), default=Role.user)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
+# ---------------------------------------------------------
+# MODELO Teacher
+# ---------------------------------------------------------
 class Teacher(Base):
     __tablename__ = "teachers"
 
@@ -40,7 +65,9 @@ class Teacher(Base):
     email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
     alias: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
 
+    # True si es profesor titular
     titular: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
     status: Mapped[TeacherStatus] = mapped_column(
         SAEnum(TeacherStatus, name="teacher_status"),
         nullable=False,
@@ -52,25 +79,40 @@ class Teacher(Base):
     )
 
 
+# ---------------------------------------------------------
+# MODELO ScheduleSlot
+# ---------------------------------------------------------
 class ScheduleSlot(Base):
     __tablename__ = "schedule_slots"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"), index=True)
-    day_index: Mapped[int] = mapped_column(Integer)
-    hour_index: Mapped[int] = mapped_column(Integer)
+
+    teacher_id: Mapped[int] = mapped_column(
+        ForeignKey("teachers.id", ondelete="CASCADE"), index=True
+    )
+
+    day_index: Mapped[int] = mapped_column(Integer)   # 0 = lunes ... 4 = viernes
+    hour_index: Mapped[int] = mapped_column(Integer)  # 0..6
+
     type: Mapped[ScheduleType] = mapped_column(SAEnum(ScheduleType))
+
     guard_type: Mapped[str | None] = mapped_column(String(40))
+
     group: Mapped[str | None] = mapped_column(String(50))
     room: Mapped[str | None] = mapped_column(String(50))
     subject: Mapped[str | None] = mapped_column(String(50))
+
     source: Mapped[str | None] = mapped_column(String(30), default="import")
 
 
+# ---------------------------------------------------------
+# MODELO Leave  ✅ CON JERARQUÍA REAL
+# ---------------------------------------------------------
 class Leave(Base):
     """
-    BAJAS JERÁRQUICAS reales con parent_leave_id.
-    Cada sustituto genera una baja hija directamente enlazada.
+    Bajas jerárquicas:
+    - Una baja puede tener una baja hija (sustituto)
+    - parent_leave_id controla la jerarquía real
     """
     __tablename__ = "leaves"
 
@@ -81,6 +123,7 @@ class Leave(Base):
         index=True
     )
 
+    # ✅ NUEVO: jerarquía de bajas
     parent_leave_id: Mapped[int | None] = mapped_column(
         ForeignKey("leaves.id", ondelete="CASCADE"),
         nullable=True,
@@ -89,18 +132,27 @@ class Leave(Base):
 
     start_date: Mapped[Date] = mapped_column(Date)
     end_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
+
     cause: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    # Información opcional para vistas (ya no define la jerarquía)
     substitute_teacher_id: Mapped[int | None] = mapped_column(ForeignKey("teachers.id"))
     substitute_start_date: Mapped[Date | None] = mapped_column(Date)
     substitute_end_date: Mapped[Date | None] = mapped_column(Date)
+
     category: Mapped[str | None] = mapped_column(String(2))
 
 
+# ---------------------------------------------------------
+# MODELO Absence
+# ---------------------------------------------------------
 class Absence(Base):
     __tablename__ = "absences"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"), index=True)
+    teacher_id: Mapped[int] = mapped_column(
+        ForeignKey("teachers.id", ondelete="CASCADE"), index=True
+    )
     date: Mapped[Date] = mapped_column(Date, index=True)
     hours_mask: Mapped[int] = mapped_column(Integer, default=0)
     note: Mapped[str | None] = mapped_column(Text)
@@ -111,16 +163,24 @@ class Absence(Base):
     )
 
 
+# ---------------------------------------------------------
+# MODELO SchoolCalendar
+# ---------------------------------------------------------
 class SchoolCalendar(Base):
     __tablename__ = "school_calendar"
 
     id = Column(Integer, primary_key=True)
     school_year = Column(String, nullable=False)
+
     first_day = Column(Date, nullable=False)
     last_day = Column(Date, nullable=False)
+
     xmas_start = Column(Date, nullable=False)
     xmas_end = Column(Date, nullable=False)
+
     easter_start = Column(Date, nullable=False)
     easter_end = Column(Date, nullable=False)
+
     other_holidays = Column(JSON, default=list)
+
     updated_at = Column(DateTime, default=datetime.utcnow)
