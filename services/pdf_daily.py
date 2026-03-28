@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
 from models import Absence, Leave, Teacher, ScheduleType, TeacherStatus
-from services.leaves import get_substitution_chain
+# from services.leaves import get_substitution_chain
 from services.schedule import get_teacher_slot, list_teachers_on_guard
 from absences_router import make_mask_all
 
