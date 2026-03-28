@@ -28,7 +28,7 @@
       {% else %}
         <!-- Botón PDF habilitado -->
         <a class="btn-muted border border-gray-300 px-3 py-1"
-           href="/reports/monthly/pdf?date_from={{ date_from }}&date_to={{ date_to }}">
+           href="/reports/monthly/pdf?date_from={{ date_from }}&amp;date_to={{ date_to }}">
           PDF
         </a>
       {% endif %}
@@ -56,9 +56,17 @@
         </tr>
       </thead>
       <tbody>
-        {% for r           <td>{{ r[4] }}</td>
-          </tr>
+
+        {% for r in rows %}
+        <tr>
+          <td>{{ r[0] }}</td>
+          <td>{{ r[1] }}</td>
+          <td>{{ r[2] }}</td>
+          <td>{{ r[3] | safe }}</td>
+          <td>{{ r[4] }}</td>
+        </tr>
         {% endfor %}
+
       </tbody>
     </table>
   {% else %}
