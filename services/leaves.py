@@ -229,63 +229,69 @@ async def end_substitution(
 # ===================================================================
 # Finalizar BAJA COMPLETA (cierre en cascada)
 # ===================================================================
+# ===================================================================
+# Finalizar BAJA COMPLETA (cierre REAL en cascada)
+# ===================================================================
 async def close_leave_cascade(
     session: AsyncSession,
     teacher_id: int,
     end_date: date
 ) -> Leave:
 
+    # 1) Obtener la baja del profesor principal
     lv = await _get_open_leave(session, teacher_id)
     if not lv:
         raise HTTPException(404, "No hay baja abierta para este profesor.")
 
     lv.end_date = end_date
 
-    # Activar este profesor
-    await _activate_professor(session, teacher_id)
+    # 2) Obtener cadena completa: titular + sustitutos
+    chain = [teacher_id] + await get_substitution_chain(session, teacher_id)
 
-    prof = await session.get(Teacher, teacher_id)
+    # 3) Cerrar bajas de TODOS los profesores en la cadena
+    for tid in chain:
+        l = await _get_open_leave(session, tid)
+        if l:
+            l.end_date = end_date
+            l.substitute_teacher_id = None
+            l.substitute_end_date = end_date
 
-    if prof.titular:
+    # 4) Cambiar estados correctamente
+    # Titular → activo
+    titular = await session.get(Teacher, teacher_id)
+    titular.status = TeacherStatus.activo
+    titular.titular = True
 
-        # 1) Degradar cadena inferior (si queda)
-        chain = await get_substitution_chain(session, teacher_id)
-        cur = teacher_id
+    # Sustitutos → exprofe
+    for tid in chain[1:]:
+        sub = await session.get(Teacher, tid)
+        if sub:
+            sub.status = TeacherStatus.exprofe
+            sub.titular = False
 
-        for sid in chain:
-            sub = await session.get(Teacher, sid)
-            if sub:
-                sub.status = TeacherStatus.exprofe
-                sub.titular = False
-
-            flag = f"substitution:{cur}"
+            # 5) Borrar horarios clonados
+            flag = f"substitution:{teacher_id}"
             slots = await session.scalars(
                 select(ScheduleSlot).where(
-                    and_(ScheduleSlot.teacher_id == sid, ScheduleSlot.source == flag)
+                    and_(ScheduleSlot.teacher_id == tid,
+                         ScheduleSlot.source.contains("substitution:"))
                 )
             )
             for s in slots:
                 await session.delete(s)
 
-            lv_s = await _get_open_leave(session, cur)
-            if lv_s:
-                lv_s.substitute_teacher_id = None
-                lv_s.substitute_end_date = end_date
-
-            cur = sid
-
-        # ✅ 2) Degradar ACTIVOS FANTASMA (sustitutos colgados)
-        old_subs = await session.execute(
-            select(Teacher).where(
-                and_(
-                    Teacher.titular == False,
-                    Teacher.status == TeacherStatus.activo
-                )
+    # 6) Limpiar “activos fantasma”
+    old_subs = await session.execute(
+        select(Teacher).where(
+            and_(
+                Teacher.titular == False,
+                Teacher.status == TeacherStatus.activo
             )
         )
-        for t in old_subs.scalars():
-            t.status = TeacherStatus.exprofe
-            t.titular = False
+    )
+    for t in old_subs.scalars():
+        t.status = TeacherStatus.exprofe
+        t.titular = False
 
     await session.commit()
     return lv
