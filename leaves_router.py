@@ -25,7 +25,6 @@ from services.leaves import (
     open_leave,
     close_leave_cascade,
     set_substitution,
-    end_substitution,
     get_substitution_chain
 )
 
