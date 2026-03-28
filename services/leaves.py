@@ -216,8 +216,10 @@ async def end_substitution(
 
     slots = await session.scalars(
         select(ScheduleSlot).where(
-            and_(ScheduleSlot.teacher_id == sub_id,
-                 ScheduleSlot.source.contains("substitution:"))
+            and_(
+                ScheduleSlot.teacher_id == sub_id,
+                ScheduleSlot.source.contains("substitution:")
+            )
         )
     )
     for s in slots:
@@ -252,6 +254,16 @@ async def close_leave_cascade(
             l.end_date = end_date
             l.substitute_teacher_id = None
             l.substitute_end_date = end_date
+
+    # 3b) Romper TODAS las sustituciones en cascada (Ajenjo→p1, p1→p2, p2→p3)
+    for i in range(len(chain) - 1):
+        profesor_superior = chain[i]
+        sustituto = chain[i + 1]
+
+        l_sup = await _get_open_leave(session, profesor_superior)
+        if l_sup:
+            l_sup.substitute_teacher_id = None
+            l_sup.substitute_end_date = end_date
 
     # 4) Cambiar estados
     titular = await session.get(Teacher, chain[0])
@@ -292,6 +304,7 @@ async def close_leave_cascade(
 
     await session.commit()
     return lv
+
 
 async def close_leave(session, teacher_id: int, end_date: date):
     return await close_leave_cascade(session, teacher_id, end_date)
