@@ -1,25 +1,20 @@
 # models.py
 from __future__ import annotations
 
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy import (
     String, Integer, Enum as SAEnum, ForeignKey, Text,
     Date, Boolean, UniqueConstraint, DateTime, JSON, Column
 )
+
 import enum
 from datetime import datetime
 
 
-# ---------------------------------------------------------
-# Base
-# ---------------------------------------------------------
 class Base(DeclarativeBase):
     pass
 
 
-# ---------------------------------------------------------
-# Enums (aplicación)
-# ---------------------------------------------------------
 class Role(str, enum.Enum):
     admin = "admin"
     user = "user"
@@ -30,32 +25,11 @@ class ScheduleType(str, enum.Enum):
     GUARD = "GUARD"
 
 
-class GuardType(str, enum.Enum):
-    G_AULA = "G AULA"
-    G_RECREO_PATIO = "G RECREO PATIO"
-    G_RECREO_PASILLO = "G RECREO PASILLO"
-
-
 class TeacherStatus(str, enum.Enum):
     activo = "activo"
     baja = "baja"
     excedencia = "excedencia"
     exprofe = "exprofe"
-
-
-# ---------------------------------------------------------
-# MODELOS
-# ---------------------------------------------------------
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120))
-    email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[Role] = mapped_column(SAEnum(Role), default=Role.user)
-    active: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
 
 class Teacher(Base):
@@ -66,8 +40,7 @@ class Teacher(Base):
     email: Mapped[str] = mapped_column(String(190), unique=True, index=True)
     alias: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
 
-    titular: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-
+    titular: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     status: Mapped[TeacherStatus] = mapped_column(
         SAEnum(TeacherStatus, name="teacher_status"),
         nullable=False,
@@ -84,25 +57,20 @@ class ScheduleSlot(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     teacher_id: Mapped[int] = mapped_column(ForeignKey("teachers.id", ondelete="CASCADE"), index=True)
-
     day_index: Mapped[int] = mapped_column(Integer)
     hour_index: Mapped[int] = mapped_column(Integer)
-
     type: Mapped[ScheduleType] = mapped_column(SAEnum(ScheduleType))
-
-    guard_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
-
+    guard_type: Mapped[str | None] = mapped_column(String(40))
     group: Mapped[str | None] = mapped_column(String(50))
     room: Mapped[str | None] = mapped_column(String(50))
     subject: Mapped[str | None] = mapped_column(String(50))
-
     source: Mapped[str | None] = mapped_column(String(30), default="import")
 
 
 class Leave(Base):
     """
-    BAJAS JERÁRQUICAS con parent_leave_id.
-    Las sustituciones crean una baja HIJA del leave padre.
+    BAJAS JERÁRQUICAS reales con parent_leave_id.
+    Cada sustituto genera una baja hija directamente enlazada.
     """
     __tablename__ = "leaves"
 
@@ -113,7 +81,6 @@ class Leave(Base):
         index=True
     )
 
-    # ✅ NUEVO: jerarquía real de bajas
     parent_leave_id: Mapped[int | None] = mapped_column(
         ForeignKey("leaves.id", ondelete="CASCADE"),
         nullable=True,
@@ -122,15 +89,11 @@ class Leave(Base):
 
     start_date: Mapped[Date] = mapped_column(Date)
     end_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
-
     cause: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
-
-    # Info visual (no se usa para la jerarquía)
-    substitute_teacher_id: Mapped[int | None] = mapped_column(ForeignKey("teachers.id"), nullable=True)
-    substitute_start_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
-    substitute_end_date:   Mapped[Date | None] = mapped_column(Date, nullable=True)
-
-    category: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    substitute_teacher_id: Mapped[int | None] = mapped_column(ForeignKey("teachers.id"))
+    substitute_start_date: Mapped[Date | None] = mapped_column(Date)
+    substitute_end_date: Mapped[Date | None] = mapped_column(Date)
+    category: Mapped[str | None] = mapped_column(String(2))
 
 
 class Absence(Base):
