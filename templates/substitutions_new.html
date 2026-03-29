@@ -16,10 +16,10 @@
     <!-- Profesor a sustituir -->
     <div>
       <label class="font-semibold">Profesor con baja activa</label>
-      <select name="teacher_id" class="border p-2 rounded w-full" required>
+      <select name="leave_id" class="border p-2 rounded w-full" required>
         <option value="">-- seleccionar --</option>
         {% for it in open_leaves %}
-          <option value="{{ it.teacher_id }}">
+          <option value="{{ it.leave_id }}">
             {{ it.teacher_name }} — desde {{ it.start_date }}
           </option>
         {% endfor %}
