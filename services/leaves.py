@@ -69,7 +69,7 @@ async def _delete_cloned_slots(session: AsyncSession, teacher_id: int):
 
 
 # ============================================================
-# ABRIR BAJA
+# ABRIR BAJA (RAÍZ O HIJA)
 # ============================================================
 async def open_leave(
     session: AsyncSession,
@@ -88,6 +88,7 @@ async def open_leave(
     if not teacher or teacher.status != TeacherStatus.activo:
         raise HTTPException(400, "Solo se puede iniciar baja a un profesor activo.")
 
+    # No permitir dos bajas activas simultáneas
     if await _get_open_leave(session, teacher_id):
         raise HTTPException(400, "Este profesor ya tiene una baja activa.")
 
@@ -105,8 +106,17 @@ async def open_leave(
 
     session.add(lv)
 
-    teacher.status = leave_type
-    teacher.titular = (parent_leave_id is None)
+    # ✅ REGLA NUEVA:
+    # - Si no hay parent → baja real → poner "baja" o "excedencia"
+    # - Si hay parent → ES SUSTITUCIÓN → profesor debe estar ACTIVO + NO TITULAR
+    if parent_leave_id is None:
+        # Baja real del titular
+        teacher.status = leave_type
+        teacher.titular = True
+    else:
+        # Sustituto: NO está de baja
+        teacher.status = TeacherStatus.activo
+        teacher.titular = False
 
     await session.commit()
     return lv
@@ -117,7 +127,7 @@ async def open_leave(
 # ============================================================
 async def set_substitution(
     session: AsyncSession,
-    teacher_id: int,
+    teacher_id: int,           # profesor sustituido
     start_date: date,
     substitute_teacher_id: int,
 ) -> Leave:
@@ -126,18 +136,18 @@ async def set_substitution(
     if not parent_leave:
         raise HTTPException(404, "El profesor no tiene baja abierta.")
 
-    # Crear baja hija
+    # ✅ Crear baja hija para el sustituto (pero NO es baja médica)
     sub_leave = await open_leave(
         session=session,
         teacher_id=substitute_teacher_id,
         start_date=start_date,
-        leave_type=TeacherStatus.baja,
+        leave_type=TeacherStatus.baja,  # requerido por la firma, pero NO se aplicará en sustitución
         cause="Sustitución",
         category=None,
         parent_leave_id=parent_leave.id
     )
 
-    # Datos decorativos (para mostrar en vistas)
+    # Datos decorativos (solo para la interfaz)
     parent_leave.substitute_teacher_id = substitute_teacher_id
     parent_leave.substitute_start_date = start_date
     parent_leave.substitute_end_date = None
@@ -147,7 +157,7 @@ async def set_substitution(
 
 
 # ============================================================
-# CIERRE EN CASCADA REAL
+# CIERRE REAL EN CASCADA
 # ============================================================
 async def close_leave_cascade(
     session: AsyncSession,
@@ -158,28 +168,30 @@ async def close_leave_cascade(
     leave = await _get_leave_by_id(session, leave_id)
     if not leave:
         raise HTTPException(404, "La baja no existe.")
+
     if leave.end_date is not None:
         raise HTTPException(400, "La baja ya está cerrada.")
 
+    # Cerrar baja raíz
     leave.end_date = end_date
     leave.substitute_teacher_id = None
     leave.substitute_end_date = end_date
 
-    # Obtener TODA la cadena de descendientes
+    # Obtener TODA la cadena descendiente
     children = await _get_cascade_children(session, leave_id)
 
-    # Cerrar descendientes
+    # ✅ Cerrar todas las bajas hijas
     for ch in children:
         ch.end_date = end_date
         ch.substitute_teacher_id = None
         ch.substitute_end_date = end_date
 
-    # Profesor del leave raíz → ACTIVO
+    # ✅ Profesor de la baja raíz → activo y titular
     prof = await session.get(Teacher, leave.teacher_id)
     prof.status = TeacherStatus.activo
     prof.titular = True
 
-    # Profesores hijos → EXPROFE
+    # ✅ Todos los descendientes → exprofes
     for ch in children:
         p = await session.get(Teacher, ch.teacher_id)
         p.status = TeacherStatus.exprofe
@@ -190,5 +202,8 @@ async def close_leave_cascade(
     return leave
 
 
+# ============================================================
+# ALIAS
+# ============================================================
 async def close_leave(session: AsyncSession, leave_id: int, end_date: date):
     return await close_leave_cascade(session, leave_id, end_date)
