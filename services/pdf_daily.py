@@ -218,6 +218,16 @@ async def build_daily_report_pdf(
             if teacher.status != TeacherStatus.activo:
                 continue
 
+            # No mostrar guardias de sustitutos que todavía no han empezado
+            lv_check = await session.execute(
+                select(Leave).where(
+                    Leave.teacher_id == tid,
+                    Leave.start_date > the_date
+                )
+            )
+            if lv_check.scalars().first():
+                continue
+
             guard_aliases.append(teacher.alias or teacher.name)
 
         def crush(xs: List[str]) -> str:
