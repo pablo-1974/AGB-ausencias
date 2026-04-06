@@ -65,14 +65,14 @@ async def reports_daily_view(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
-    fecha: date = Query(...),
-    observaciones: Optional[str] = Query(None),
+    date: date = Query(...),
+    obs: Optional[str] = Query(None),
 ):
     """Vista previa del parte diario antes de generar PDF."""
     preview = await build_daily_report_data(
         session=session,
-        the_date=fecha,
-        observaciones_usuario=(observaciones or "").strip() or None,
+        the_date=date,
+        observaciones_usuario=(obs or "").strip() or None,
     )
 
     return _templates(request).TemplateResponse(
@@ -81,9 +81,9 @@ async def reports_daily_view(
             request,
             admin,
             title="Parte diario de ausencias",
-            today=fecha.isoformat(),
+            today=date.isoformat(),
             preview=preview,
-            observaciones_prefill=(observaciones or ""),
+            observaciones_prefill=(obs or ""),
         ),
     )
 
@@ -96,8 +96,8 @@ async def reports_daily_generate(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
-    fecha: date = Form(...),
-    observaciones: Optional[str] = Form(None),
+    date: date = Form(...),
+    obs: Optional[str] = Form(None),
 ):
     """Genera el PDF del parte diario."""
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
@@ -105,12 +105,12 @@ async def reports_daily_generate(
 
     await build_daily_report_pdf(
         session=session,
-        the_date=fecha,
+        the_date=date,
         path_out=tmp.name,
-        observaciones_usuario=(observaciones or "").strip() or None,
+        observaciones_usuario=(obs or "").strip() or None,
     )
 
-    filename = f"parte_diario_{fecha.isoformat()}.pdf"
+    filename = f"parte_diario_{date.isoformat()}.pdf"
     return FileResponse(
         tmp.name,
         media_type="application/pdf",
