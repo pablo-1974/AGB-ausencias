@@ -275,17 +275,30 @@ async def absences_categorize_post(
 # ======================================================
 
 def _teachers_active_on(session: AsyncSession, target: date):
-    """Devuelve profesores activos en esa fecha (sin baja activa)."""
-    leave_cover = and_(
-        Leave.teacher_id == Teacher.id,
-        Leave.start_date <= target,
-        or_(Leave.end_date.is_(None), Leave.end_date >= target),
+    """
+    Devuelve profesores activos en esa fecha.
+    Se excluyen únicamente:
+      - profesores cuyo estado NO sea 'activo'
+      - profesores con una baja PROPIA vigente ese día
+    """
+
+    # Baja propia vigente (un profesor está de baja si su leave coincide con la fecha)
+    own_leave = exists().where(
+        and_(
+            Leave.teacher_id == Teacher.id,
+            Leave.start_date <= target,
+            or_(Leave.end_date.is_(None), Leave.end_date >= target)
+        )
     )
-    leave_exists = exists().where(leave_cover)
 
     return (
         select(Teacher)
-        .where(and_(Teacher.status == TeacherStatus.activo, not_(leave_exists)))
+        .where(
+            and_(
+                Teacher.status == TeacherStatus.activo,  # Sigue siendo condición principal
+                not_(own_leave)                          # Solo excluir baja propia
+            )
+        )
         .order_by(Teacher.name.asc())
     )
 
