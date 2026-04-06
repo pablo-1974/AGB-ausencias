@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, Form, Query
+from fastapi import APIRouter, Depends, Request, Form, Query, HTTPException
 from fastapi.responses import HTMLResponse
 from starlette.responses import RedirectResponse
 from sqlalchemy import select, and_
@@ -132,7 +132,7 @@ async def leaves_new_create(
             leave_type=lt,
             cause=cause,
             category=category,
-            parent_leave_id=None,   # ✅ es baja raíz
+            parent_leave_id=None,
         )
         return RedirectResponse("/leaves", 303)
 
@@ -161,8 +161,7 @@ async def substitutions_new_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required)
 ):
-
-    # baja raíz o baja hija sin sustituto
+    # Solo bajas raíz o bajas hijas sin sustituto
     rows = (
         await session.execute(
             select(Leave, Teacher)
@@ -202,7 +201,7 @@ async def substitutions_new_create(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 
-    leave_id: int = Form(...),          # ✅ ahora recibimos leave_id, no teacher_id
+    leave_id: int = Form(...),
     start_date: date = Form(...),
     sub_mode: str = Form(...),
     exprof_teacher_id: Optional[int] = Form(None),
@@ -256,10 +255,10 @@ async def substitutions_new_create(
             status_code=400
         )
 
-    # Crear baja hija real
+    # Crear baja hija
     await set_substitution(
         session,
-        teacher_id=leave.teacher_id,  # profesor sustituido
+        teacher_id=leave.teacher_id,
         start_date=start_date,
         substitute_teacher_id=substitute_id,
     )
@@ -283,19 +282,21 @@ async def substitutions_new_create(
 
 
 # ============================================================
-# LISTADO DE BAJAS
+# LISTADO DE BAJAS (✅ CORREGIDO)
 # ============================================================
 @router.get("/leaves", response_class=HTMLResponse)
 async def leaves_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
-
     status: str = Query("open", pattern="^(open|all)$"),
 ):
+
+    # ✅ Solo bajas raíz
     q = (
         select(Leave, Teacher)
         .join(Teacher, Teacher.id == Leave.teacher_id)
+        .where(Leave.parent_leave_id == None)
     )
 
     if status == "open":
@@ -304,14 +305,30 @@ async def leaves_list(
     rows = (await session.execute(q)).all()
 
     items = []
+
     for lv, t in rows:
+
+        # ✅ Cadena ordenada
+        children = (
+            await session.execute(
+                select(Leave)
+                .where(Leave.parent_leave_id == lv.id)
+                .order_by(Leave.start_date)
+            )
+        ).scalars().all()
+
+        chain = []
+        for ch in children:
+            tt = await session.get(Teacher, ch.teacher_id)
+            chain.append(tt.name)
+
         items.append({
             "leave_id": lv.id,
             "teacher_name": t.name,
             "start_date": lv.start_date,
             "end_date": lv.end_date,
             "cause": lv.cause or "",
-            "sub_name": None,   # visual opcional
+            "chain": chain,
         })
 
     return _templates(request).TemplateResponse(
@@ -363,62 +380,3 @@ async def leaves_edit_form(
     admin: User = Depends(admin_required),
 ):
 
-    l = await session.get(Leave, leave_id)
-    if not l:
-        return RedirectResponse("/leaves/admin", 303)
-
-    t = await session.get(Teacher, l.teacher_id)
-
-    return _templates(request).TemplateResponse(
-        "leaves_edit.html",
-        ctx(
-            request,
-            admin,
-            title="Editar baja",
-            leave=l,
-            teacher=t,
-            categories=list("ABCDEFGHIJKL"),
-            current_category=(l.category or ""),
-        ),
-    )
-
-
-@router.post("/leaves/edit/{leave_id}")
-async def leaves_edit_save(
-    leave_id: int,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),
-
-    start_date: date = Form(...),
-    end_date: Optional[date] = Form(None),
-    reason: str = Form(""),
-    category: str = Form(""),
-):
-
-    l = await session.get(Leave, leave_id)
-    if not l:
-        return RedirectResponse("/leaves/admin", 303)
-
-    l.start_date = start_date
-    l.end_date = end_date
-    l.cause = reason.strip()
-    l.category = category.strip()
-
-    await session.commit()
-
-    return RedirectResponse("/leaves/admin", 303)
-
-
-@router.post("/leaves/delete/{leave_id}")
-async def leaves_delete(
-    leave_id: int,
-    session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),
-):
-    l = await session.get(Leave, leave_id)
-    if l:
-        await session.delete(l)
-        await session.commit()
-
-    return RedirectResponse("/leaves/admin", 303)
