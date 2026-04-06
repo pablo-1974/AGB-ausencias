@@ -55,6 +55,30 @@ async def _get_cascade_children(session: AsyncSession, leave_id: int) -> List[Le
 
     return result
 
+async def get_substitution_chain(session: AsyncSession, teacher_id: int) -> List[int]:
+    """
+    Devuelve la cadena completa de sustituciones de un profesor:
+      titular → sustituto → sustituto del sustituto → ...
+    Retorna una lista ordenada de teacher_id de los sustitutos.
+    """
+    # 1) Buscar la baja activa del profesor
+    root_leave = await _get_open_leave(session, teacher_id)
+    if not root_leave:
+        return []
+
+    chain: List[int] = []
+    stack = [root_leave.id]
+
+    # 2) Descender recursivamente por todas las bajas hijas
+    while stack:
+        current_leave_id = stack.pop()
+        children = await _get_children_leaves(session, current_leave_id)
+
+        for child in children:
+            chain.append(child.teacher_id)
+            stack.append(child.id)
+
+    return chain
 
 async def _delete_cloned_slots(session: AsyncSession, teacher_id: int):
     """Elimina slots clonados de sustitución."""
