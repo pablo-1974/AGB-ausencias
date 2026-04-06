@@ -43,7 +43,7 @@
     <!-- Botón Generar PDF desde la vista -->
     <div class="mb-4 flex justify-end">
       <form method="post" action="/reports/daily">
-        <input type="hidden" name="date" value="{{ preview.date }}">
+        <input type="hidden" name="date" value="{{ preview.date_str }}">
         <input type="hidden" name="obs" value="{{ preview.obs_raw }}">
         <button class="btn-primary">Generar PDF</button>
       </form>
