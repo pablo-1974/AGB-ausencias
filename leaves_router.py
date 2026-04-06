@@ -282,7 +282,7 @@ async def substitutions_new_create(
 
 
 # ============================================================
-# LISTADO DE BAJAS (✅ CORREGIDO)
+# LISTADO DE BAJAS
 # ============================================================
 @router.get("/leaves", response_class=HTMLResponse)
 async def leaves_list(
@@ -372,6 +372,9 @@ async def leaves_admin_list(
     )
 
 
+# ============================================================
+# EDITAR BAJA (GET)
+# ============================================================
 @router.get("/leaves/edit/{leave_id}", response_class=HTMLResponse)
 async def leaves_edit_form(
     leave_id: int,
@@ -379,4 +382,67 @@ async def leaves_edit_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
+    l = await session.get(Leave, leave_id)
+    if not l:
+        return RedirectResponse("/leaves/admin", 303)
 
+    t = await session.get(Teacher, l.teacher_id)
+
+    return _templates(request).TemplateResponse(
+        "leaves_edit.html",
+        ctx(
+            request,
+            admin,
+            title="Editar baja",
+            leave=l,
+            teacher=t,
+            categories=list("ABCDEFGHIJKL"),
+            current_category=(l.category or ""),
+        ),
+    )
+
+
+# ============================================================
+# EDITAR BAJA (POST)
+# ============================================================
+@router.post("/leaves/edit/{leave_id}")
+async def leaves_edit_save(
+    leave_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+
+    start_date: date = Form(...),
+    end_date: Optional[date] = Form(None),
+    reason: str = Form(""),
+    category: str = Form(""),
+):
+    l = await session.get(Leave, leave_id)
+    if not l:
+        return RedirectResponse("/leaves/admin", 303)
+
+    l.start_date = start_date
+    l.end_date = end_date
+    l.cause = reason.strip()
+    l.category = category.strip()
+
+    await session.commit()
+
+    return RedirectResponse("/leaves/admin", 303)
+
+
+# ============================================================
+# ELIMINAR BAJA
+# ============================================================
+@router.post("/leaves/delete/{leave_id}")
+async def leaves_delete(
+    leave_id: int,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    l = await session.get(Leave, leave_id)
+    if l:
+        await session.delete(l)
+        await session.commit()
+
+    return RedirectResponse("/leaves/admin", 303)
