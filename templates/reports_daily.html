@@ -6,12 +6,12 @@
 <form method="post" action="/reports/daily" class="card space-y-3 max-w-2xl">
   <div>
     <label class="label">Fecha</label>
-    <input class="input" type="date" name="fecha" value="{{ today or '' }}" required>
+    <input class="input" type="date" name="date" value="{{ today or '' }}" required>
   </div>
 
   <div>
     <label class="label">Observaciones</label>
-    <input class="input" type="text" name="observaciones"
+    <input class="input" type="text" name="obs"
            value="{{ observaciones_prefill or '' }}"
            placeholder="Opcional: añade aquí un texto">
   </div>
@@ -43,8 +43,8 @@
     <!-- Botón Generar PDF desde la vista -->
     <div class="mb-4 flex justify-end">
       <form method="post" action="/reports/daily">
-        <input type="hidden" name="fecha" value="{{ preview.date_str }}">
-        <input type="hidden" name="observaciones" value="{{ observaciones_prefill }}">
+        <input type="hidden" name="date" value="{{ preview.date }}">
+        <input type="hidden" name="obs" value="{{ preview.obs_raw }}">
         <button class="btn-primary">Generar PDF</button>
       </form>
     </div>
