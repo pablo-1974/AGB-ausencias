@@ -55,13 +55,17 @@ async def _get_cascade_children(session: AsyncSession, leave_id: int) -> List[Le
 
     return result
 
+
+# ============================================================
+# ✅ FUNCIÓN FALTANTE: CADENA DE SUSTITUCIÓN
+# ============================================================
+
 async def get_substitution_chain(session: AsyncSession, teacher_id: int) -> List[int]:
     """
     Devuelve la cadena completa de sustituciones de un profesor:
       titular → sustituto → sustituto del sustituto → ...
     Retorna una lista ordenada de teacher_id de los sustitutos.
     """
-    # 1) Buscar la baja activa del profesor
     root_leave = await _get_open_leave(session, teacher_id)
     if not root_leave:
         return []
@@ -69,7 +73,6 @@ async def get_substitution_chain(session: AsyncSession, teacher_id: int) -> List
     chain: List[int] = []
     stack = [root_leave.id]
 
-    # 2) Descender recursivamente por todas las bajas hijas
     while stack:
         current_leave_id = stack.pop()
         children = await _get_children_leaves(session, current_leave_id)
@@ -79,6 +82,11 @@ async def get_substitution_chain(session: AsyncSession, teacher_id: int) -> List
             stack.append(child.id)
 
     return chain
+
+
+# ============================================================
+# BORRAR HORARIO CLONADO CUANDO TERMINA SUSTITUCIÓN
+# ============================================================
 
 async def _delete_cloned_slots(session: AsyncSession, teacher_id: int):
     """Elimina slots clonados de sustitución."""
@@ -95,6 +103,7 @@ async def _delete_cloned_slots(session: AsyncSession, teacher_id: int):
 # ============================================================
 # ABRIR BAJA (RAÍZ O HIJA)
 # ============================================================
+
 async def open_leave(
     session: AsyncSession,
     teacher_id: int,
@@ -130,15 +139,13 @@ async def open_leave(
 
     session.add(lv)
 
-    # ✅ REGLA NUEVA:
-    # - Si no hay parent → baja real → poner "baja" o "excedencia"
-    # - Si hay parent → ES SUSTITUCIÓN → profesor debe estar ACTIVO + NO TITULAR
+    # ✅ Nueva regla:
     if parent_leave_id is None:
         # Baja real del titular
         teacher.status = leave_type
         teacher.titular = True
     else:
-        # Sustituto: NO está de baja
+        # Sustituto: activo, no titular
         teacher.status = TeacherStatus.activo
         teacher.titular = False
 
@@ -149,9 +156,10 @@ async def open_leave(
 # ============================================================
 # CREAR SUSTITUCIÓN → CREA BAJA HIJA AUTOMÁTICAMENTE
 # ============================================================
+
 async def set_substitution(
     session: AsyncSession,
-    teacher_id: int,           # profesor sustituido
+    teacher_id: int,
     start_date: date,
     substitute_teacher_id: int,
 ) -> Leave:
@@ -160,18 +168,16 @@ async def set_substitution(
     if not parent_leave:
         raise HTTPException(404, "El profesor no tiene baja abierta.")
 
-    # ✅ Crear baja hija para el sustituto (pero NO es baja médica)
     sub_leave = await open_leave(
         session=session,
         teacher_id=substitute_teacher_id,
         start_date=start_date,
-        leave_type=TeacherStatus.baja,  # requerido por la firma, pero NO se aplicará en sustitución
+        leave_type=TeacherStatus.baja,
         cause="Sustitución",
         category=None,
         parent_leave_id=parent_leave.id
     )
 
-    # Datos decorativos (solo para la interfaz)
     parent_leave.substitute_teacher_id = substitute_teacher_id
     parent_leave.substitute_start_date = start_date
     parent_leave.substitute_end_date = None
@@ -183,6 +189,7 @@ async def set_substitution(
 # ============================================================
 # CIERRE REAL EN CASCADA
 # ============================================================
+
 async def close_leave_cascade(
     session: AsyncSession,
     leave_id: int,
@@ -201,21 +208,20 @@ async def close_leave_cascade(
     leave.substitute_teacher_id = None
     leave.substitute_end_date = end_date
 
-    # Obtener TODA la cadena descendiente
+    # Todas las bajas hijas
     children = await _get_cascade_children(session, leave_id)
 
-    # ✅ Cerrar todas las bajas hijas
     for ch in children:
         ch.end_date = end_date
         ch.substitute_teacher_id = None
         ch.substitute_end_date = end_date
 
-    # ✅ Profesor de la baja raíz → activo y titular
+    # Titular vuelve a activo
     prof = await session.get(Teacher, leave.teacher_id)
     prof.status = TeacherStatus.activo
     prof.titular = True
 
-    # ✅ Todos los descendientes → exprofes
+    # Todos los sustitutos se vuelven exprofes
     for ch in children:
         p = await session.get(Teacher, ch.teacher_id)
         p.status = TeacherStatus.exprofe
@@ -229,5 +235,6 @@ async def close_leave_cascade(
 # ============================================================
 # ALIAS
 # ============================================================
+
 async def close_leave(session: AsyncSession, leave_id: int, end_date: date):
     return await close_leave_cascade(session, leave_id, end_date)
