@@ -26,11 +26,16 @@
 
       <td class="text-right flex gap-2 justify-end">
 
-        <a href="/leaves/edit/{{ l.id }}" class="btn-muted btn-sm">Editar</a>
-
+        <!-- EDITAR (borde azul) -->
+        <a href="/leaves/edit/{{ l.id }}"
+           class="btn-sm px-3 py-1 border border-blue-500 text-blue-600 rounded hover:bg-blue-50 transition">
+           Editar
+        </a>
+        
+        <!-- ELIMINAR (borde rojo) -->
         <form method="post" action="/leaves/delete/{{ l.id }}" style="display:inline">
           <button type="submit"
-                  class="btn-danger btn-sm"
+                  class="btn-sm px-3 py-1 border border-red-500 text-red-600 rounded hover:bg-red-50 transition"
                   onclick="return confirm('¿Seguro que deseas eliminar esta baja?');">
             Eliminar
           </button>
