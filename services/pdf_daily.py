@@ -1,4 +1,4 @@
-# services/pdf_daily.py — VERSIÓN FINAL con lógica de sustituciones en cadena
+# services/pdf_daily.py — VERSIÓN FINAL con lógica de sustituciones en cadena + filtro de guardias por fecha
 
 from __future__ import annotations
 from typing import List, Tuple, Set, Dict
@@ -51,7 +51,7 @@ def _is_absent(mask: int, hour_idx: int) -> bool:
 
 
 # ======================================================================
-#   AUSENTES DEL DÍA — REPARADO PARA FECHAS DE SUSTITUCIÓN
+#   AUSENTES DEL DÍA — FILTRADO POR FECHAS REALES
 # ======================================================================
 async def _teachers_absent_that_day(
     session: AsyncSession,
@@ -62,13 +62,13 @@ async def _teachers_absent_that_day(
       - absent_ids: IDs de profesores ausentes HOY
       - hours_by_teacher: máscara de horas ausentes
 
-    Cambios:
-      ✅ Se filtra sustitutos por fecha real: si empiezan DESPUÉS → NO cuentan
-      ✅ AJENJO aparece ausente el día 2 aunque tenga sustituto el 3
-      ✅ p1 NO aparece el día 2
+    Lógica clave:
+      ✅ Filtra sustitutos por fecha real (start_date <= the_date)
+      ✅ El sustituto solo aparece si ya ha comenzado su baja
+      ✅ Si el sustituto comienza después → se usa el anterior de la cadena
     """
 
-    # 1) AUSENCIAS PUNTUALES
+    # 1) Ausencias puntuales
     q_abs = select(Absence).where(Absence.date == the_date)
     absences = (await session.execute(q_abs)).scalars().all()
 
@@ -81,7 +81,7 @@ async def _teachers_absent_that_day(
             hours_by_teacher.get(a.teacher_id, 0) | (a.hours_mask or 0)
         )
 
-    # 2) BAJAS
+    # 2) Bajas (con cadena)
     q_leave = select(Leave).where(
         and_(
             Leave.start_date <= the_date,
@@ -94,10 +94,10 @@ async def _teachers_absent_that_day(
 
     for lv in leaves:
 
-        # Cadena completa
+        # Construir cadena cruda
         raw_chain = [lv.teacher_id] + await get_substitution_chain(session, lv.teacher_id)
 
-        # ✅ FILTRO POR FECHA REAL DE INICIO
+        # Filtrar cadena según fecha real
         chain: List[int] = []
         for tid in raw_chain:
             qlv = select(Leave).where(
@@ -114,7 +114,7 @@ async def _teachers_absent_that_day(
         last_id = chain[-1]
         last = await session.get(Teacher, last_id)
 
-        # ✅ AUSENTE SI EL ÚLTIMO ESTÁ EN BAJA
+        # Ausente si el último está en baja
         if last.status in (TeacherStatus.baja, TeacherStatus.excedencia):
             absent_ids.add(last_id)
             hours_by_teacher[last_id] = (
@@ -149,6 +149,7 @@ async def build_daily_report_pdf(
     weekday_py = the_date.weekday()
     weekday_name = DAYS.get(weekday_py)
 
+    # Guardias de recreo ausentes
     ausentes_guardia_recreo: List[str] = []
     for tid in absent_ids:
         slot = await get_teacher_slot(session, tid, weekday_py, recreo_index)
@@ -167,7 +168,9 @@ async def build_daily_report_pdf(
 
         row_prof, row_grp, row_room, row_subj = [], [], [], []
 
-        # AUSENTES
+        # -----------------------------
+        # AUSENTES (clases + guardias)
+        # -----------------------------
         for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
 
             mask = hours_by_teacher.get(tid, 0)
@@ -199,26 +202,28 @@ async def build_daily_report_pdf(
                 row_subj.append("guardia")
                 continue
 
+        # -----------------------------
         # GUARDIAS ACTIVOS
+        # -----------------------------
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
 
         guard_aliases = []
+
         for tid in guard_ids:
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
             if not slot or slot.type != ScheduleType.GUARD:
                 continue
 
-            g = (slot.guard_type or "").upper()
-            if g.startswith("G RECREO"):
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
                 continue
 
             teacher = await session.get(Teacher, tid)
             if teacher.status != TeacherStatus.activo:
                 continue
 
-            # No mostrar guardias de sustitutos que todavía no han empezado
+            # ✅ Nuevo filtro: NO mostrar guardias de sustitutos que NO han empezado
             lv_check = await session.execute(
                 select(Leave).where(
                     Leave.teacher_id == tid,
@@ -308,8 +313,9 @@ async def build_daily_report_pdf(
     elements.append(table)
     doc.build(elements)
 
+
 # ======================================================================
-#   HTML PREVIEW (usado por reports_router.py)
+#   HTML PREVIEW (idéntico al PDF en lógica)
 # ======================================================================
 async def build_daily_report_data(
     session: AsyncSession,
@@ -319,7 +325,7 @@ async def build_daily_report_data(
 ):
     """
     Vista previa HTML del parte diario.
-    MISMA lógica que _teachers_absent_that_day().
+    MISMA lógica que _teachers_absent_that_day() y PDF.
     """
 
     absent_ids, hours_by_teacher = await _teachers_absent_that_day(session, the_date)
@@ -387,6 +393,7 @@ async def build_daily_report_data(
                 row_subj.append("guardia")
                 continue
 
+        # GUARDIAS ACTIVOS (CON MISMO FILTRO QUE PDF)
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
@@ -402,6 +409,16 @@ async def build_daily_report_data(
 
             t = await session.get(Teacher, tid)
             if t.status != TeacherStatus.activo:
+                continue
+
+            # ✅ MISMO FILTRO QUE EN PDF
+            lv_check = await session.execute(
+                select(Leave).where(
+                    Leave.teacher_id == tid,
+                    Leave.start_date > the_date
+                )
+            )
+            if lv_check.scalars().first():
                 continue
 
             guard_aliases.append(t.alias or t.name)
@@ -426,4 +443,5 @@ async def build_daily_report_data(
         "head": head,
         "rows": rows,
         "obs_text": obs_text,
+        "obs_raw": observaciones_usuario or "",
     }
