@@ -23,6 +23,7 @@ from services.leaves import (
     open_leave,
     set_substitution,
     close_leave_cascade,
+    close_leave_subtree,   # ✅ NUEVO
 )
 
 from services.schedule import clone_teacher_schedule
@@ -42,7 +43,6 @@ async def leaves_close_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-
     rows = (
         await session.execute(
             select(Leave, Teacher)
@@ -52,18 +52,23 @@ async def leaves_close_form(
     ).all()
 
     open_items = [
-        {"leave_id": l.id, "teacher_name": t.name, "start_date": l.start_date}
+        {
+            "leave_id": l.id,
+            "teacher_name": t.name,
+            "start_date": l.start_date,
+            "is_root": l.parent_leave_id is None,  # útil para la vista
+        }
         for (l, t) in sorted(rows, key=lambda r: normalize_name(r[1].name))
     ]
 
     return _templates(request).TemplateResponse(
         "leaves_close.html",
-        ctx(request, admin, title="Finalizar baja", open_items=open_items)
+        ctx(request, admin, title="Finalizar baja / sustitución", open_items=open_items)
     )
 
 
 # ============================================================
-# CERRAR BAJA EN CASCADA (leave_id)
+# CERRAR BAJA (RAÍZ O SUSTITUTO)
 # ============================================================
 @router.post("/leaves/finish")
 async def leaves_finish(
@@ -75,8 +80,20 @@ async def leaves_finish(
     admin: User = Depends(admin_required),
 ):
     try:
-        await close_leave_cascade(session, leave_id, end_date)
+        leave = await session.get(Leave, leave_id)
+        if not leave:
+            raise Exception("La baja no existe.")
+
+        # ✅ Decisión clave según sea raíz o sustituto
+        if leave.parent_leave_id is None:
+            # Vuelve el titular → cerrar TODO
+            await close_leave_cascade(session, leave_id, end_date)
+        else:
+            # Vuelve un sustituto → cerrar solo su subárbol
+            await close_leave_subtree(session, leave_id, end_date)
+
         return RedirectResponse(next_url or "/leaves", 303)
+
     except Exception as e:
         return _templates(request).TemplateResponse(
             "leaves_close.html",
