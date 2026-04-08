@@ -178,17 +178,14 @@ async def substitutions_new_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required)
 ):
-    # --------------------------------------------------------
-    # Solo se pueden sustituir bajas activas que NO tengan
-    # ninguna baja hija activa (es decir, hojas del árbol).
-    # Esto evita ofrecer bajas intermedias cuyo único sentido
-    # es estar sustituyendo a otro profesor.
-    # --------------------------------------------------------
-
-    # Subquery: IDs de bajas que tienen una hija activa
     child_exists = (
         select(Leave.parent_leave_id)
-        .where(Leave.end_date.is_(None))
+        .where(
+            and_(
+                Leave.end_date.is_(None),
+                Leave.parent_leave_id.is_not(None)
+            )
+        )
         .subquery()
     )
 
