@@ -178,7 +178,20 @@ async def substitutions_new_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required)
 ):
-    # Solo bajas raíz o bajas hijas sin sustituto
+    # --------------------------------------------------------
+    # Solo se pueden sustituir bajas activas que NO tengan
+    # ninguna baja hija activa (es decir, hojas del árbol).
+    # Esto evita ofrecer bajas intermedias cuyo único sentido
+    # es estar sustituyendo a otro profesor.
+    # --------------------------------------------------------
+
+    # Subquery: IDs de bajas que tienen una hija activa
+    child_exists = (
+        select(Leave.parent_leave_id)
+        .where(Leave.end_date.is_(None))
+        .subquery()
+    )
+
     rows = (
         await session.execute(
             select(Leave, Teacher)
@@ -186,30 +199,42 @@ async def substitutions_new_form(
             .where(
                 and_(
                     Leave.end_date.is_(None),
-                    Leave.substitute_teacher_id.is_(None)
+                    Leave.substitute_teacher_id.is_(None),
+                    Leave.id.not_in(
+                        select(child_exists.c.parent_leave_id)
+                    )
                 )
             )
         )
     ).all()
 
     open_leaves = [
-        {"leave_id": l.id, "teacher_name": t.name, "start_date": l.start_date}
+        {
+            "leave_id": l.id,
+            "teacher_name": t.name,
+            "start_date": l.start_date
+        }
         for (l, t) in rows
     ]
 
     exprofes = (
         await session.execute(
-            select(Teacher).where(Teacher.status == TeacherStatus.exprofe)
+            select(Teacher)
+            .where(Teacher.status == TeacherStatus.exprofe)
         )
     ).scalars().all()
 
     return _templates(request).TemplateResponse(
         "substitutions_new.html",
-        ctx(request, admin,
+        ctx(
+            request,
+            admin,
             title="Iniciar sustitución",
             open_leaves=open_leaves,
-            exprofes=exprofes),
+            exprofes=exprofes
+        ),
     )
+
 
 
 @router.post("/substitutions/new")
