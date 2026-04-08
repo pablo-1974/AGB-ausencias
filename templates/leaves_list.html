@@ -14,10 +14,10 @@
   <table class="min-w-full bg-white border rounded shadow text-sm">
     <thead class="bg-gray-100">
       <tr>
-        <th class="px-4 py-2 text-left">Profesor</th>
+        <th class="px-4 py-2 text-left">Profesor (baja raíz)</th>
         <th class="px-4 py-2 text-left">Inicio</th>
         <th class="px-4 py-2 text-left">Fin</th>
-        <th class="px-4 py-2 text-left">Cadena</th>
+        <th class="px-4 py-2 text-left">Cadena de sustitución</th>
         <th class="px-4 py-2 text-left">Acciones</th>
       </tr>
     </thead>
@@ -26,7 +26,7 @@
       {% for it in items %}
       <tr class="border-b">
 
-        <!-- Profesor -->
+        <!-- Profesor raíz -->
         <td class="px-4 py-2 font-medium">
           {{ it.teacher_name }}
         </td>
@@ -41,7 +41,7 @@
           {{ it.end_date or "-" }}
         </td>
 
-        <!-- ✅ Cadena bonita con marcado del último activo -->
+        <!-- Cadena jerárquica -->
         <td class="px-4 py-2 text-sm text-blue-700">
           {% if it.chain %}
             {{ it.teacher_name }}
@@ -53,30 +53,20 @@
               {% endif %}
             {% endfor %}
           {% else %}
-            <span class="text-gray-400">Sin cadena</span>
+            <span class="text-gray-400">Sin sustituciones</span>
           {% endif %}
         </td>
 
         <!-- Acciones -->
-        <td class="px-4 py-2 space-y-2">
-
-          <!-- Finalizar sustitución -->
-          {% if it.sub_name %}
-          <form action="/substitutions/end" method="post" class="space-y-2">
-            <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
-            <input type="date" name="end_date" required class="border p-1 rounded w-full">
-            <button class="w-full bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700">
-              Finalizar sustitución
-            </button>
-          </form>
+        <td class="px-4 py-2">
+          {% if not it.end_date %}
+            <a href="/substitutions/new?leave_id={{ it.leave_id }}"
+               class="inline-block bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
+              Añadir sustituto
+            </a>
+          {% else %}
+            <span class="text-gray-400 text-sm">Baja finalizada</span>
           {% endif %}
-
-          <!-- Añadir sustituto -->
-          <a href="/substitutions/new?teacher_id={{ it.teacher_id }}"
-             class="block bg-green-600 text-white px-3 py-1 rounded text-center">
-             Añadir sustituto
-          </a>
-
         </td>
 
       </tr>
