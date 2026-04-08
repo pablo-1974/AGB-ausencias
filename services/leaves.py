@@ -195,13 +195,17 @@ async def open_leave(
 
 async def set_substitution(
     session: AsyncSession,
-    teacher_id: int,
+    parent_leave_id: int,
     start_date: date,
     substitute_teacher_id: int,
 ) -> Leave:
-    parent_leave = await _get_open_leave(session, teacher_id)
-    if not parent_leave:
-        raise HTTPException(404, "El profesor no tiene baja abierta.")
+    """
+    Crea una baja hija sustituyendo EXACTAMENTE la baja indicada.
+    """
+
+    parent_leave = await session.get(Leave, parent_leave_id)
+    if not parent_leave or parent_leave.end_date is not None:
+        raise HTTPException(404, "La baja seleccionada no está activa.")
 
     sub_leave = await open_leave(
         session=session,
