@@ -297,7 +297,7 @@ async def substitutions_new_create(
     # Crear baja hija
     await set_substitution(
         session,
-        teacher_id=leave.teacher_id,
+        parent_leave_id=leave.id,
         start_date=start_date,
         substitute_teacher_id=substitute_id,
     )
