@@ -18,24 +18,46 @@
           <th class="px-4 py-2 text-left">Profesor</th>
           <th class="px-4 py-2 text-left">Inicio</th>
           <th class="px-4 py-2 text-left">Fin</th>
-          <th class="px-4 py-2"></th>
+          <th class="px-4 py-2 text-left">Acción</th>
         </tr>
       </thead>
       <tbody>
       {% for it in open_items %}
         <tr class="border-b">
-          <td class="px-4 py-2">{{ it.teacher_name }}</td>
+          <td class="px-4 py-2">
+            {{ it.teacher_name }}
+            {% if not it.is_root %}
+              <span class="text-xs text-gray-500">(sustituto)</span>
+            {% endif %}
+          </td>
+
           <td class="px-4 py-2">{{ it.start_date }}</td>
+
           <td class="px-4 py-2">
             <form action="/leaves/finish" method="post" class="inline">
-              <input type="hidden" name="teacher_id" value="{{ it.teacher_id }}">
-              <input type="date" name="end_date"
-                     class="border rounded p-1" required>
+              <!-- ✅ ID REAL DE LA BAJA -->
+              <input type="hidden" name="leave_id" value="{{ it.leave_id }}">
+
+              <input type="date"
+                     name="end_date"
+                     class="border rounded p-1"
+                     required>
           </td>
+
           <td class="px-4 py-2">
-              <button class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
-                Finalizar baja
-              </button>
+              {% if it.is_root %}
+                <button
+                  class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                  title="Finaliza la baja del titular y todas las sustituciones">
+                  Finalizar baja del titular
+                </button>
+              {% else %}
+                <button
+                  class="bg-amber-600 text-white px-3 py-1 rounded hover:bg-amber-700"
+                  title="Finaliza esta sustitución y las que dependen de ella">
+                  Finalizar sustitución
+                </button>
+              {% endif %}
             </form>
           </td>
         </tr>
