@@ -9,6 +9,10 @@
 # unificar variables del header (fecha/hora/user/logo).
 # ======================================================
 
+# Nota:
+# El cálculo de bajas mensuales NO replica la lógica diaria de sustituciones.
+# Se usan intervalos consolidados por profesor real afectado.
+
 from __future__ import annotations
 
 from datetime import date, timedelta
