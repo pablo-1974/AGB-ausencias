@@ -204,82 +204,38 @@ async def build_monthly_report_pdf(
     # 6) Ausencias catalogadas
     rows = _build_rows(catalogadas, name_by_id)
 
-    # =====================================================================
-    # 7) BAJAS — SIN DUPLICADOS Y SIN HEREDAR CADENAS  ✅ CORREGIDO
-    # =====================================================================
+# =====================================================================
+# 7) BAJAS — SIN DUPLICADOS Y SIN HEREDAR CADENAS
+# =====================================================================
 
-    bajas_por_profesor = {}
+bajas_por_profesor = {}
 
-    for lv in leaves:
-        tid = lv.teacher_id
+for lv in leaves:
+    tid = lv.teacher_id
 
-        start = max(lv.start_date, date_from)
-        end = lv.end_date or date_to
-        end = min(end, date_to)
+    # ⛔️ IGNORAR bajas hijas si el profesor NO es el afectado real
+    # (evita heredar bajas de cadenas)
+    teacher = await session.get(Teacher, tid)
+    if not teacher:
+        continue
 
-        if tid not in bajas_por_profesor:
-            bajas_por_profesor[tid] = (start, end, lv.category)
-        else:
-            old_start, old_end, old_cat = bajas_por_profesor[tid]
-            new_start = min(old_start, start)
-            new_end = max(old_end, end)
-            bajas_por_profesor[tid] = (new_start, new_end, old_cat or lv.category)
+    if teacher.status not in (TeacherStatus.baja, TeacherStatus.excedencia):
+        continue
 
-    # UNA sola fila por profesor con baja
-    for tid, (start, end, cat) in bajas_por_profesor.items():
-        teacher = await session.get(Teacher, tid)
-        if not teacher:
-            continue
+    start = max(lv.start_date, date_from)
+    end = lv.end_date or date_to
+    end = min(end, date_to)
 
-        if teacher.status not in (TeacherStatus.baja, TeacherStatus.excedencia):
-            continue
+    if start > end:
+        continue
 
-        if cal:
-            n_days = await working_school_days(session, cal, tid, start, end)
-        else:
-            n_days = sum(
-                1 for i in range((end - start).days + 1)
-                if (start + timedelta(days=i)).weekday() < 5
-            )
-
-        if end:
-            fecha_txt = f"del {start.strftime('%d/%m/%Y')} al {end.strftime('%d/%m/%Y')}"
-        else:
-            fecha_txt = f"desde {start.strftime('%d/%m/%Y')}"
-
-        rows.append([
-            teacher.name,
-            fecha_txt,
-            "Todas",
-            cat or "",
-            str(n_days),
-        ])
-
-    # Orden final
-    rows = sorted(rows, key=lambda r: (normalize_name(r[0]), r[1]))
-
-    # 9) HTML sin categorizar (no modificar)
-    rows_html = rows.copy()
-
-    for a in sin_catalogar:
-        name = name_by_id.get(a.teacher_id, f"ID {a.teacher_id}")
-        fecha_txt = a.date.strftime("%d/%m/%Y")
-        hours_list = mask_to_hour_list(a.hours_mask or 0)
-        hours_text = "Todas" if len(hours_list) == 6 else ",".join(str(h) for h in hours_list)
-
-        cat_btn = (
-            f'<a href="/absences/categorize?absence_id={a.id}" '
-            f'class="px-2 py-1 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">'
-            f'Catalogar</a>'
-        )
-
-        rows_html.append([
-            name,
-            fecha_txt,
-            hours_text,
-            cat_btn,
-            "-"
-        ])
+    if tid not in bajas_por_profesor:
+        bajas_por_profesor[tid] = (start, end, lv.category)
+    else:
+        old_start, old_end, old_cat = bajas_por_profesor[tid]
+        new_start = min(old_start, start)
+        new_end = max(old_end, end)
+        bajas_por_profesor[tid] = (new_start, new_end, old_cat or lv.category)
 
     # ======================================================
     # PDF (tu código original)
