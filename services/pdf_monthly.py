@@ -204,38 +204,38 @@ async def build_monthly_report_pdf(
     # 6) Ausencias catalogadas
     rows = _build_rows(catalogadas, name_by_id)
 
-# =====================================================================
-# 7) BAJAS — SIN DUPLICADOS Y SIN HEREDAR CADENAS
-# =====================================================================
-
-bajas_por_profesor = {}
-
-for lv in leaves:
-    tid = lv.teacher_id
-
-    # ⛔️ IGNORAR bajas hijas si el profesor NO es el afectado real
-    # (evita heredar bajas de cadenas)
-    teacher = await session.get(Teacher, tid)
-    if not teacher:
-        continue
-
-    if teacher.status not in (TeacherStatus.baja, TeacherStatus.excedencia):
-        continue
-
-    start = max(lv.start_date, date_from)
-    end = lv.end_date or date_to
-    end = min(end, date_to)
-
-    if start > end:
-        continue
-
-    if tid not in bajas_por_profesor:
-        bajas_por_profesor[tid] = (start, end, lv.category)
-    else:
-        old_start, old_end, old_cat = bajas_por_profesor[tid]
-        new_start = min(old_start, start)
-        new_end = max(old_end, end)
-        bajas_por_profesor[tid] = (new_start, new_end, old_cat or lv.category)
+    # =====================================================================
+    # 7) BAJAS — SIN DUPLICADOS Y SIN HEREDAR CADENAS
+    # =====================================================================
+    
+    bajas_por_profesor = {}
+    
+    for lv in leaves:
+        tid = lv.teacher_id
+    
+        # ⛔️ IGNORAR bajas hijas si el profesor NO es el afectado real
+        # (evita heredar bajas de cadenas)
+        teacher = await session.get(Teacher, tid)
+        if not teacher:
+            continue
+    
+        if teacher.status not in (TeacherStatus.baja, TeacherStatus.excedencia):
+            continue
+    
+        start = max(lv.start_date, date_from)
+        end = lv.end_date or date_to
+        end = min(end, date_to)
+    
+        if start > end:
+            continue
+    
+        if tid not in bajas_por_profesor:
+            bajas_por_profesor[tid] = (start, end, lv.category)
+        else:
+            old_start, old_end, old_cat = bajas_por_profesor[tid]
+            new_start = min(old_start, start)
+            new_end = max(old_end, end)
+            bajas_por_profesor[tid] = (new_start, new_end, old_cat or lv.category)
 
     # ======================================================
     # PDF (tu código original)
