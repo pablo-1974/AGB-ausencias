@@ -3,6 +3,7 @@
 # ============================================================
 
 from __future__ import annotations
+
 from datetime import date
 from typing import Optional, List
 
@@ -145,6 +146,7 @@ async def _delete_cloned_slots(
     session: AsyncSession,
     teacher_id: int
 ):
+    """Elimina horarios clonados de una sustitución."""
     slots = await session.scalars(
         select(ScheduleSlot).where(
             ScheduleSlot.teacher_id == teacher_id,
@@ -169,3 +171,203 @@ async def open_leave(
     parent_leave_id: Optional[int] = None,
 ) -> Leave:
     """
+    Crea una nueva baja.
+
+    Regla clave:
+    - Si el profesor es sustituto activo y se intenta crear una baja raíz,
+      la baja se convierte automáticamente en hija de la sustitución activa.
+    """
+
+    if leave_type not in (TeacherStatus.baja, TeacherStatus.excedencia):
+        raise HTTPException(400, "Tipo de baja no válido.")
+
+    teacher = await session.get(Teacher, teacher_id)
+    if not teacher or teacher.status != TeacherStatus.activo:
+        raise HTTPException(
+            400,
+            "Solo se puede iniciar baja a un profesor activo."
+        )
+
+    # 🔑 Regla: un sustituto no puede crear baja raíz independiente
+    if parent_leave_id is None:
+        active_sub = await _get_active_substitution_leave(session, teacher_id)
+        if active_sub:
+            parent_leave_id = active_sub.id
+
+    # Solo una baja raíz activa por profesor
+    if parent_leave_id is None:
+        existing_root = await session.scalar(
+            select(Leave).where(
+                Leave.teacher_id == teacher_id,
+                Leave.parent_leave_id.is_(None),
+                Leave.end_date.is_(None)
+            )
+        )
+        if existing_root:
+            raise HTTPException(
+                400,
+                "Este profesor ya tiene una baja raíz activa."
+            )
+
+    leave = Leave(
+        teacher_id=teacher_id,
+        parent_leave_id=parent_leave_id,
+        start_date=start_date,
+        end_date=None,
+        cause=cause,
+        category=category,
+    )
+
+    session.add(leave)
+
+    if parent_leave_id is None:
+        teacher.status = leave_type
+        teacher.titular = True
+    else:
+        teacher.status = TeacherStatus.activo
+        teacher.titular = False
+
+    await session.commit()
+    return leave
+
+
+# ============================================================
+# CREAR SUSTITUCIÓN
+# ============================================================
+
+async def set_substitution(
+    session: AsyncSession,
+    parent_leave_id: int,
+    start_date: date,
+    substitute_teacher_id: int,
+) -> Leave:
+    """Crea una baja hija sustituyendo exactamente la baja indicada."""
+
+    parent_leave = await session.get(Leave, parent_leave_id)
+    if not parent_leave or parent_leave.end_date is not None:
+        raise HTTPException(
+            404,
+            "La baja seleccionada no está activa."
+        )
+
+    sub_leave = await open_leave(
+        session=session,
+        teacher_id=substitute_teacher_id,
+        start_date=start_date,
+        leave_type=TeacherStatus.baja,
+        cause="Sustitución",
+        category=None,
+        parent_leave_id=parent_leave.id,
+    )
+
+    parent_leave.substitute_teacher_id = substitute_teacher_id
+    parent_leave.substitute_start_date = start_date
+    parent_leave.substitute_end_date = None
+
+    await session.commit()
+    return sub_leave
+
+
+# ============================================================
+# CIERRES
+# ============================================================
+
+async def close_leave_cascade(
+    session: AsyncSession,
+    leave_id: int,
+    end_date: date
+) -> Leave:
+    leave = await _get_leave_by_id(session, leave_id)
+    if not leave:
+        raise HTTPException(404, "La baja no existe.")
+    if leave.end_date is not None:
+        raise HTTPException(400, "La baja ya está cerrada.")
+
+    children = await _get_cascade_children(session, leave_id)
+    max_child_start = max((ch.start_date for ch in children), default=None)
+
+    _validate_close_date(
+        start_date=leave.start_date,
+        end_date=end_date,
+        today=date.today(),
+        max_child_start=max_child_start,
+    )
+
+    leave.end_date = end_date
+    leave.substitute_teacher_id = None
+    leave.substitute_end_date = end_date
+
+    for ch in children:
+        ch.end_date = end_date
+        ch.substitute_teacher_id = None
+        ch.substitute_end_date = end_date
+
+    teacher = await session.get(Teacher, leave.teacher_id)
+    teacher.status = TeacherStatus.activo
+    teacher.titular = True
+
+    for ch in children:
+        p = await session.get(Teacher, ch.teacher_id)
+        p.status = TeacherStatus.exprofe
+        p.titular = False
+        await _delete_cloned_slots(session, p.id)
+
+    await session.commit()
+    return leave
+
+
+async def close_leave_subtree(
+    session: AsyncSession,
+    leave_id: int,
+    end_date: date
+) -> Leave:
+    leave = await _get_leave_by_id(session, leave_id)
+    if not leave:
+        raise HTTPException(404, "La baja no existe.")
+    if leave.end_date is not None:
+        raise HTTPException(400, "La baja ya está cerrada.")
+
+    children = await _get_cascade_children(session, leave_id)
+    max_child_start = max((ch.start_date for ch in children), default=None)
+
+    _validate_close_date(
+        start_date=leave.start_date,
+        end_date=end_date,
+        today=date.today(),
+        max_child_start=max_child_start,
+    )
+
+    leave.end_date = end_date
+    leave.substitute_teacher_id = None
+    leave.substitute_end_date = end_date
+
+    for ch in children:
+        ch.end_date = end_date
+        ch.substitute_teacher_id = None
+        ch.substitute_end_date = end_date
+
+    teacher = await session.get(Teacher, leave.teacher_id)
+    teacher.status = TeacherStatus.activo
+    teacher.titular = False
+
+    for ch in children:
+        p = await session.get(Teacher, ch.teacher_id)
+        p.status = TeacherStatus.exprofe
+        p.titular = False
+        await _delete_cloned_slots(session, p.id)
+
+    await session.commit()
+    return leave
+
+
+# ============================================================
+# ALIAS LEGACY
+# ============================================================
+
+async def close_leave(
+    session: AsyncSession,
+    leave_id: int,
+    end_date: date
+):
+    """Alias histórico: cierre completo en cascada."""
+    return await close_leave_cascade(session, leave_id, end_date)
