@@ -70,7 +70,6 @@ async def leaves_close_form(
 
 @router.post("/leaves/finish")
 async def leaves_finish(
-    request: Request,
     leave_id: int = Form(...),
     end_date: date = Form(...),
     next_url: Optional[str] = Form(None),
@@ -115,13 +114,13 @@ async def leaves_new_form(
 
 @router.post("/leaves/new")
 async def leaves_new_create(
-    session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),
     teacher_id: int = Form(...),
     start_date: date = Form(...),
     leave_type: str = Form("baja"),
     cause: str = Form(""),
     category: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
 ):
     lt = (
         TeacherStatus.excedencia
@@ -152,7 +151,6 @@ async def substitutions_new_form(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
 ):
-    # Solo hojas del árbol (bajas activas sin hijas activas)
     child_exists = (
         select(Leave.parent_leave_id)
         .where(
@@ -204,8 +202,6 @@ async def substitutions_new_form(
 
 @router.post("/substitutions/new")
 async def substitutions_new_create(
-    session: AsyncSession = Depends(get_session),
-    admin: User = Depends(admin_required),
     leave_id: int = Form(...),
     start_date: date = Form(...),
     sub_mode: str = Form(...),
@@ -213,6 +209,8 @@ async def substitutions_new_create(
     new_name: Optional[str] = Form(None),
     new_email: Optional[str] = Form(None),
     new_alias: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
 ):
     leave = await session.get(Leave, leave_id)
     if not leave or leave.end_date is not None:
@@ -258,7 +256,7 @@ async def substitutions_new_create(
 
 
 # ============================================================
-# LISTADO DE BAJAS
+# LISTADO GENERAL
 # ============================================================
 
 @router.get("/leaves", response_class=HTMLResponse)
@@ -278,8 +276,8 @@ async def leaves_list(
         q = q.where(Leave.end_date.is_(None))
 
     rows = (await session.execute(q)).all()
-    items = []
 
+    items = []
     for lv, t in rows:
         children = (
             await session.execute(
@@ -309,3 +307,103 @@ async def leaves_list(
         "leaves_list.html",
         ctx(request, admin, title="Bajas y sustituciones", items=items),
     )
+
+
+# ============================================================
+# ADMINISTRACIÓN DE BAJAS
+# ============================================================
+
+@router.get("/leaves/admin", response_class=HTMLResponse)
+async def leaves_admin_list(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    rows = (
+        await session.execute(
+            select(Leave, Teacher)
+            .join(Teacher, Teacher.id == Leave.teacher_id)
+            .order_by(Leave.start_date.desc(), Teacher.name.asc())
+        )
+    ).all()
+
+    items = [
+        {
+            "id": l.id,
+            "teacher_name": t.name,
+            "start_date": l.start_date,
+            "end_date": l.end_date,
+            "reason": l.cause or "",
+            "category": (l.category or "").strip(),
+        }
+        for (l, t) in rows
+    ]
+
+    return _templates(request).TemplateResponse(
+        "leaves_admin_list.html",
+        ctx(request, admin, title="Edición de bajas", items=items),
+    )
+
+
+@router.get("/leaves/edit/{leave_id}", response_class=HTMLResponse)
+async def leaves_edit_form(
+    leave_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    leave = await session.get(Leave, leave_id)
+    if not leave:
+        return RedirectResponse("/leaves/admin", 303)
+
+    teacher = await session.get(Teacher, leave.teacher_id)
+
+    return _templates(request).TemplateResponse(
+        "leaves_edit.html",
+        ctx(
+            request,
+            admin,
+            title="Editar baja",
+            leave=leave,
+            teacher=teacher,
+            categories=list("ABCDEFGHIJKL"),
+            current_category=(leave.category or ""),
+        ),
+    )
+
+
+@router.post("/leaves/edit/{leave_id}")
+async def leaves_edit_save(
+    leave_id: int,
+    start_date: date = Form(...),
+    end_date: Optional[date] = Form(None),
+    reason: str = Form(""),
+    category: str = Form(""),
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    leave = await session.get(Leave, leave_id)
+    if not leave:
+        return RedirectResponse("/leaves/admin", 303)
+
+    leave.start_date = start_date
+    leave.end_date = end_date
+    leave.cause = reason.strip()
+    leave.category = category.strip()
+
+    await session.commit()
+    return RedirectResponse("/leaves/admin", 303)
+
+
+@router.post("/leaves/delete/{leave_id}")
+async def leaves_delete(
+    leave_id: int,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    leave = await session.get(Leave, leave_id)
+    if leave:
+        await session.delete(leave)
+        await session.commit()
+
+    return RedirectResponse("/leaves/admin", 303)
