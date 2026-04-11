@@ -209,10 +209,16 @@ async def build_monthly_report_pdf(
     #   - NO borra filas existentes
     #   - NO consolida por profesor
     #   - UNA fila por cada baja real
+    #   - SOLO bajas raíz (no sustitutos)
+    #   - DÍAS LECTIVOS, no naturales
     # ======================================================
     for lv in leaves:
-        # Excluir excedencias explícitas
+        # ❌ excluir excedencias
         if lv.category is None and lv.cause and "excedencia" in lv.cause.lower():
+            continue
+    
+        # ❌ NO mostrar sustitutos
+        if lv.parent_leave_id is not None:
             continue
     
         tid = lv.teacher_id
@@ -223,8 +229,19 @@ async def build_monthly_report_pdf(
         if start > end:
             continue
     
-        days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
-        fecha_text, n_days = _format_date_span(days)
+        # ✅ contar SOLO días lectivos
+        n_days = await working_school_days(
+            session,
+            cal,
+            tid,
+            start,
+            end,
+        )
+    
+        if n_days <= 0:
+            continue
+    
+        fecha_text, _ = _format_date_span([start, end])
     
         rows.append([
             name_by_id.get(tid, f"ID {tid}"),
