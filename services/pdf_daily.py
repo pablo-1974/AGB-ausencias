@@ -196,7 +196,11 @@ async def build_daily_report_pdf(
         # GUARDIAS ACTIVOS
         # ========================================================
         guard_ids = await list_teachers_on_guard(
-            session, weekday_py, hour_idx, absent_ids
+            session,
+            weekday_py,
+            hour_idx,
+            the_date,
+            absent_ids
         )
     
         guard_aliases = []
@@ -401,7 +405,11 @@ async def build_daily_report_data(
         # GUARDIAS ACTIVOS
         # ========================================================
         guard_ids = await list_teachers_on_guard(
-            session, weekday_py, hour_idx, absent_ids
+            session,
+            weekday_py,
+            hour_idx,
+            the_date,
+            absent_ids
         )
 
         guard_aliases = []
