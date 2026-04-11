@@ -204,36 +204,35 @@ async def build_monthly_report_pdf(
     # 6) Ausencias catalogadas
     rows = _build_rows(catalogadas, name_by_id)
 
-    # =====================================================================
-    # 7) BAJAS — SIN DUPLICADOS, SIN HEREDAR CADENAS
-    #     SOLO BAJAS MÉDICAS (NO EXCEDENCIAS)
-    # =====================================================================
-    
-    bajas_por_profesor = {}
-    
+    # ======================================================
+    # AÑADIDO — BAJAS EN EL PARTE MENSUAL (ADITIVO)
+    #   - NO borra filas existentes
+    #   - NO consolida por profesor
+    #   - UNA fila por cada baja real
+    # ======================================================
     for lv in leaves:
-        # ❌ excluir excedencias
+        # Excluir excedencias explícitas
         if lv.category is None and lv.cause and "excedencia" in lv.cause.lower():
             continue
-
+    
         tid = lv.teacher_id
-
+    
         start = max(lv.start_date, date_from)
-        end = lv.end_date or date_to
-        end = min(end, date_to)
-
+        end = min(lv.end_date or date_to, date_to)
+    
         if start > end:
             continue
-
-        if tid not in bajas_por_profesor:
-            bajas_por_profesor[tid] = (start, end, lv.category)
-        else:
-            old_start, old_end, old_cat = bajas_por_profesor[tid]
-            bajas_por_profesor[tid] = (
-                min(old_start, start),
-                max(old_end, end),
-                old_cat or lv.category
-            )
+    
+        days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+        fecha_text, n_days = _format_date_span(days)
+    
+        rows.append([
+            name_by_id.get(tid, f"ID {tid}"),
+            fecha_text,
+            "Todas",
+            lv.category or "Baja médica",
+            str(n_days),
+        ])
 
     # ======================================================
     # PDF (tu código original)
