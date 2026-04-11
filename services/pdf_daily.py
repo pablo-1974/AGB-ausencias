@@ -347,6 +347,7 @@ async def build_daily_report_data(
 
         row_prof, row_grp, row_room, row_subj = [], [], [], []
 
+        # AUSENTES
         for tid in sorted(absent_ids, key=lambda t: normalize_name(name_by_id.get(t, ""))):
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
@@ -369,6 +370,27 @@ async def build_daily_report_data(
                 row_room.append("guardia")
                 row_subj.append("guardia")
 
+        # GUARDIAS ACTIVOS (MISMA LÓGICA QUE EL PDF)
+        guard_ids = await list_teachers_on_guard(
+            session, weekday_py, hour_idx, absent_ids
+        )
+
+        guard_aliases = []
+
+        for tid in guard_ids:
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+            if not slot or slot.type != ScheduleType.GUARD:
+                continue
+
+            if (slot.guard_type or "").upper().startswith("G RECREO"):
+                continue
+
+            teacher = await session.get(Teacher, tid)
+            if not teacher:
+                continue
+
+            guard_aliases.append(teacher.alias or teacher.name)
+
         rows.append([
             label,
             "\n".join(row_prof),
@@ -376,7 +398,7 @@ async def build_daily_report_data(
             "\n".join(row_room),
             "\n".join(row_subj),
             "",
-            "",
+            "\n".join(sorted(guard_aliases, key=normalize_name)),
         ])
 
     return {
