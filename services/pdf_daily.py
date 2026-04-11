@@ -203,8 +203,13 @@ async def build_daily_report_pdf(
                 continue
 
             teacher = await session.get(Teacher, tid)
-            if teacher:
-                guard_aliases.append(teacher.alias or teacher.name)
+            if not teacher:
+                continue
+            
+            if teacher.status != TeacherStatus.activo:
+                continue
+            
+            guard_aliases.append(teacher.alias or teacher.name)
 
         def crush(xs: List[str]) -> str:
             return "\n".join([x for x in xs if x.strip()])
@@ -381,8 +386,13 @@ async def build_daily_report_data(
                 continue
 
             teacher = await session.get(Teacher, tid)
-            if teacher:
-                guard_aliases.append(teacher.alias or teacher.name)
+            if not teacher:
+                continue
+            
+            if teacher.status != TeacherStatus.activo:
+                continue
+            
+            guard_aliases.append(teacher.alias or teacher.name)
 
         rows.append([
             label,
