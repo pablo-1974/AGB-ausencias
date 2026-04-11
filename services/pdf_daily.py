@@ -151,6 +151,7 @@ async def build_daily_report_pdf(
         ):
             ausentes_guardia_recreo.append(name_by_id.get(tid))
 
+
     # ------------------------------------------------------------
     # GENERAR FILAS
     # ------------------------------------------------------------
@@ -162,7 +163,9 @@ async def build_daily_report_pdf(
     
         row_prof, row_grp, row_room, row_subj = [], [], [], []
     
+        # ========================================================
         # AUSENTES
+        # ========================================================
         for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
@@ -189,7 +192,9 @@ async def build_daily_report_pdf(
                 row_room.append("guardia")
                 row_subj.append("guardia")
     
+        # ========================================================
         # GUARDIAS ACTIVOS
+        # ========================================================
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
@@ -206,8 +211,21 @@ async def build_daily_report_pdf(
             if not teacher:
                 continue
     
-            # ✅ Solo profesores realmente activos HOY
+            # 1️⃣ Solo profesores activos
             if teacher.status != TeacherStatus.activo:
+                continue
+    
+            # 2️⃣ Un sustituto NO hace guardias antes de empezar
+            future_sub = await session.execute(
+                select(Leave).where(
+                    and_(
+                        Leave.teacher_id == tid,
+                        Leave.parent_leave_id.is_not(None),
+                        Leave.start_date > the_date,
+                    )
+                )
+            )
+            if future_sub.scalars().first():
                 continue
     
             guard_aliases.append(teacher.alias or teacher.name)
@@ -353,6 +371,9 @@ async def build_daily_report_data(
 
         row_prof, row_grp, row_room, row_subj = [], [], [], []
 
+        # ========================================================
+        # AUSENTES
+        # ========================================================
         for tid in sorted(absent_ids, key=lambda t: normalize_name(name_by_id.get(t, ""))):
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
@@ -370,15 +391,20 @@ async def build_daily_report_data(
                 row_room.append(slot.room or "")
                 row_subj.append(slot.subject or "")
             else:
+                if (slot.guard_type or "").upper().startswith("G RECREO"):
+                    continue
                 row_prof.append(name_by_id.get(tid))
                 row_grp.append("guardia")
                 row_room.append("guardia")
                 row_subj.append("guardia")
 
+        # ========================================================
+        # GUARDIAS ACTIVOS
+        # ========================================================
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
-        
+
         guard_aliases = []
         for tid in guard_ids:
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
@@ -386,15 +412,28 @@ async def build_daily_report_data(
                 continue
             if (slot.guard_type or "").upper().startswith("G RECREO"):
                 continue
-        
+
             teacher = await session.get(Teacher, tid)
             if not teacher:
                 continue
-        
-            # ✅ Solo profesores activos HOY
+
+            # 1️⃣ Solo profesores activos
             if teacher.status != TeacherStatus.activo:
                 continue
-        
+
+            # 2️⃣ Un sustituto NO hace guardias antes de empezar
+            future_sub = await session.execute(
+                select(Leave).where(
+                    and_(
+                        Leave.teacher_id == tid,
+                        Leave.parent_leave_id.is_not(None),
+                        Leave.start_date > the_date,
+                    )
+                )
+            )
+            if future_sub.scalars().first():
+                continue
+
             guard_aliases.append(teacher.alias or teacher.name)
 
         rows.append([
