@@ -124,7 +124,11 @@ async def build_monthly_report_pdf(
             if lv.cause and "excedencia" in lv.cause.lower():
                 continue
         
-            # ✅ NO contar días anteriores al inicio real de la baja
+            # ✅ ESTE ES EL FILTRO QUE FALTA
+            if lv.substitute_teacher_id is not None:
+                continue
+        
+            # NO contar días anteriores al inicio real de la baja
             if cur < lv.start_date:
                 continue
         
@@ -176,7 +180,8 @@ async def build_monthly_report_pdf(
         segments.append(segment)
 
         for seg in segments:
-            fecha_text, n_days = _format_date_span(seg)
+            fecha_text, _ = _format_date_span(seg)
+            n_days = len(seg)
             rows.append([
                 name_by_id.get(tid, f"ID {tid}"),
                 fecha_text,
