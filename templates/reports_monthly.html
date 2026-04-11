@@ -1,1 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
 
+<h1 class="text-lg font-semibold mb-4">Parte mensual de ausencias</h1>
+
+<form method="get" action="/reports/monthly/view" class="card space-y-3 max-w-2xl mb-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div>
+      <label class="label">Desde</label>
+      <input class="input" type="date" name="date_from" value="{{ date_from or '' }}" required>
+    </div>
+    <div>
+      <label class="label">Hasta</label>
+      <input class="input" type="date" name="date_to" value="{{ date_to or '' }}" required>
+    </div>
+  </div>
+
+  <div class="flex gap-2 items-center">
+
+    <button class="btn-primary">Ver</button>
+
+    {% if rows is defined and rows %}
+      {% if has_uncategorized %}
+        <!-- Botón PDF deshabilitado -->
+        <button class="px-3 py-1 rounded bg-red-100 text-red-400 border border-red-200 cursor-not-allowed" disabled>
+          PDF
+        </button>
+      {% else %}
+        <!-- Botón PDF habilitado -->
+        <a class="btn-muted border border-gray-300 px-3 py-1"
+           href="/reports/monthly/pdf?date_from={{ date_from }}&date_to={{ date_to }}">
+          PDF
+        </a>
+      {% endif %}
+    {% endif %}
+
+  </div>
+</form>
+
+{% if has_uncategorized %}
+  <div class="mb-3 text-sm text-red-600 font-semibold">
+    ⚠ AVISO: Existen AUSENCIAS o BAJAS sin catalogar en el rango seleccionado.
+  </div>
+{% endif %}
+
+{% if rows is defined %}
+  {% if rows %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Fecha</th>
+          <th>Horas</th>
+          <th>Causa</th>
+          <th>Días</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r[0] }}</td>
+          <td>{{ r[1] }}</td>
+          <td>{{ r[2] }}</td>
+          <td>{{ r[3] | safe }}</td>
+          <td>{{ r[4] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="text-sm text-gray-500">No hay datos en el rango seleccionado.</div>
+  {% endif %}
+{% endif %}
+
+{% endblock %}
