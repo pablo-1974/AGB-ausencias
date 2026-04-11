@@ -206,7 +206,19 @@ async def build_daily_report_pdf(
             if not teacher:
                 continue
             
+            # 1️⃣ Solo profesores activos
             if teacher.status != TeacherStatus.activo:
+                continue
+            
+            # 2️⃣ Un sustituto NO hace guardias antes de empezar
+            future_sub = await session.execute(
+                select(Leave).where(
+                    Leave.teacher_id == tid,
+                    Leave.parent_leave_id.is_not(None),
+                    Leave.start_date > the_date,
+                )
+            )
+            if future_sub.scalars().first():
                 continue
             
             guard_aliases.append(teacher.alias or teacher.name)
@@ -390,6 +402,16 @@ async def build_daily_report_data(
                 continue
             
             if teacher.status != TeacherStatus.activo:
+                continue
+            
+            future_sub = await session.execute(
+                select(Leave).where(
+                    Leave.teacher_id == tid,
+                    Leave.parent_leave_id.is_not(None),
+                    Leave.start_date > the_date,
+                )
+            )
+            if future_sub.scalars().first():
                 continue
             
             guard_aliases.append(teacher.alias or teacher.name)
