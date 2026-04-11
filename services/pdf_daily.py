@@ -155,25 +155,25 @@ async def build_daily_report_pdf(
     # GENERAR FILAS
     # ------------------------------------------------------------
     for label, hour_idx in HOUR_ROWS:
-
+    
         if hour_idx == recreo_index:
             data.append(["RECREO"] + [""] * 6)
             continue
-
+    
         row_prof, row_grp, row_room, row_subj = [], [], [], []
-
+    
         # AUSENTES
         for tid in sorted(absent_ids, key=lambda tid: normalize_name(name_by_id.get(tid, ""))):
             mask = hours_by_teacher.get(tid, 0)
             if not _is_absent(mask, hour_idx):
                 continue
-
+    
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
             if not slot:
                 continue
-
+    
             prof_name = name_by_id.get(tid)
-
+    
             if slot.type == ScheduleType.CLASS:
                 if (slot.group or "").upper() == "ED":
                     continue
@@ -188,12 +188,12 @@ async def build_daily_report_pdf(
                 row_grp.append("guardia")
                 row_room.append("guardia")
                 row_subj.append("guardia")
-
+    
         # GUARDIAS ACTIVOS
         guard_ids = await list_teachers_on_guard(
             session, weekday_py, hour_idx, absent_ids
         )
-
+    
         guard_aliases = []
         for tid in guard_ids:
             slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
@@ -201,31 +201,20 @@ async def build_daily_report_pdf(
                 continue
             if (slot.guard_type or "").upper().startswith("G RECREO"):
                 continue
-
+    
             teacher = await session.get(Teacher, tid)
             if not teacher:
                 continue
-            
-            # 1️⃣ Solo profesores activos
+    
+            # ✅ Solo profesores realmente activos HOY
             if teacher.status != TeacherStatus.activo:
                 continue
-            
-            # 2️⃣ Un sustituto NO hace guardias antes de empezar
-            future_sub = await session.execute(
-                select(Leave).where(
-                    Leave.teacher_id == tid,
-                    Leave.parent_leave_id.is_not(None),
-                    Leave.start_date > the_date,
-                )
-            )
-            if future_sub.scalars().first():
-                continue
-            
+    
             guard_aliases.append(teacher.alias or teacher.name)
-
+    
         def crush(xs: List[str]) -> str:
             return "\n".join([x for x in xs if x.strip()])
-
+    
         data.append([
             label,
             crush(sorted(row_prof, key=normalize_name)),
@@ -235,6 +224,7 @@ async def build_daily_report_pdf(
             "",
             crush(sorted(guard_aliases, key=normalize_name)),
         ])
+
 
     # ------------------------------------------------------------
     # MAQUETACIÓN PDF — ESTÉTICA OLD3
