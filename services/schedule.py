@@ -35,19 +35,43 @@ async def list_teachers_on_guard(
     session: AsyncSession,
     day_idx: int,
     hour_idx: int,
+    the_date: date,
     absent_teacher_ids: Set[int],
 ) -> List[str]:
-    q = select(ScheduleSlot, Teacher).join(Teacher, Teacher.id == ScheduleSlot.teacher_id).where(
+
+    q = select(ScheduleSlot, Teacher).join(
+        Teacher, Teacher.id == ScheduleSlot.teacher_id
+    ).where(
         and_(
             ScheduleSlot.day_index == day_idx,
             ScheduleSlot.hour_index == hour_idx,
             ScheduleSlot.type == ScheduleType.GUARD,
         )
     )
+
     res = (await session.execute(q)).all()
-    # Excluir ausentes
-    ids = [t.id for slot, t in res if t.id not in absent_teacher_ids]
-    return sorted(ids)
+    valid_ids = []
+
+    for slot, teacher in res:
+        # 1️⃣ Excluir ausentes
+        if teacher.id in absent_teacher_ids:
+            continue
+
+        # 2️⃣ Excluir sustitutos que aún no han empezado
+        future_sub = await session.execute(
+            select(Leave).where(
+                and_(
+                    Leave.substitute_teacher_id == teacher.id,
+                    Leave.start_date > the_date,
+                )
+            )
+        )
+        if future_sub.scalars().first():
+            continue
+
+        valid_ids.append(teacher.id)
+
+    return sorted(valid_ids)
 
 
 # ---------------------------------
