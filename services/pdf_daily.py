@@ -424,8 +424,7 @@ async def build_daily_report_data(
             future_sub = await session.execute(
                 select(Leave).where(
                     and_(
-                        Leave.teacher_id == tid,
-                        Leave.parent_leave_id.is_not(None),
+                        Leave.substitute_teacher_id == tid,
                         Leave.start_date > the_date,
                     )
                 )
