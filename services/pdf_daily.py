@@ -217,20 +217,8 @@ async def build_daily_report_pdf(
     
             # 1️⃣ Solo profesores activos
             if teacher.status != TeacherStatus.activo:
-                continue
-    
-            # 2️⃣ Un sustituto NO hace guardias antes de empezar
-            future_sub = await session.execute(
-                select(Leave).where(
-                    and_(
-                        Leave.substitute_teacher_id == tid,
-                        Leave.start_date > the_date,
-                    )
-                )
-            )
-            if future_sub.scalars().first():
-                continue
-    
+                continue   
+  
             guard_aliases.append(teacher.alias or teacher.name)
     
         def crush(xs: List[str]) -> str:
@@ -426,18 +414,6 @@ async def build_daily_report_data(
 
             # 1️⃣ Solo profesores activos
             if teacher.status != TeacherStatus.activo:
-                continue
-
-            # 2️⃣ Un sustituto NO hace guardias antes de empezar
-            future_sub = await session.execute(
-                select(Leave).where(
-                    and_(
-                        Leave.substitute_teacher_id == tid,
-                        Leave.start_date > the_date,
-                    )
-                )
-            )
-            if future_sub.scalars().first():
                 continue
 
             guard_aliases.append(teacher.alias or teacher.name)
