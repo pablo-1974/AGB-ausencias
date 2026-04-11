@@ -123,6 +123,11 @@ async def build_monthly_report_pdf(
             # excluir excedencias
             if lv.cause and "excedencia" in lv.cause.lower():
                 continue
+        
+            # ✅ NO contar días anteriores al inicio real de la baja
+            if cur < lv.start_date:
+                continue
+        
             cat = lv.category or "Baja médica"
             acc[(lv.teacher_id, cat)].append(cur)
 
@@ -156,12 +161,18 @@ async def build_monthly_report_pdf(
         # agrupar en tramos consecutivos
         segment = [days[0]]
         segments = []
+        
         for d in days[1:]:
-            if (d - segment[-1]).days == 1:
+            next_day = segment[-1] + timedelta(days=1)
+            while next_day.weekday() >= 5 or is_holiday(next_day, cal):
+                next_day += timedelta(days=1)
+        
+            if d == next_day:
                 segment.append(d)
             else:
                 segments.append(segment)
                 segment = [d]
+        
         segments.append(segment)
 
         for seg in segments:
