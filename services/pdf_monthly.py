@@ -124,8 +124,8 @@ async def build_monthly_report_pdf(
             if lv.cause and "excedencia" in lv.cause.lower():
                 continue
         
-            # ✅ ESTE ES EL FILTRO QUE FALTA
-            if lv.substitute_teacher_id is not None:
+            # ✅ ignorar leaves hijos (sustitución / encadenados)
+            if lv.parent_leave_id is not None:
                 continue
         
             # NO contar días anteriores al inicio real de la baja
