@@ -326,3 +326,72 @@ async def build_daily_report_pdf(
     table.setStyle(ts)
     elements.append(table)
     doc.build(elements)
+
+# ======================================================================
+#   HTML PREVIEW — MISMA LÓGICA QUE EL PDF
+# ======================================================================
+async def build_daily_report_data(
+    session: AsyncSession,
+    the_date: date,
+    observaciones_usuario: str | None = None,
+    recreo_index: int = 3,
+):
+    absent_ids, hours_by_teacher = await _teachers_absent_that_day(session, the_date)
+
+    if absent_ids:
+        q_teach = select(Teacher.id, Teacher.name).where(Teacher.id.in_(absent_ids))
+        name_by_id = {tid: n for tid, n in (await session.execute(q_teach)).all()}
+    else:
+        name_by_id = {}
+
+    rows = []
+    weekday_py = the_date.weekday()
+    weekday_name = DAYS.get(weekday_py)
+
+    for label, hour_idx in HOUR_ROWS:
+        if hour_idx == recreo_index:
+            rows.append(["RECREO", "", "", "", "", "", ""])
+            continue
+
+        row_prof, row_grp, row_room, row_subj = [], [], [], []
+
+        for tid in sorted(absent_ids, key=lambda t: normalize_name(name_by_id.get(t, ""))):
+            mask = hours_by_teacher.get(tid, 0)
+            if not _is_absent(mask, hour_idx):
+                continue
+
+            slot = await get_teacher_slot(session, tid, weekday_py, hour_idx)
+            if not slot:
+                continue
+
+            if slot.type == ScheduleType.CLASS:
+                if (slot.group or "").upper() == "ED":
+                    continue
+                row_prof.append(name_by_id.get(tid))
+                row_grp.append(slot.group or "")
+                row_room.append(slot.room or "")
+                row_subj.append(slot.subject or "")
+            else:
+                row_prof.append(name_by_id.get(tid))
+                row_grp.append("guardia")
+                row_room.append("guardia")
+                row_subj.append("guardia")
+
+        rows.append([
+            label,
+            "\n".join(row_prof),
+            "\n".join(row_grp),
+            "\n".join(row_room),
+            "\n".join(row_subj),
+            "",
+            "",
+        ])
+
+    return {
+        "title": f"Ausencias del día ({weekday_name} {the_date.strftime('%d/%m/%Y')})",
+        "weekday_name": weekday_name,
+        "date_str": the_date.isoformat(),
+        "head": ["HORA", "PROFESOR", "GRUPO", "AULA", "ASIGN.", "FIRMAS", "GUARDIA"],
+        "rows": rows,
+        "observaciones": observaciones_usuario or "",
+    }
