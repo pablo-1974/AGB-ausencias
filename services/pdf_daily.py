@@ -101,7 +101,8 @@ async def _teachers_absent_that_day(
         best = (depth, leave)
         for child in by_parent.get(leave.id, []):
             cand = deepest_active(child, depth + 1)
-            if cand[0] > bestbest = cand
+            if cand[0] > best[0]:
+                best = cand
         return best
 
     # Procesar solo bajas raíz
