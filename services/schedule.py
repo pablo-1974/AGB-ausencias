@@ -6,7 +6,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
-from models import ScheduleSlot, ScheduleType, Teacher
+from models import ScheduleSlot, ScheduleType, Teacher, Leave
 
 
 # ---------------------------------
