@@ -247,6 +247,26 @@ async def teachers_print_activos(session: AsyncSession = Depends(get_session)):
     return _make_pdf(items, "Profesores_Activos.pdf", "Profesorado Activo", settings.INSTITUTION_NAME)
 
 
+@router.get("/teachers/print/titulares")
+async def teachers_print_titulares(session: AsyncSession = Depends(get_session)):
+    rows = (
+        await session.execute(
+            select(Teacher).where(Teacher.titular == True)
+        )
+    ).scalars().all()
+
+    rows = sorted(rows, key=lambda t: normalize_name(t.name))
+
+    items = [{"name": t.name, "email": t.email or ""} for t in rows]
+
+    return _make_pdf(
+        items,
+        "Profesores_Titulares_Inicio_Curso.pdf",
+        "Profesorado titular (inicio de curso)",
+        settings.INSTITUTION_NAME,
+    )
+    
+
 @router.get("/teachers/print/bajas")
 async def teachers_print_bajas(session: AsyncSession = Depends(get_session)):
     rows = (
