@@ -1,7 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1 class="text-2xl font-bold mb-4">Listado de Profesorado</h1>
+<h1 class="text-2xl font-bold mb-4">
+  {% if tipo == "actual" %}
+    Profesorado actual
+  {% elif tipo == "titular" %}
+    Profesorado titular
+  {% elif tipo == "sustituto" %}
+    Profesorado sustituto
+  {% else %}
+    Listado de profesorado
+  {% endif %}
+</h1>
 
 <!-- MENÚ DE IMPRESIÓN -->
 <div class="mb-4 flex gap-3">
@@ -48,10 +58,10 @@ function togglePrintMenu() {
 
   <select name="tipo" id="filtro-profes" class="input w-64">
     <option value="actual" {% if tipo == "actual" %}selected{% endif %}>
-      Profesorado Actual
+      Profesorado Actual (activos y ausentes sin sustituto)
     </option>
     <option value="titular" {% if tipo == "titular" %}selected{% endif %}>
-      Profesorado Titular
+      Profesorado Titular (principio de curso)
     </option>
     <option value="sustituto" {% if tipo == "sustituto" %}selected{% endif %}>
       Profesorado Sustituto
