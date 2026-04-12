@@ -40,15 +40,6 @@
       <strong>Observaciones:</strong> {{ preview.observaciones or '—' }}
     </div>
 
-    <!-- Botón Generar PDF desde la vista -->
-    <div class="mb-4 flex justify-end">
-      <form method="post" action="/reports/daily">
-        <input type="hidden" name="date" value="{{ preview.date_str }}">
-        <input type="hidden" name="obs" value="{{ preview.observaciones or '' }}">
-        <button class="btn-primary">Generar PDF</button>
-      </form>
-    </div>
-
     <table class="table">
       <thead>
         <tr>
