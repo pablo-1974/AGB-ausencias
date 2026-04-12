@@ -222,7 +222,11 @@ def _make_pdf(items, filename, title, center_name):
         logo_path=settings.LOGO_PATH,
     )
 
-    return FileResponse(tmp.name, "application/pdf", filename)
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=filename,
+    )
 
 
 @router.get("/teachers/print/all")
