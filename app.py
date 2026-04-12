@@ -1,0 +1,184 @@
+# app.py
+from datetime import datetime
+from fastapi import FastAPI, Request, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.responses import RedirectResponse, JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+
+import os
+print("DEBUG FILES:", os.listdir("."))
+
+from config import settings
+print("SECRET_KEY IN RUNTIME:", settings.SECRET_KEY)
+
+from auth import router as auth_router
+
+from context import ctx
+
+# ------------------------------------------------------------
+# Proxy Headers
+# ------------------------------------------------------------
+ProxyHeadersMiddleware = None
+try:
+    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+except:
+    try:
+        from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+    except:
+        ProxyHeadersMiddleware = None
+
+# ------------------------------------------------------------
+# APP
+# ------------------------------------------------------------
+app = FastAPI(title=settings.APP_NAME)
+print("APP STARTED")
+
+# ------------------------------------------------------------
+# PROXY HEADERS FIRST
+# ------------------------------------------------------------
+if ProxyHeadersMiddleware:
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# ------------------------------------------------------------
+# SESSION MIDDLEWARE (antes que nada más)
+# ------------------------------------------------------------
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="ausencias_session",
+    max_age=60 * 60 * 8,
+    same_site="none",
+    https_only=True,
+)
+
+# ------------------------------------------------------------
+# STATIC FILES
+# ------------------------------------------------------------
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ------------------------------------------------------------
+# TEMPLATES
+# ------------------------------------------------------------
+templates = Jinja2Templates(directory="templates")
+templates.env.cache = {}
+app.state.templates = templates
+
+# ------------------------------------------------------------
+# LOAD USER DEPENDENCY (en vez de middleware)
+# ------------------------------------------------------------
+from database import AsyncSessionLocal
+from models import User
+
+async def load_user_dep(request: Request):
+    uid = request.session.get("uid")
+    if not uid:
+        return None
+    async with AsyncSessionLocal() as db:
+        return await db.get(User, uid)
+
+# ------------------------------------------------------------
+# NO-CACHE MIDDLEWARE
+# ------------------------------------------------------------
+@app.middleware("http")
+async def no_cache_mw(request: Request, call_next):
+    response = await call_next(request)
+    nocache_paths = {"/", "/login", "/register-first-admin", "/register"}
+    if request.url.path in nocache_paths or request.url.path.startswith("/admin"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+# ------------------------------------------------------------
+# ROUTERS
+# ------------------------------------------------------------
+from imports_teachers import router as teachers_import_router
+from imports_schedule import router as schedule_import_router
+from schedule_router import router as schedule_router
+from teachers_router import router as teachers_router
+from leaves_router import router as leaves_router
+from absences_router import router as absences_router
+from reports_router import router as reports_router
+from config_calendar_router import router as calendar_router
+from admin_router import router as admin_router
+from stats_router import router as stats_router
+from backup_router import router as backup_router
+
+app.include_router(auth_router)
+app.include_router(teachers_import_router)
+app.include_router(schedule_import_router)
+app.include_router(schedule_router)
+app.include_router(teachers_router)
+app.include_router(leaves_router)
+app.include_router(absences_router)
+app.include_router(reports_router)
+app.include_router(calendar_router)
+app.include_router(admin_router)
+app.include_router(stats_router)
+app.include_router(backup_router)
+
+
+# ------------------------------------------------------------
+# ROOT ROUTE (usa la dependencia de usuario)
+# ------------------------------------------------------------
+@app.api_route("/", methods=["GET", "HEAD"])
+async def dashboard(request: Request, user: User = Depends(load_user_dep)):
+
+    if request.method == "HEAD":
+        return JSONResponse({"ok": True})
+
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        ctx(
+            request,
+            user,
+            title=settings.APP_NAME,
+        )
+    )
+
+# ------------------------------------------------------------
+# HEALTH
+# ------------------------------------------------------------
+@app.get("/health")
+async def health():
+    return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+
+# ------------------------------------------------------------
+# ERROR HANDLERS
+# ------------------------------------------------------------
+@app.exception_handler(404)
+async def not_found(request: Request, exc, user: User = Depends(load_user_dep)):
+
+    if not user or not isinstance(user, User):
+        return RedirectResponse("/login", status_code=303)
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        ctx(
+            request,
+            user,
+            title=settings.APP_NAME,
+            message="Página no encontrada",
+        ),
+        status_code=404
+    )
+
+
+@app.exception_handler(500)
+async def internal_error(request: Request, exc, user: User = Depends(load_user_dep)):
+
+    if not user or not isinstance(user, User):
+        return RedirectResponse("/login", status_code=303)
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        ctx(
+            request,
+            user,
+            title=settings.APP_NAME,
+        )
+    )
