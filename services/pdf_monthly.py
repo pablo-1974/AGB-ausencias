@@ -104,9 +104,8 @@ async def build_monthly_report_pdf(
             select(Absence).where(Absence.date == cur)
         )
         for a in res_abs.scalars():
-            if not a.category or a.category == "Z":
-                continue
-            acc[("absence", a.id, a.category)].append(cur)
+            cat = a.category  # puede ser None o "Z"
+            acc[("absence", a.id, cat)].append(cur)
 
         # -------------------------
         # BAJAS ACTIVAS (NO EXCEDENCIA)
