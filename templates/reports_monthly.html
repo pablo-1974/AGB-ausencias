@@ -1,1 +1,152 @@
+{% extends "base.html" %}
+{% block content %}
 
+<h1 class="text-lg font-semibold mb-4">
+  Parte mensual de ausencias
+</h1>
+
+<form method="get" action="/reports/monthly/view" class="card space-y-3 max-w-2xl mb-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div>
+      <label class="label">Desde</label>
+      <input class="input" type="date" name="date_from" value="{{ date_from or '' }}" required>
+    </div>
+    <div>
+      <label class="label">Hasta</label>
+      <input class="input" type="date" name="date_to" value="{{ date_to or '' }}" required>
+    </div>
+  </div>
+
+  <div class="flex gap-2 items-center">
+    <button class="btn-primary">Ver</button>
+
+    {% if rows is defined and rows %}
+      {% if has_uncategorized %}
+        <!-- PDF deshabilitado -->
+        <button
+          class="px-3 py-1 rounded bg-red-100 text-red-400 border border-red-200 cursor-not-allowed"
+          disabled
+        >
+          PDF
+        </button>
+      {% else %}
+        <!-- PDF habilitado -->
+        <a
+          class="btn-muted border border-gray-300 px-3 py-1"
+          href="/reports/monthly/pdf?date_from={{ date_from }}&date_to={{ date_to }}"
+        >
+          PDF
+        </a>
+      {% endif %}
+    {% endif %}
+  </div>
+</form>
+
+{% if has_uncategorized %}
+  <div class="mb-4 text-sm text-red-600 font-semibold">
+    ⚠ AVISO: Existen ausencias o bajas sin catalogar en el rango seleccionado.
+    Deben catalogarse antes de generar el parte mensual.
+  </div>
+{% endif %}
+
+{% if rows is defined %}
+
+  {% set catalogadas = [] %}
+  {% set sin_catalogar = [] %}
+
+  {% for r in rows %}
+    {% if r[3] %}
+      {% set _ = catalogadas.append(r) %}
+    {% else %}
+      {% set _ = sin_catalogar.append(r) %}
+    {% endif %}
+  {% endfor %}
+
+  {% if catalogadas %}
+    <!-- ===================== -->
+    <!-- CAJA 1: CATALOGADAS -->
+    <!-- ===================== -->
+    <div class="card mb-8">
+      <h2 class="text-lg font-semibold mb-2 text-green-700">
+        ✅ Bajas y ausencias catalogadas
+      </h2>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Fecha</th>
+            <th>Horas</th>
+            <th>Causa</th>
+            <th>Días</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in catalogadas %}
+          <tr>
+            <td>{{ r[0] }}</td>
+            <td>{{ r[1] }}</td>
+            <td>{{ r[2] }}</td>
+            <td>{{ r[3] }}</td>
+            <td>{{ r[4] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  {% if sin_catalogar %}
+    <!-- ========================= -->
+    <!-- CAJA 2: SIN CATALOGAR -->
+    <!-- ========================= -->
+    <div class="card border border-red-300 bg-red-50">
+      <h2 class="text-lg font-semibold mb-2 text-red-700">
+        ⚠ Bajas y ausencias sin catalogar
+      </h2>
+
+      <p class="text-sm text-red-600 mb-3">
+        Estas ausencias no tienen catalogación administrativa y deben revisarse.
+      </p>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Fecha</th>
+            <th>Horas</th>
+            <th>Causa</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in sin_catalogar %}
+          <tr>
+            <td>{{ r[0] }}</td>
+            <td>{{ r[1] }}</td>
+            <td>{{ r[2] }}</td>
+            <td></td>
+            <td>
+              <a
+                href="#"
+                class="px-3 py-1 rounded bg-gray-200 text-gray-600 border border-red-400 text-sm"
+              >
+                Catalogar
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  {% if not rows %}
+    <div class="text-sm text-gray-500">
+      No hay datos en el rango seleccionado.
+    </div>
+  {% endif %}
+
+{% endif %}
+
+{% endblock %}
