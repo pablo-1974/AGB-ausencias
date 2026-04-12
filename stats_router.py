@@ -75,6 +75,7 @@ async def stats_main(
     conditions = [
         Leave.start_date >= date_from,
         Leave.start_date <= date_to,
+        Leave.is_substitution.is_(False),
     ]
 
     if teacher_id:
