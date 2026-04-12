@@ -250,8 +250,14 @@ async def build_daily_report_pdf(
 
 
     # ------------------------------------------------------------
-    # MAQUETACIÓN PDF — ESTÉTICA OLD3
+    # MAQUETACIÓN PDF 
     # ------------------------------------------------------------
+    # En esta sección se construye el PDF final del parte diario
+    # usando ReportLab, manteniendo la estética "OLD3":
+    # márgenes ajustados, tablas compactas y proporciones pensadas
+    # para impresión oficial.
+    
+    # Documento PDF base
     doc = SimpleDocTemplate(
         path_out,
         pagesize=A4,
@@ -260,33 +266,52 @@ async def build_daily_report_pdf(
         topMargin=1.0 * cm,
         bottomMargin=1.0 * cm,
     )
-
+    
+    # Lista de elementos que se irán añadiendo al PDF
     elements: List = []
-
+    
+    # ------------------------------------------------------------
+    # TÍTULO PRINCIPAL
+    # ------------------------------------------------------------
+    # Título del parte con día de la semana y fecha completa
     elements.append(
         Paragraph(
             f"Ausencias del día ({weekday_name} {the_date.strftime('%d/%m/%Y')})",
             styles["Title"],
         )
     )
+    
+    # Espacio vertical tras el título
     elements.append(Spacer(1, 6))
-
+    
+    # ------------------------------------------------------------
+    # BLOQUE DE OBSERVACIONES
+    # ------------------------------------------------------------
+    # Se combinan:
+    # - Ausentes en guardia de recreo (si los hay)
+    # - Observaciones introducidas por el usuario (si existen)
     parts = []
+    
     if ausentes_guardia_recreo:
         parts.append("Ausentes Guardia Recreo: " + "; ".join(ausentes_guardia_recreo))
+    
     if observaciones_usuario:
         parts.append(observaciones_usuario)
-
+    
+    # Texto final de observaciones (o un guion si está vacío)
     obs_text = "; ".join(parts) if parts else "—"
-
+    
+    # Cálculo del ancho disponible de página (sin márgenes)
     total_width = A4[0] - doc.leftMargin - doc.rightMargin
-
+    
+    # Tabla de observaciones (una sola celda grande)
     obs_table = Table(
         [[Paragraph(f"<b>Observaciones:</b><br/>{obs_text}", styles["Normal"])]],
         colWidths=[total_width],
         rowHeights=[72],
     )
-
+    
+    # Estilo de la tabla de observaciones
     obs_table.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.black),
         ("ALIGN", (0,0), (-1,-1), "LEFT"),
@@ -296,10 +321,15 @@ async def build_daily_report_pdf(
         ("TOPPADDING", (0,0), (-1,-1), 2),
         ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ]))
-
+    
     elements.append(obs_table)
     elements.append(Spacer(1, 8))
-
+    
+    # ------------------------------------------------------------
+    # CONFIGURACIÓN DE LA TABLA PRINCIPAL
+    # ------------------------------------------------------------
+    # Anchos de columna proporcionales al ancho total:
+    # HORA | PROFESOR | GRUPO | AULA | ASIGN. | FIRMAS | GUARDIA
     col_widths = [
         1.0 * cm,
         total_width * 0.32,
@@ -309,21 +339,30 @@ async def build_daily_report_pdf(
         total_width * 0.18,
         total_width * 0.20,
     ]
-
-    row_h = 72
+    
+    # Alturas de fila:
+    # - filas normales: row_h
+    # - recreo: recreo_h (más bajo)
+    row_h = 82
     recreo_h = 44
-
+    
+    # Primera fila = cabecera
+    # Resto = filas por hora
     row_heights = [16] + [
         (recreo_h if idx == recreo_index else row_h)
         for idx in range(len(HOUR_ROWS))
     ]
-
+    
+    # Construcción de la tabla principal
     table = Table(data, colWidths=col_widths, rowHeights=row_heights)
-
+    
+    # ------------------------------------------------------------
+    # ESTILO DE LA TABLA PRINCIPAL
+    # ------------------------------------------------------------
     ts = TableStyle([
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),  # cabecera en negrita
         ("FONTSIZE", (0,0), (-1,0), 9),
-        ("ALIGN", (0,0), (0,-1), "CENTER"),
+        ("ALIGN", (0,0), (0,-1), "CENTER"),             # columna HORA centrada
         ("VALIGN", (0,0), (-1,-1), "TOP"),
         ("GRID", (0,0), (-1,-1), 0.5, colors.black),
         ("FONTSIZE", (0,1), (-1,-1), 8),
@@ -332,16 +371,26 @@ async def build_daily_report_pdf(
         ("TOPPADDING", (0,0), (-1,-1), 2),
         ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ])
-
+    
+    # ------------------------------------------------------------
+    # FILA DE RECREO
+    # ------------------------------------------------------------
+    # La fila de recreo ocupa toda la anchura y se centra el texto
     recreo_row_index = 1 + recreo_index
+    
     ts.add("SPAN", (0, recreo_row_index), (-1, recreo_row_index))
     ts.add("ALIGN", (0, recreo_row_index), (-1, recreo_row_index), "CENTER")
     ts.add("VALIGN", (0, recreo_row_index), (-1, recreo_row_index), "MIDDLE")
     ts.add("FONTSIZE", (0, recreo_row_index), (-1, recreo_row_index), 12)
-
+    
     table.setStyle(ts)
-
+    
+    # Añadir tabla al documento
     elements.append(table)
+    
+    # ------------------------------------------------------------
+    # CONSTRUCCIÓN FINAL DEL PDF
+    # ------------------------------------------------------------
     doc.build(elements)
 
 
