@@ -102,13 +102,16 @@ async def _teachers_absent_that_day(
     for root in by_parent.get(None, []):
         _, leaf = deepest_active(root)
         teacher = await session.get(Teacher, leaf.teacher_id)
+        # El último leaf activo decide la ausencia diaria
+        # Si es una baja administrativa real, el profesor está ausente
         if (
-            teacher and
-            teacher.status in (TeacherStatus.baja, TeacherStatus.excedencia)
+            leaf.is_substitution is False
+            and leaf.start_date <= the_date
+            and (leaf.end_date is None or leaf.end_date >= the_date)
         ):
-            absent_ids.add(teacher.id)
-            hours_by_teacher[teacher.id] = (
-                hours_by_teacher.get(teacher.id, 0) | FULL_MASK
+            absent_ids.add(leaf.teacher_id)
+            hours_by_teacher[leaf.teacher_id] = (
+                hours_by_teacher.get(leaf.teacher_id, 0) | FULL_MASK
             )
 
     return absent_ids, hours_by_teacher
