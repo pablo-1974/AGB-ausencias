@@ -271,7 +271,9 @@ async def build_daily_report_pdf(
     
     # Lista de elementos que se irán añadiendo al PDF
     elements: List = []
-    
+
+    print("LOGO_PATH =", settings.LOGO_PATH)
+    print("EXISTS =", os.path.exists(settings.LOGO_PATH))
     # ------------------------------------------------------------
     # LOGO (ruta real, no URL)
     # ------------------------------------------------------------
