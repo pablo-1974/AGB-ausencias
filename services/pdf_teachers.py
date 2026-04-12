@@ -63,22 +63,42 @@ def generate_teachers_list_pdf(
     flow = []
 
     # ============================
-    #  CABECERO CON LOGO + TÍTULO
+    #  CABECERO CON LOGO A LA IZQUIERDA
     # ============================
-    if os.path.exists(logo_path):
-        logo = Image(logo_path, width=22 * mm, height=22 * mm)
-        logo.hAlign = "CENTER"
-        flow.append(logo)
-        flow.append(Spacer(1, 4))
+    
+    logo = None
+    if logo_path and os.path.exists(logo_path):
+        logo = Image(
+            logo_path,
+            width=22 * mm,
+            height=22 * mm
+        )
+    
+    text_block = []
     
     if center_name:
-        flow.append(Paragraph(center_name, style_center_small))
+        text_block.append(Paragraph(center_name, style_center_small))
     
-    flow.append(Paragraph(title, style_title))
+    text_block.append(Paragraph(title, style_title))
     
     if date_str:
-        flow.append(Paragraph(date_str, style_subtle))
+        text_block.append(Paragraph(date_str, style_subtle))
     
+    header = Table(
+        [[logo, text_block]],
+        colWidths=[26 * mm, None]
+    )
+    
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, 0), "LEFT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    
+    flow.append(header)
     flow.append(Spacer(1, 10))
 
     # ============================
