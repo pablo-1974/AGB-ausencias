@@ -120,15 +120,19 @@ async def build_monthly_report_pdf(
             )
         )
         for lv in res_lv.scalars():
-            # excluir excedencias
-            if lv.cause and "excedencia" in lv.cause.lower():
+            teacher = await session.get(Teacher, lv.teacher_id)
+            if not teacher:
                 continue
         
-            # ✅ ignorar leave técnico de sustitución (el profesor NO está ausente)
+            # ❌ excluir excedencias (no computan en mensual)
+            if teacher.status == TeacherStatus.excedencia:
+                continue
+        
+            # ✅ ignorar leave técnico de sustitución
             if lv.is_substitution:
                 continue
         
-            # ✅ no contar días anteriores al inicio real de la baja
+            # ✅ no contar días anteriores al inicio real
             if cur < lv.start_date:
                 continue
         
