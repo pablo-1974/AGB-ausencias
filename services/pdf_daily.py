@@ -217,11 +217,22 @@ async def build_daily_report_pdf(
             teacher = await session.get(Teacher, tid)
             if not teacher:
                 continue
-    
-            # 1️⃣ Solo profesores activos
+            
             if teacher.status != TeacherStatus.activo:
-                continue   
-  
+                continue
+            
+            # ❌ excluir profesores con baja médica real activa
+            lv_active = await session.execute(
+                select(Leave.id).where(
+                    Leave.teacher_id == teacher.id,
+                    Leave.is_substitution.is_(False),
+                    Leave.start_date <= the_date,
+                    or_(Leave.end_date.is_(None), Leave.end_date >= the_date),
+                )
+            )
+            if lv_active.first():
+                continue
+            
             guard_aliases.append(teacher.alias or teacher.name)
     
         def crush(xs: List[str]) -> str:
@@ -414,11 +425,22 @@ async def build_daily_report_data(
             teacher = await session.get(Teacher, tid)
             if not teacher:
                 continue
-
-            # 1️⃣ Solo profesores activos
+            
             if teacher.status != TeacherStatus.activo:
                 continue
-
+            
+            # ❌ excluir profesores con baja médica real activa
+            lv_active = await session.execute(
+                select(Leave.id).where(
+                    Leave.teacher_id == teacher.id,
+                    Leave.is_substitution.is_(False),
+                    Leave.start_date <= the_date,
+                    or_(Leave.end_date.is_(None), Leave.end_date >= the_date),
+                )
+            )
+            if lv_active.first():
+                continue
+            
             guard_aliases.append(teacher.alias or teacher.name)
 
         rows.append([
