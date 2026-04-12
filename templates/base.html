@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title or app_name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- CSS propio -->
+  <link rel="stylesheet" href="/static/styles.css">
+
+  <!-- Tailwind vía CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+  <!-- Favicon -->
+  {% if logo_url %}
+    <link rel="icon" href="{{ logo_url }}">
+  {% endif %}
+
+  <style>
+    .card { @apply bg-white rounded-lg shadow p-4; }
+    .btn-primary { @apply bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700; }
+    .btn-muted { @apply bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300; }
+    .input { @apply border rounded px-3 py-2 w-full; }
+    .label { @apply text-sm font-semibold mb-1; }
+    .link { @apply text-purple-700 hover:underline; }
+    .table { @apply w-full border border-gray-200 text-sm; }
+    .table th { @apply bg-gray-100 border-b font-semibold text-left p-2; }
+    .table td { @apply border-b p-2 align-top; }
+  </style>
+</head>
+
+<body class="{% block body_class %}min-h-screen bg-gray-50 text-gray-900{% endblock %}">
+  {% set hide_chrome = hide_chrome if hide_chrome is defined else false %}
+  {% set show_nav = show_nav if show_nav is defined else (not hide_chrome) %}
+  {% set user = user %}
+  
+  {% if not hide_chrome %}
+  <!-- VERSION DEBUG 1 -->
+  
+  <!-- HEADER -->
+  <header class="bg-white border-b">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+
+      {% if logo_url %}
+        <img src="{{ logo_url }}" alt="logo" class="h-8 w-8">
+      {% endif %}
+
+      <div>
+        <div class="font-semibold">{{ app_name }}</div>
+        <div class="text-xs text-gray-500">{{ institution_name }}</div>
+      </div>
+
+      <!-- BLOQUE DERECHA: nombre + rol + fecha -->
+      <div class="ml-auto text-right flex flex-col leading-tight text-sm text-gray-800">
+
+        {% if user %}
+          <div class="font-semibold">
+            {{ user.name }} ({{ user.role.name }})
+          </div>
+
+          <div class="text-xs text-gray-500">
+            {{ now_dt.strftime('%d/%m/%Y') if now_dt else '' }} ·
+            {{ now_dt.strftime('%H:%M') if now_dt else '' }}
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <!-- NAV -->
+  {% if show_nav and user %}
+  <nav class="bg-gray-100 border-b relative z-50 select-none">
+    <div class="max-w-7xl mx-auto px-4 py-2 flex gap-6 text-sm">
+
+      <!-- Inicio -->
+      <a class="link px-2 py-1" href="/">Inicio</a>
+
+      <!-- Profesores -->
+      <div class="relative group" x-data="{open:false}">
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Profesores
+        </button>
+
+        <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
+
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
+          <a href="/teachers/list" class="block px-2 py-1 link">Listado</a>
+          <a href="/schedule/view" class="block px-2 py-1 link">Horarios</a>
+        </div>
+      </div>
+
+      <!-- Ausencias -->
+      <div class="relative group" x-data="{open:false}">
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Ausencias
+        </button>
+
+        <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
+
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
+          <a href="/absences/new"        class="block px-2 py-1 link">Nueva ausencia</a>
+          <a href="/absences/manage"     class="block px-2 py-1 link">Ausencias del día</a>
+          <a href="/absences/categorize" class="block px-2 py-1 link">Catalogar ausencia</a>
+        </div>
+      </div>
+
+      <!-- Bajas -->
+      <div class="relative group" x-data="{open:false}">
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Bajas
+        </button>
+
+        <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
+
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
+          <a href="/leaves"             class="block px-2 py-1 link">Ver bajas y sustituciones</a>
+          <a href="/leaves/new"         class="block px-2 py-1 link">Iniciar baja</a>
+          <a href="/leaves/close"       class="block px-2 py-1 link">Finalizar baja</a>
+          <a href="/substitutions/new"  class="block px-2 py-1 link">Iniciar sustitución</a>
+        </div>
+      </div>
+
+      <!-- Estadísticas -->
+      <a class="link px-2 py-1" href="/stats">Estadísticas</a>
+      
+      <!-- Parte diario -->
+      <a class="link px-2 py-1" href="/reports/daily">Parte diario</a>
+
+      <!-- Parte mensual -->
+      <a class="link px-2 py-1" href="/reports/monthly">Parte mensual</a>
+
+      <!-- DERECHA -->
+      <div class="ml-auto flex gap-4 items-center">
+        
+        {% if user and user.role.name == "admin" %}
+          <a class="link px-2 py-1" href="/admin/panel">Administrador</a>
+        {% endif %}
+
+        <a class="link px-2 py-1" href="/me/password">Contraseña</a>
+        <a class="link px-2 py-1" href="/logout">Salir</a>
+      </div>
+
+    </div>
+  </nav>
+  {% endif %}
+
+  <!-- MAIN -->
+  <main class="{% if hide_chrome %}min-h-[70vh]{% else %}max-w-7xl mx-auto px-4 py-6{% endif %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if not hide_chrome %}
+  <footer class="py-6 text-center text-xs text-gray-400">
+    &copy; {{ year }} · {{ institution_name }}
+  </footer>
+  {% endif %}
+</body>
+</html>
