@@ -48,7 +48,10 @@ async def leaves_close_form(
         await session.execute(
             select(Leave, Teacher)
             .join(Teacher, Teacher.id == Leave.teacher_id)
-            .where(Leave.end_date.is_(None))
+            .where(
+                Leave.end_date.is_(None),
+                Leave.is_substitution.is_(False),  # ✅ solo bajas reales
+            )
         )
     ).all()
 
