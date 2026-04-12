@@ -124,10 +124,6 @@ async def build_monthly_report_pdf(
             if lv.cause and "excedencia" in lv.cause.lower():
                 continue
         
-            # ✅ ignorar leaves técnicos de sustitución
-            if lv.category is None:
-                continue
-        
             # ✅ no contar días anteriores al inicio real de la baja
             if cur < lv.start_date:
                 continue
