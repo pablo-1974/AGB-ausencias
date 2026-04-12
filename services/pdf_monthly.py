@@ -17,7 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import mm
 
-from models import Absence, Leave, Teacher, ScheduleSlot, SchoolCalendar
+from models import Absence, Leave, Teacher, TeacherStatus, ScheduleSlot, SchoolCalendar
 from utils import mask_to_hour_list, normalize_name
 from config import settings
 
