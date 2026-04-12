@@ -40,7 +40,7 @@ class TeacherStatus(str, enum.Enum):
 
 
 # ---------------------------------------------------------
-# MODELO User  ✅ (faltaba en tu archivo)
+# MODELO User
 # ---------------------------------------------------------
 class User(Base):
     __tablename__ = "users"
@@ -141,6 +141,14 @@ class Leave(Base):
     substitute_end_date: Mapped[Date | None] = mapped_column(Date)
 
     category: Mapped[str | None] = mapped_column(String(2))
+
+
+    # ✅ NUEVO: distingue bajas reales de leaves técnicos de sustitución
+    is_substitution: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
 
 
 # ---------------------------------------------------------
