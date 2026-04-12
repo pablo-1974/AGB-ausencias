@@ -276,7 +276,7 @@ async def build_monthly_report_pdf(
 
     data = [
         ["NOMBRE", "FECHA", "HORAS", "CAUSA", "DÍAS"]
-    ] + rows
+    ] + rows_pdf
 
     table = Table(
         data,
