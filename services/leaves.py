@@ -216,6 +216,7 @@ async def open_leave(
         end_date=None,
         cause=cause,
         category=category,
+        is_substitution=False,
     )
 
     session.add(leave)
@@ -259,6 +260,9 @@ async def set_substitution(
         category=None,
         parent_leave_id=parent_leave.id,
     )
+    
+    # ✅ Marcar leave técnico
+    sub_leave.is_substitution = True
 
     parent_leave.substitute_teacher_id = substitute_teacher_id
     parent_leave.substitute_start_date = start_date
