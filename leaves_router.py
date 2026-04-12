@@ -273,7 +273,7 @@ async def leaves_list(
     q = (
         select(Leave, Teacher)
         .join(Teacher, Teacher.id == Leave.teacher_id)
-        .where(Leave.parent_leave_id.is_(None))
+        .where(Leave.is_substitution.is_(False))
     )
 
     if status == "open":
