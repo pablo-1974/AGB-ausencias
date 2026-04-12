@@ -230,7 +230,18 @@ async def reports_monthly_pdf(
         path_out=tmp.name,
     )
 
+    # 🚫 BLOQUEO DURO: no se puede generar PDF
     if has_uncategorized:
+        rows_catalogadas = []
+        rows_sin_catalogar = []
+
+        for r in rows:
+            catalogacion = (r[3] or "").strip()
+            if catalogacion and catalogacion != "Z":
+                rows_catalogadas.append(r)
+            else:
+                rows_sin_catalogar.append(r)
+
         return _templates(request).TemplateResponse(
             "reports_monthly.html",
             ctx(
@@ -239,16 +250,21 @@ async def reports_monthly_pdf(
                 title="Parte mensual de ausencias",
                 date_from=date_from.isoformat(),
                 date_to=date_to.isoformat(),
-                rows=rows,
+                rows_catalogadas=rows_catalogadas,
+                rows_sin_catalogar=rows_sin_catalogar,
                 has_uncategorized=True,
-                pdf_error="No se puede generar el PDF porque hay ausencias o bajas sin catalogar.",
+                pdf_error=(
+                    "No se puede generar el PDF porque existen "
+                    "ausencias o bajas sin catalogar."
+                ),
             ),
             status_code=400,
         )
 
+    # ✅ TODO CATALOGADO → generar PDF
     filename = f"parte_mensual_{date_from}_{date_to}.pdf"
     return FileResponse(
         tmp.name,
         media_type="application/pdf",
-        filename=filename
+        filename=filename,
     )
