@@ -271,16 +271,12 @@ async def leaves_list(
     request: Request,
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(admin_required),
-    status: str = Query("open", pattern="^(open|all)$"),
 ):
     q = (
         select(Leave, Teacher)
         .join(Teacher, Teacher.id == Leave.teacher_id)
         .where(Leave.is_substitution.is_(False))
     )
-
-    if status == "open":
-        q = q.where(Leave.end_date.is_(None))
 
     rows = (await session.execute(q)).all()
 
