@@ -144,6 +144,8 @@ async def leaves_new_create(
 # ============================================================
 # CREAR SUSTITUCIÓN
 # ============================================================
+# Se permiten sustituciones sobre cualquier baja administrativa real activa,
+# sea raíz o hija. Los leaves técnicos (is_substitution = true) no son sustituibles.
 
 @router.get("/substitutions/new", response_class=HTMLResponse)
 async def substitutions_new_form(
@@ -168,12 +170,13 @@ async def substitutions_new_form(
             .join(Teacher, Teacher.id == Leave.teacher_id)
             .where(
                 and_(
-                    Leave.parent_leave_id.is_(None),          # ✅ SOLO bajas raíz
-                    Leave.end_date.is_(None),                 # ✅ abiertas
-                    Leave.substitute_teacher_id.is_(None),    # ✅ aún sin sustituto directo
-                    Leave.id.not_in(select(child_exists.c.parent_leave_id)),  # ✅ sin hijos
+                    Leave.is_substitution.is_(False),         # ✅ baja administrativa real
+                    Leave.end_date.is_(None),                 # ✅ activa
+                    Leave.substitute_teacher_id.is_(None),    # ✅ sin sustituto directo
+                    Leave.id.not_in(select(child_exists.c.parent_leave_id)),
                 )
             )
+
             .order_by(Leave.start_date.asc())
         )
     ).all()
