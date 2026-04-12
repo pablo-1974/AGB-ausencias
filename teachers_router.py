@@ -54,10 +54,12 @@ async def _get_profesorado_actual(session: AsyncSession):
             and_(
                 Teacher.status.in_([TeacherStatus.baja, TeacherStatus.excedencia]),
                 Leave.end_date.is_(None),
-                or_(Leave.substitute_teacher_id.is_(None), Leave.substitute_teacher_id == 0),
+                Leave.is_substitution.is_(False),
+                Leave.substitute_teacher_id.is_(None),
             )
         )
     )
+    
     ausentes = (await session.execute(q_bajas)).scalars().all()
     ausentes = sorted(ausentes, key=lambda t: normalize_name(t.name))
 
