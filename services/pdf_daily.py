@@ -8,7 +8,7 @@ from datetime import date
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 )
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -17,6 +17,7 @@ from reportlab.lib.units import cm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
+from config import settings
 from models import Absence, Leave, Teacher, ScheduleType, TeacherStatus
 from services.schedule import get_teacher_slot, list_teachers_on_guard
 from absences_router import make_mask_all
@@ -269,6 +270,18 @@ async def build_daily_report_pdf(
     
     # Lista de elementos que se irán añadiendo al PDF
     elements: List = []
+
+    # ------------------------------------------------------------
+    # LOGO
+    # ------------------------------------------------------------    
+    if settings.LOGO_PATH:
+        try:
+            img = Image(settings.LOGO_PATH, width=2.2 * cm, height=2.2 * cm)
+            img.hAlign = "CENTER"
+            elements.append(img)
+            elements.append(Spacer(1, 6))
+        except Exception:
+            pass
     
     # ------------------------------------------------------------
     # TÍTULO PRINCIPAL
