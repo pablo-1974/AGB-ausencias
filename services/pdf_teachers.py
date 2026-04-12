@@ -70,15 +70,15 @@ def generate_teachers_list_pdf(
         logo.hAlign = "CENTER"
         flow.append(logo)
         flow.append(Spacer(1, 4))
-
+    
     if center_name:
         flow.append(Paragraph(center_name, style_center_small))
-
+    
     flow.append(Paragraph(title, style_title))
-
+    
     if date_str:
         flow.append(Paragraph(date_str, style_subtle))
-
+    
     flow.append(Spacer(1, 10))
 
     # ============================
