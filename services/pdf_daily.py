@@ -24,6 +24,7 @@ from absences_router import make_mask_all
 
 from utils import normalize_name
 
+import os
 
 # ===========================================
 # Tabla horarios
@@ -270,18 +271,18 @@ async def build_daily_report_pdf(
     
     # Lista de elementos que se irán añadiendo al PDF
     elements: List = []
-
+    
     # ------------------------------------------------------------
-    # LOGO
-    # ------------------------------------------------------------    
-    if settings.LOGO_PATH:
+    # LOGO (ruta real, no URL)
+    # ------------------------------------------------------------
+    if settings.LOGO_PATH and os.path.exists(settings.LOGO_PATH):
         try:
             img = Image(settings.LOGO_PATH, width=2.2 * cm, height=2.2 * cm)
             img.hAlign = "CENTER"
             elements.append(img)
             elements.append(Spacer(1, 6))
-        except Exception:
-            pass
+        except Exception as e:
+            print("Logo diario no cargado:", e)
     
     # ------------------------------------------------------------
     # TÍTULO PRINCIPAL
