@@ -59,14 +59,15 @@ async def list_teachers_on_guard(
 
         # 2️⃣ Excluir sustitutos que aún no han empezado
         future_sub = await session.execute(
-            select(Leave).where(
+            select(Leave.id).where(
                 and_(
-                    Leave.substitute_teacher_id == teacher.id,
+                    Leave.teacher_id == teacher.id,
+                    Leave.parent_leave_id.is_not(None),
                     Leave.start_date > the_date,
                 )
             )
         )
-        if future_sub.scalars().first():
+        if future_sub.first():
             continue
 
         valid_ids.append(teacher.id)
