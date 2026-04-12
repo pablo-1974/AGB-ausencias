@@ -1,10 +1,13 @@
+# services/pdf_schedule.py
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 
+import os
+from config import settings
 
 def generate_schedule_pdf(path, teacher_name, center_name, schedule):
     """
@@ -50,9 +53,39 @@ def generate_schedule_pdf(path, teacher_name, center_name, schedule):
 
     flow = []
 
-    # Encabezado del centro (tamaño pequeño)
-    flow.append(Paragraph(center_name, style_center_small))
-    flow.append(Paragraph(f"Horario semanal — {teacher_name}", style_title))
+    # ---------------------------------
+    # Encabezado con logo + textos
+    # ---------------------------------
+    
+    logo = None
+    if settings.LOGO_PATH and os.path.exists(settings.LOGO_PATH):
+        logo = Image(
+            settings.LOGO_PATH,
+            width=22 * mm,
+            height=22 * mm
+        )
+    
+    text_block = [
+        Paragraph(center_name, style_center_small),
+        Spacer(1, 2),
+        Paragraph(f"Horario semanal — {teacher_name}", style_title),
+    ]
+    
+    header_table = Table(
+        [[logo, text_block]],
+        colWidths=[26 * mm, None]
+    )
+    
+    header_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, 0), "LEFT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    
+    flow.append(header_table)
     flow.append(Spacer(1, 6))
 
     # --------------------------
