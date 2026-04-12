@@ -242,4 +242,8 @@ async def schedule_print(
     )
 
     filename = f"Horario_{teacher.name}.pdf".replace(" ", "_")
-    return FileResponse(tmp.name, "application/pdf", filename=filename)
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename=filename,
+    )
