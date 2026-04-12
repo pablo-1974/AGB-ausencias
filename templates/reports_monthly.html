@@ -20,9 +20,8 @@
   <div class="flex gap-2 items-center">
     <button class="btn-primary">Ver</button>
 
-    {% if rows is defined and rows %}
+    {% if rows_catalogadas or rows_sin_catalogar %}
       {% if has_uncategorized %}
-        <!-- PDF deshabilitado -->
         <button
           class="px-3 py-1 rounded bg-red-100 text-red-400 border border-red-200 cursor-not-allowed"
           disabled
@@ -30,7 +29,6 @@
           PDF
         </button>
       {% else %}
-        <!-- PDF habilitado -->
         <a
           class="btn-muted border border-gray-300 px-3 py-1"
           href="/reports/monthly/pdf?date_from={{ date_from }}&date_to={{ date_to }}"
@@ -49,23 +47,9 @@
   </div>
 {% endif %}
 
-{% if rows is defined %}
+{% if rows_catalogadas or rows_sin_catalogar %}
 
-  {% set catalogadas = [] %}
-  {% set sin_catalogar = [] %}
-
-  {% for r in rows %}
-    {% if r[3] %}
-      {% set _ = catalogadas.append(r) %}
-    {% else %}
-      {% set _ = sin_catalogar.append(r) %}
-    {% endif %}
-  {% endfor %}
-
-  {% if catalogadas %}
-    <!-- ===================== -->
-    <!-- CAJA 1: CATALOGADAS -->
-    <!-- ===================== -->
+  {% if rows_catalogadas %}
     <div class="card mb-8">
       <h2 class="text-lg font-semibold mb-2 text-green-700">
         ✅ Bajas y ausencias catalogadas
@@ -82,7 +66,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for r in catalogadas %}
+          {% for r in rows_catalogadas %}
           <tr>
             <td>{{ r[0] }}</td>
             <td>{{ r[1] }}</td>
@@ -96,10 +80,7 @@
     </div>
   {% endif %}
 
-  {% if sin_catalogar %}
-    <!-- ========================= -->
-    <!-- CAJA 2: SIN CATALOGAR -->
-    <!-- ========================= -->
+  {% if rows_sin_catalogar %}
     <div class="card border border-red-300 bg-red-50">
       <h2 class="text-lg font-semibold mb-2 text-red-700">
         ⚠ Bajas y ausencias sin catalogar
@@ -120,7 +101,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for r in sin_catalogar %}
+          {% for r in rows_sin_catalogar %}
           <tr>
             <td>{{ r[0] }}</td>
             <td>{{ r[1] }}</td>
@@ -128,7 +109,7 @@
             <td></td>
             <td>
               <a
-                href="#"
+                href="{% if r[5].kind == 'absence' %}/absences/edit/{{ r[5].id }}{% else %}/leaves/edit/{{ r[5].id }}{% endif %}"
                 class="px-3 py-1 rounded bg-gray-200 text-gray-600 border border-red-400 text-sm"
               >
                 Catalogar
@@ -141,12 +122,10 @@
     </div>
   {% endif %}
 
-  {% if not rows %}
-    <div class="text-sm text-gray-500">
-      No hay datos en el rango seleccionado.
-    </div>
-  {% endif %}
-
+{% else %}
+  <div class="text-sm text-gray-500">
+    No hay datos en el rango seleccionado.
+  </div>
 {% endif %}
 
 {% endblock %}
