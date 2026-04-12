@@ -125,7 +125,7 @@ async def build_monthly_report_pdf(
                 continue
         
             # ✅ ignorar leave técnico de sustitución (el profesor NO está ausente)
-            if lv.substitute_teacher_id == lv.teacher_id:
+            if lv.is_substitution:
                 continue
         
             # ✅ no contar días anteriores al inicio real de la baja
