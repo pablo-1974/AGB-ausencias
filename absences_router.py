@@ -513,12 +513,17 @@ async def absences_edit_save(
     if hours_mode == "all":
         mask = make_mask_all()
     else:
+        # Resolver rango SOLO si es necesario
         try:
-            fi = int(hour_from)
-            ti = int(hour_to)
-            mask = make_mask_range(fi, ti)
+            fi = int(hour_from) if hour_from is not None else None
+            ti = int(hour_to) if hour_to is not None else None
         except:
+            fi = ti = None
+    
+        if fi is None or ti is None or not (0 <= fi <= 6) or not (0 <= ti <= 6):
             return RedirectResponse("/absences/admin", 303)
+    
+        mask = make_mask_range(fi, ti)
 
     a.date = date_
     a.hours_mask = mask
