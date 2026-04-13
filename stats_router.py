@@ -1,149 +1,120 @@
 # ======================================================
 # stats_router.py — ESTADÍSTICAS DE BAJAS
 # ======================================================
-# Permite filtrar y ver estadísticas de bajas por:
-#   - rango de fechas
-#   - profesor
-#   - categoría
-#   - estado (abiertas / cerradas / todas)
-#
-# Usa el contexto global ctx() para unificar fecha, hora
-# y datos comunes en la cabecera.
-# ======================================================
+# stats_router.py — ESTADÍSTICAS (Recuento y Ranking)
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Depends, Query
 from starlette.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 from datetime import date
 
 from database import get_session
-from models import Leave, Teacher, User, SchoolCalendar
+from models import Teacher, User
 from app import load_user_dep
-
-# 🔥 Contexto global unificado
 from context import ctx
+
+from services.stats_recount import get_stats_recount
+from services.stats_ranking import get_stats_ranking
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
-# ======================================================
-# Helper de plantillas
-# ======================================================
 def _templates(request: Request):
     return request.app.state.templates
 
 
 # ======================================================
-# GET /stats — pantalla principal
+# GET /stats/recount — RECUENTO ADMINISTRATIVO
 # ======================================================
-@router.get("/")
-async def stats_main(
+@router.get("/recount")
+async def stats_recount(
     request: Request,
     session: AsyncSession = Depends(get_session),
     user: User = Depends(load_user_dep),
 
-    # FILTROS
-    d_from: date | None = Query(None, alias="from"),
-    d_to: date | None = Query(None, alias="to"),
+    date_from: date = Query(...),
+    date_to: date = Query(...),
     teacher_id: int | None = Query(None),
-    category: str | None = Query(None),
-    status: str | None = Query(None, pattern="^(open|closed|all)$"),
+    tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
+    categoria: str = Query("ALL"),
 ):
-    """Vista principal de estadísticas de bajas."""
     if not user:
         return RedirectResponse("/login", 303)
 
-    # ------------------------------------
-    # 1) Primer día del calendario escolar
-    # ------------------------------------
-    cal = (
-        await session.execute(
-            select(SchoolCalendar).order_by(SchoolCalendar.id.desc())
-        )
-    ).scalar_one_or_none()
-
-    today = date.today()
-    date_from = d_from or (cal.first_day if cal else today.replace(month=1, day=1))
-    date_to = d_to or today
-
-    # ------------------------------------
-    # 2) Construcción dinámica de filtros
-    # ------------------------------------
-    conditions = [
-        Leave.start_date >= date_from,
-        Leave.start_date <= date_to,
-        Leave.is_substitution.is_(False),
-    ]
-
-    if teacher_id:
-        conditions.append(Leave.teacher_id == teacher_id)
-
-    if category:
-        conditions.append(Leave.category == category)
-
-    if status == "open":
-        conditions.append(Leave.end_date.is_(None))
-    elif status == "closed":
-        conditions.append(Leave.end_date.is_not(None))
-
-    # ------------------------------------
-    # 3) Consulta de bajas + profesor
-    # ------------------------------------
-    q = (
-        select(Leave, Teacher)
-        .join(Teacher, Teacher.id == Leave.teacher_id)
-        .where(and_(*conditions))
-        .order_by(Leave.start_date)
+    # Llamada al servicio
+    rows = await get_stats_recount(
+        session,
+        date_from=date_from,
+        date_to=date_to,
+        teacher_id=teacher_id,
+        tipo=tipo,
+        categoria=categoria,
     )
 
-    rows = (await session.execute(q)).all()
-
-    # ------------------------------------
-    # 4) Formateo de datos para plantilla
-    # ------------------------------------
-    items = []
-    for lv, t in rows:
-        items.append({
-            "teacher_id": t.id,
-            "teacher_name": t.name,
-            "start_date": lv.start_date,
-            "end_date": lv.end_date,
-            "cause": lv.cause or "",
-            "category": lv.category or "",
-            "days": (lv.end_date - lv.start_date).days + 1 if lv.end_date else None,
-        })
-
-    # ------------------------------------
-    # 5) Datos auxiliares (para filtros)
-    # ------------------------------------
+    # Profesores para el filtro
     teachers = (
-        (await session.execute(select(Teacher).order_by(Teacher.name)))
+        (await session.execute(
+            Teacher.__table__.select().order_by(Teacher.name)
+        ))
         .scalars()
         .all()
     )
 
-    categories = ["A", "B", "C", "D", "E", "F", "G", "H",
-                  "I", "J", "K", "L", "Z"]
+    categorias = ["A", "B", "C", "D", "E", "F", "G",
+                  "H", "I", "J", "K", "L"]
 
-    # ------------------------------------
-    # 6) Render plantilla
-    # ------------------------------------
     return _templates(request).TemplateResponse(
-        "stats_main.html",
+        "stats_recount.html",
         ctx(
             request,
             user,
-            title="Estadísticas de bajas",
-            items=items,
+            title="Estadísticas · Recuento",
+            rows=rows,
+            teachers=teachers,
+            categorias=categorias,
             date_from=date_from.isoformat(),
             date_to=date_to.isoformat(),
-            teachers=teachers,
-            categories=categories,
-            selected_teacher=teacher_id,
-            selected_category=category or "",
-            selected_status=status or "all",
-        ),
+            teacher_id=str(teacher_id or ""),
+            tipo=tipo,
+            categoria=categoria,
+        )
+    )
+
+
+# ======================================================
+# GET /stats/ranking — RANKING ANALÍTICO
+# ======================================================
+@router.get("/ranking")
+async def stats_ranking(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(load_user_dep),
+
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
+):
+    if not user:
+        return RedirectResponse("/login", 303)
+
+    rows = await get_stats_ranking(
+        session,
+        date_from=date_from,
+        date_to=date_to,
+        tipo=tipo,
+    )
+
+    return _templates(request).TemplateResponse(
+        "stats_ranking.html",
+        ctx(
+            request,
+            user,
+            title="Estadísticas · Ranking",
+            rows=rows,
+            date_from=date_from.isoformat(),
+            date_to=date_to.isoformat(),
+            tipo=tipo,
+        )
     )
