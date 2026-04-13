@@ -130,7 +130,20 @@
       </div>
 
       <!-- Estadísticas -->
-      <a class="link px-2 py-1" href="/stats">Estadísticas</a>
+      <div class="relative group" x-data="{open:false}">
+        <button class="link px-2 py-1" @mouseover="if(window.innerWidth>768){open=true}" @mouseleave="if(window.innerWidth>768){open=false}" @click="open=!open">
+          Estadísticas
+        </button>
+
+        <div class="absolute left-0 top-full h-4 w-full hidden md:block" @mouseover="open=true"></div>
+
+        <div class="absolute left-0 mt-2 w-52 z-50 bg-white border rounded shadow-lg p-2 hidden md:group-hover:block"
+             :class="{'block':open}" @mouseleave="if(window.innerWidth>768){open=false}" @click.away="open=false">
+
+          <a href="/stats/recount"             class="block px-2 py-1 link">Recuento</a>
+          <a href="/stats/ranking"         class="block px-2 py-1 link">Ranking</a>
+        </div>
+      </div>
       
       <!-- Parte diario -->
       <a class="link px-2 py-1" href="/reports/daily">Parte diario</a>
