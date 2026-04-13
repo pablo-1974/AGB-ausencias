@@ -1,17 +1,17 @@
 # ======================================================
 # stats_router.py — ESTADÍSTICAS DE BAJAS
 # ======================================================
-# stats_router.py — ESTADÍSTICAS (Recuento y Ranking)
 
 from __future__ import annotations
 
+from datetime import date
 from fastapi import APIRouter, Request, Depends, Query
 from starlette.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date
+from sqlalchemy import select
 
 from database import get_session
-from models import Teacher, User
+from models import Teacher, User, SchoolCalendar
 from app import load_user_dep
 from context import ctx
 
@@ -34,14 +34,31 @@ async def stats_recount(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(load_user_dep),
 
-    date_from: date = Query(default=date.today() - timedelta(days=30)),
-    date_to: date = Query(default=date.today()),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     teacher_id: int | None = Query(None),
     tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
     categoria: str = Query("ALL"),
 ):
     if not user:
         return RedirectResponse("/login", 303)
+
+    # ---------------------------------------------
+    # Fechas por defecto según calendario escolar
+    # ---------------------------------------------
+    calendar = (
+        await session.execute(
+            select(SchoolCalendar)
+            .order_by(SchoolCalendar.updated_at.desc())
+        )
+    ).scalars().first()
+
+    today = date.today()
+
+    if date_from is None:
+        date_from = calendar.first_day if calendar else today
+    if date_to is None:
+        date_to = today
 
     # Llamada al servicio
     rows = await get_stats_recount(
@@ -92,12 +109,26 @@ async def stats_ranking(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(load_user_dep),
 
-    date_from: date = Query(...),
-    date_to: date = Query(...),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
 ):
     if not user:
         return RedirectResponse("/login", 303)
+
+    calendar = (
+        await session.execute(
+            select(SchoolCalendar)
+            .order_by(SchoolCalendar.updated_at.desc())
+        )
+    ).scalars().first()
+
+    today = date.today()
+
+    if date_from is None:
+        date_from = calendar.first_day if calendar else today
+    if date_to is None:
+        date_to = today
 
     rows = await get_stats_ranking(
         session,
