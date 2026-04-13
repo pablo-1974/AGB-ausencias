@@ -263,6 +263,55 @@ async def substitutions_new_create(
 
 
 # ============================================================
+# CATALOGAR BAJAS (solo detección y acceso)
+# ============================================================
+
+@router.get("/leaves/categorize", response_class=HTMLResponse)
+async def leaves_categorize(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(admin_required),
+):
+    user = admin
+
+    rows = (
+        await session.execute(
+            select(Leave, Teacher)
+            .join(Teacher, Teacher.id == Leave.teacher_id)
+            .where(
+                and_(
+                    Leave.is_substitution.is_(False),  # ✅ solo bajas reales
+                    Leave.category.is_(None),          # ✅ NO catalogadas
+                )
+            )
+            .order_by(Leave.start_date.asc(), Teacher.name.asc())
+        )
+    ).all()
+
+    items = [
+        {
+            "id": l.id,
+            "teacher_name": t.name,
+            "start_date": l.start_date,
+            "end_date": l.end_date,
+            "cause": l.cause or "",
+        }
+        for (l, t) in rows
+    ]
+
+    return _templates(request).TemplateResponse(
+        "leaves_categorize.html",
+        ctx(
+            request,
+            user,
+            title="Catalogar bajas",
+            items=items,
+            info=None if items else "No hay bajas sin catalogar.",
+        ),
+    )
+
+
+# ============================================================
 # LISTADO GENERAL
 # ============================================================
 
