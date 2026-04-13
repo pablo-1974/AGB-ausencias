@@ -27,6 +27,8 @@ from services.leaves import (
 
 from services.schedule import clone_teacher_schedule
 
+from absences_router import ABSENCE_CATEGORIES
+
 router = APIRouter()
 
 
@@ -429,7 +431,7 @@ async def leaves_edit_form(
             title="Editar baja",
             leave=leave,
             teacher=teacher,
-            categories=list("ABCDEFGHIJKL"),
+            categories=ABSENCE_CATEGORIES,
             current_category=(leave.category or ""),
         ),
     )
