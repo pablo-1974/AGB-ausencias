@@ -135,7 +135,7 @@ async def build_monthly_report_pdf(
             if cur < lv.start_date:
                 continue
         
-            cat = lv.category or "Baja médica"
+            cat = lv.category
             acc[("leave", lv.id, cat)].append(cur)
 
         cur += timedelta(days=1)
