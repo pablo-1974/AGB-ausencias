@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="text-xl font-semibold mb-4">Catalogar bajas</h1>
+
+{% if info %}
+  <div class="card bg-green-50 text-green-700">
+    {{ info }}
+  </div>
+{% else %}
+
+<p class="mb-3 text-sm text-gray-600">
+  Estas bajas impiden generar el parte mensual.
+</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Profesor</th>
+      <th>Inicio</th>
+      <th>Fin</th>
+      <th>Causa</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for it in items %}
+    <tr>
+      <td>{{ it.teacher_name }}</td>
+      <td>{{ it.start_date.strftime("%d/%m/%Y") }}</td>
+      <td>{{ it.end_date.strftime("%d/%m/%Y") if it.end_date else "—" }}</td>
+      <td>{{ it.cause }}</td>
+      <td>
+        <a href="/leaves/edit/{{ it.id }}"
+           class="btn-muted">
+           Editar baja
+        </a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endif %}
+{% endblock %}
