@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="text-xl font-semibold mb-6">Estadísticas · Ranking</h1>
+
+<form id="filters-form" method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+  <!-- Fecha desde -->
+  <div>
+    <label class="label">Desde</label>
+    <input
+      type="date"
+      name="date_from"
+      value="{{ date_from }}"
+      class="input"
+      onchange="this.form.submit()"
+    />
+  </div>
+
+  <!-- Fecha hasta -->
+  <div>
+    <label class="label">Hasta</label>
+    <input
+      type="date"
+      name="date_to"
+      value="{{ date_to }}"
+      class="input"
+      onchange="this.form.submit()"
+    />
+  </div>
+
+  <!-- Tipo -->
+  <div>
+    <label class="label">Tipo</label>
+    <select name="tipo" class="input" onchange="this.form.submit()">
+      <option value="both" {% if tipo == "both" %}selected{% endif %}>Ambas</option>
+      <option value="absences" {% if tipo == "absences" %}selected{% endif %}>Ausencias</option>
+      <option value="leaves" {% if tipo == "leaves" %}selected{% endif %}>Bajas</option>
+    </select>
+  </div>
+
+</form>
+
+<!-- TABLA DE RANKING -->
+<table class="table">
+  <thead>
+    <tr>
+      <th>Profesor</th>
+      <th class="text-center">Días</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if rows %}
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.teacher }}</td>
+          <td class="text-center font-semibold">{{ r.days }}</td>
+        </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="2" class="text-center text-gray-500 py-4">
+          No hay datos para los filtros seleccionados.
+        </td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+{% endblock %}
