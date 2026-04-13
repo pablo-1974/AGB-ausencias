@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="text-xl font-semibold mb-6">Estadísticas · Recuento</h1>
+
+<form id="filters-form" method="get" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+
+  <!-- Fecha desde -->
+  <div>
+    <label class="label">Desde</label>
+    <input
+      type="date"
+      name="date_from"
+      value="{{ date_from }}"
+      class="input"
+      onchange="this.form.submit()"
+    />
+  </div>
+
+  <!-- Fecha hasta -->
+  <div>
+    <label class="label">Hasta</label>
+    <input
+      type="date"
+      name="date_to"
+      value="{{ date_to }}"
+      class="input"
+      onchange="this.form.submit()"
+    />
+  </div>
+
+  <!-- Profesor -->
+  <div>
+    <label class="label">Profesor</label>
+    <select name="teacher_id" class="input" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      {% for t in teachers %}
+        <option
+          value="{{ t.id }}"
+          {% if t.id|string == teacher_id %}selected{% endif %}
+        >
+          {{ t.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Tipo -->
+  <div>
+    <label class="label">Tipo</label>
+    <select name="tipo" class="input" onchange="this.form.submit()">
+      <option value="both" {% if tipo == "both" %}selected{% endif %}>Ambas</option>
+      <option value="absences" {% if tipo == "absences" %}selected{% endif %}>Ausencias</option>
+      <option value="leaves" {% if tipo == "leaves" %}selected{% endif %}>Bajas</option>
+    </select>
+  </div>
+
+  <!-- Causa / Catalogación -->
+  <div>
+    <label class="label">Causa</label>
+    <select name="categoria" class="input" onchange="this.form.submit()">
+      <option value="ALL">Todas</option>
+      {% for c in categorias %}
+        <option
+          value="{{ c }}"
+          {% if categoria == c %}selected{% endif %}
+        >
+          {{ c }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+</form>
+
+<!-- TABLA DE RESULTADOS -->
+<table class="table">
+  <thead>
+    <tr>
+      <th>Profesor</th>
+      <th>Tipo</th>
+      <th>Causa</th>
+      <th>Días</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if rows %}
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.teacher }}</td>
+          <td>{{ r.type }}</td>
+          <td>{{ r.category }}</td>
+          <td class="text-center">{{ r.days }}</td>
+        </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="4" class="text-center text-gray-500 py-4">
+          No hay datos para los filtros seleccionados.
+        </td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+{% endblock %}
