@@ -34,8 +34,8 @@ async def stats_recount(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(load_user_dep),
 
-    date_from: date = Query(...),
-    date_to: date = Query(...),
+    date_from: date = Query(default=date.today() - timedelta(days=30)),
+    date_to: date = Query(default=date.today()),
     teacher_id: int | None = Query(None),
     tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
     categoria: str = Query("ALL"),
