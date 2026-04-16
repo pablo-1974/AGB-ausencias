@@ -78,11 +78,12 @@ async def stats_recount(
     # Profesores para el filtro
     teachers = (
         (await session.execute(
-            Teacher.__table__.select().order_by(Teacher.name)
+            select(Teacher).order_by(Teacher.name)
         ))
         .scalars()
         .all()
     )
+
 
     categorias = ["A", "B", "C", "D", "E", "F", "G",
                   "H", "I", "J", "K", "L"]
