@@ -36,7 +36,7 @@ async def stats_recount(
 
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
-    teacher_id: int | None = Query(None),
+    teacher_id: str | None = Query(None),
     tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
     categoria: str = Query("ALL"),
 ):
@@ -59,6 +59,11 @@ async def stats_recount(
         date_from = calendar.first_day if calendar else today
     if date_to is None:
         date_to = today
+
+    if teacher_id in (None, ""):
+        teacher_id = None
+    else:
+        teacher_id = int(teacher_id)
 
     # Llamada al servicio
     rows = await get_stats_recount(
