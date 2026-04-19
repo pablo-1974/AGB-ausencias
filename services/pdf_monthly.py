@@ -104,7 +104,10 @@ async def build_monthly_report_pdf(
             select(Absence).where(Absence.date == cur)
         )
         for a in res_abs.scalars():
-            cat = a.category  # puede ser None o "Z"
+            cat = a.category
+            if not cat or cat == "Z":
+                continue
+        
             acc[("absence", a.teacher_id, cat)].append(cur)
 
         # -------------------------
@@ -136,6 +139,9 @@ async def build_monthly_report_pdf(
                 continue
         
             cat = lv.category
+            if not cat or cat == "Z":
+                continue
+            
             acc[("leave", lv.teacher_id, cat)].append(cur)
 
         cur += timedelta(days=1)
@@ -143,22 +149,16 @@ async def build_monthly_report_pdf(
     # -----------------------------------------------------
     # 3) NOMBRES
     # -----------------------------------------------------
-    teacher_ids = set()
-
-    for kind, source_id, _cat in acc.keys():
-        if kind == "absence":
-            a = await session.get(Absence, source_id)
-            if a:
-                teacher_ids.add(a.teacher_id)
-        else:
-            lv = await session.get(Leave, source_id)
-            if lv:
-                teacher_ids.add(lv.teacher_id)
+    teacher_ids = {
+        teacher_id for (_kind, teacher_id, _cat) in acc.keys()
+    }
+    
     if teacher_ids:
         q = await session.execute(
-            select(Teacher.id, Teacher.name).where(Teacher.id.in_(teacher_ids))
+            select(Teacher.id, Teacher.name)
+            .where(Teacher.id.in_(teacher_ids))
         )
-        name_by_id = {tid: nm for tid, nm in q.all()}
+        name_by_id = {tid: name for tid, name in q.all()}
     else:
         name_by_id = {}
 
