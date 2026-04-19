@@ -441,7 +441,7 @@ async def leaves_edit_form(
 async def leaves_edit_save(
     leave_id: int,
     start_date: date = Form(...),
-    end_date: Optional[date] = Form(None),
+    end_date: Optional[str] = Form(None),
     reason: str = Form(""),
     category: str = Form(""),
     session: AsyncSession = Depends(get_session),
