@@ -64,7 +64,7 @@
 
       <!-- Radios -->
       <div class="space-y-2 max-w-xl">
-        {% for code in categories %}
+        {% for code, label in categories %}
           <label class="flex items-center gap-3">
             <input
               type="radio"
@@ -73,6 +73,7 @@
               {% if code == current_category %}checked{% endif %}
             >
             <span class="font-semibold text-base">{{ code }}</span>
+            <span class="text-sm text-gray-600">— {{ label }}</span>
           </label>
         {% endfor %}
       </div>
