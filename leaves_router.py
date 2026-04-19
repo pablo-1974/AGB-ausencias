@@ -450,6 +450,11 @@ async def leaves_edit_save(
     leave = await session.get(Leave, leave_id)
     if not leave:
         return RedirectResponse("/leaves/admin", 303)
+    
+    if end_date in (None, ""):
+        end_date = None
+    else:
+        end_date = date.fromisoformat(end_date)
 
     leave.start_date = start_date
     leave.end_date = end_date
