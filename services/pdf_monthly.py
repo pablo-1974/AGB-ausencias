@@ -105,7 +105,7 @@ async def build_monthly_report_pdf(
         )
         for a in res_abs.scalars():
             cat = a.category  # puede ser None o "Z"
-            acc[("absence", a.id, cat)].append(cur)
+            acc[("absence", a.teacher_id, cat)].append(cur)
 
         # -------------------------
         # BAJAS ACTIVAS (NO EXCEDENCIA)
@@ -136,7 +136,7 @@ async def build_monthly_report_pdf(
                 continue
         
             cat = lv.category
-            acc[("leave", lv.id, cat)].append(cur)
+            acc[("leave", lv.teacher_id, cat)].append(cur)
 
         cur += timedelta(days=1)
 
@@ -168,7 +168,7 @@ async def build_monthly_report_pdf(
     # -----------------------------------------------------
     rows: List[List[str]] = []
     
-    for (kind, source_id, cat), days in acc.items():
+    for (kind, teacher_id, cat), days in acc.items():
         days = sorted(set(days))
         if not days:
             continue
@@ -193,11 +193,6 @@ async def build_monthly_report_pdf(
         for seg in segments:
             fecha_text, _ = _format_date_span(seg)
             n_days = len(seg)
-            teacher_id = (
-                (await session.get(Absence, source_id)).teacher_id
-                if kind == "absence"
-                else (await session.get(Leave, source_id)).teacher_id
-            )
             
             rows.append([
                 name_by_id.get(teacher_id, f"ID {teacher_id}"),
@@ -205,11 +200,14 @@ async def build_monthly_report_pdf(
                 "Todas",
                 cat,
                 str(n_days),
-                {
-                    "kind": kind,        # "absence" o "leave"
-                    "id": source_id,     # ID REAL
-                }
             ])
+
+    rows.sort(
+        key=lambda r: (
+            normalize_name(r[0]),  # nombre del profesor
+            r[3] or "",             # causa (A, B, C…)
+        )
+    )
     
     rows_pdf = [r[:5] for r in rows]
     
