@@ -1,6 +1,87 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<!-- ===============================
+     FORMULARIO DE FILTROS
+     =============================== -->
+<form method="get" class="card mb-4">
+  <h2 class="mb-3 text-lg font-semibold">Filtros</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    <!-- Usuario -->
+    <div>
+      <label>Usuario</label>
+      <select name="user_id">
+        <option value="">Todos</option>
+        {% for u in users %}
+          <option value="{{ u.id }}"
+                  {% if filters.user_id == u.id %}selected{% endif %}>
+            {{ u.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Acción -->
+    <div>
+      <label>Acción</label>
+      <input type="text"
+             name="action"
+             placeholder="leave_update, user_update_role…"
+             value="{{ filters.action or '' }}">
+    </div>
+
+    <!-- Entidad -->
+    <div>
+      <label>Entidad</label>
+      <input type="text"
+             name="entity"
+             placeholder="user, leave, absence…"
+             value="{{ filters.entity or '' }}">
+    </div>
+
+    <!-- Fecha desde -->
+    <div>
+      <label>Desde</label>
+      <input type="date"
+             name="date_from"
+             value="{{ filters.date_from }}">
+    </div>
+
+    <!-- Fecha hasta -->
+    <div>
+      <label>Hasta</label>
+      <input type="date"
+             name="date_to"
+             value="{{ filters.date_to }}">
+    </div>
+
+    <!-- Texto libre -->
+    <div>
+      <label>Texto</label>
+      <input type="text"
+             name="text"
+             placeholder="catalogada, recatalogada…"
+             value="{{ filters.text or '' }}">
+    </div>
+
+  </div>
+
+  <div class="mt-4 flex gap-2">
+    <button type="submit" class="btn-primary">
+      Filtrar
+    </button>
+    <a href="/admin/actions" class="btn-secondary">
+      Limpiar
+    </a>
+  </div>
+</form>
+
+<!-- ===============================
+     LISTADO DE ACCIONES
+     =============================== -->
 <div class="card">
   <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-semibold">
@@ -75,4 +156,5 @@
     </p>
   {% endif %}
 </div>
+
 {% endblock %}
