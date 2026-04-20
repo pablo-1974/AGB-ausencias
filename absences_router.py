@@ -25,6 +25,9 @@ from config import settings
 from auth import admin_required
 from models import Teacher, TeacherStatus, Leave, Absence, User
 
+from services.actions_log import log_action
+from utils import ActionType
+
 # Usuario autenticado
 from app import load_user_dep
 
@@ -413,6 +416,29 @@ async def absences_new_create(
         )
 
     await session.commit()
+    
+    # ✅ REGISTRO DE ACCIÓN: CREAR / ACTUALIZAR AUSENCIA
+    action = ActionType.ABSENCE_UPDATE if existing else ActionType.ABSENCE_CREATE
+    
+    absence = existing
+    if not absence:
+        absence = (
+            await session.execute(
+                select(Absence)
+                .where(Absence.teacher_id == teacher_id, Absence.date == day)
+            )
+        ).scalar_one()
+    
+    await log_action(
+        session,
+        user=admin,
+        action=action,
+        entity="absence",
+        entity_id=absence.id,
+        detail=f"Ausencia {'modificada' if existing else 'creada'} para el día {day.strftime('%d/%m/%Y')}",
+    )
+
+    await session.commit()
 
     return RedirectResponse(
         f"/absences/manage?from={day.isoformat()}&to={day.isoformat()}",
@@ -532,6 +558,18 @@ async def absences_edit_save(
 
     await session.commit()
 
+    # ✅ REGISTRO DE ACCIÓN: EDICIÓN DE AUSENCIA
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.ABSENCE_UPDATE,
+        entity="absence",
+        entity_id=a.id,
+        detail=f"Ausencia editada ({a.date.strftime('%d/%m/%Y')})",
+    )
+
+    await session.commit()
+    
     return RedirectResponse("/absences/admin", 303)
 
 
@@ -544,7 +582,22 @@ async def absences_delete(
     """Borrado permanente de una ausencia."""
     a = await session.get(Absence, absence_id)
     if a:
+        absence_id = a.id
+        absence_date = a.date
+    
         await session.delete(a)
         await session.commit()
+    
+        # ✅ REGISTRO DE ACCIÓN: BORRADO DE AUSENCIA
+        await log_action(
+            session,
+            user=admin,
+            action=ActionType.ABSENCE_DELETE,
+            entity="absence",
+            entity_id=absence_id,
+            detail=f"Ausencia eliminada ({absence_date.strftime('%d/%m/%Y')})",
+        )
 
+        await session.commit()
+        
     return RedirectResponse("/absences/admin", 303)
