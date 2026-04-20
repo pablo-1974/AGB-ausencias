@@ -88,10 +88,28 @@ async def leaves_finish(
     if not leave:
         return RedirectResponse("/leaves/close", 303)
 
+    # Determinar tipo de cierre
     if leave.parent_leave_id is None:
         await close_leave_cascade(session, leave_id, end_date)
+        action = ActionType.LEAVE_CLOSE_CASCADE
+        detail = "Cierre en cascada de baja raíz"
     else:
         await close_leave_subtree(session, leave_id, end_date)
+        action = ActionType.LEAVE_CLOSE_SUBTREE
+        detail = "Cierre de sustitución (subárbol)"
+
+    # ✅ REGISTRO DE ACCIÓN
+    await log_action(
+        session,
+        user=admin,
+        action=action,
+        entity="leave",
+        entity_id=leave.id,
+        detail=f"{detail} (fecha fin {end_date.strftime('%d/%m/%Y')})",
+    )
+
+    # ✅ Commit final (imprescindible para el log)
+    await session.commit()
 
     return RedirectResponse(next_url or "/leaves", 303)
 
