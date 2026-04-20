@@ -28,7 +28,7 @@ async def log_action(
     try:
         log = ActionLog(
             user_id=user.id if user else None,
-            action=str(action),
+            action=action.value if isinstance(action, ActionType) else str(action),
             entity=entity,
             entity_id=entity_id,
             detail=detail,
