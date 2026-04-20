@@ -267,7 +267,27 @@ async def absences_categorize_post(
     if not a:
         return RedirectResponse(next_url or "/absences/categorize?scope=pending", 303)
 
+    # ✅ Guardar categoría anterior (para el log)
+    old_category = a.category
+
+    # Guardar nueva categoría
     a.category = category
+    await session.commit()
+
+    # ✅ REGISTRO DE ACCIÓN: CATALOGACIÓN DE AUSENCIA
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.ABSENCE_CATEGORIZE,
+        entity="absence",
+        entity_id=a.id,
+        detail=(
+            f"Ausencia catalogada como {category}"
+            if not old_category
+            else f"Categoría cambiada de {old_category} a {category}"
+        ),
+    )
+
     await session.commit()
 
     return RedirectResponse(next_url or "/absences/categorize?scope=pending", 303)
