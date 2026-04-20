@@ -164,6 +164,16 @@ async def leaves_new_create(
         parent_leave_id=None,
     )
 
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.LEAVE_CREATE,
+        entity="leave",
+        detail=f"Baja creada para teacher_id={teacher_id} desde {start_date.strftime('%d/%m/%Y')}",
+    )
+    
+    await session.commit()
+    
     return RedirectResponse("/leaves", 303)
 
 
@@ -280,7 +290,15 @@ async def substitutions_new_create(
         target_teacher_id=substitute_id,
         effective_from=start_date,
     )
-
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.SUBSTITUTION_CREATE,
+        entity="leave",
+        entity_id=leave.id,
+        detail=f"Sustitución creada desde {start_date.strftime('%d/%m/%Y')} (teacher_id={substitute_id})",
+    )
+    
     await session.commit()
     return RedirectResponse("/leaves", 303)
 
@@ -482,6 +500,15 @@ async def leaves_edit_save(
     leave.cause = reason.strip()
     leave.category = category.strip()
 
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.LEAVE_UPDATE,
+        entity="leave",
+        entity_id=leave.id,
+        detail="Datos de la baja modificados",
+    )
+    
     await session.commit()
     return RedirectResponse("/leaves/admin", 303)
 
@@ -494,7 +521,21 @@ async def leaves_delete(
 ):
     leave = await session.get(Leave, leave_id)
     if leave:
+        leave_id = leave.id
+        teacher_id = leave.teacher_id
+    
         await session.delete(leave)
+        await session.commit()
+    
+        await log_action(
+            session,
+            user=admin,
+            action=ActionType.LEAVE_DELETE,
+            entity="leave",
+            entity_id=leave_id,
+            detail=f"Baja eliminada (teacher_id={teacher_id})",
+        )
+    
         await session.commit()
 
     return RedirectResponse("/leaves/admin", 303)
