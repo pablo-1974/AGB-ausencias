@@ -533,9 +533,22 @@ async def admin_toggle_active(
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
 
+    old_status = u.active
     u.active = not u.active
+    
+    # ✅ REGISTRO DE ACCIÓN: ACTIVAR / DESACTIVAR USUARIO
+    detail = "Usuario activado" if u.active else "Usuario desactivado"
+    
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.USER_TOGGLE_ACTIVE,
+        entity="user",
+        entity_id=u.id,
+        detail=detail,
+    )
+    
     await session.commit()
-
     return RedirectResponse("/admin/users", status_code=303)
 
 
@@ -558,7 +571,18 @@ async def admin_toggle_role(
         if admins.scalar_one() <= 1:
             raise HTTPException(400, "Debe quedar al menos un administrador")
 
+    old_role = u.role
     u.role = Role.user if u.role == Role.admin else Role.admin
+    
+    # ✅ REGISTRO DE ACCIÓN: CAMBIO DE ROL
+    await log_action(
+        session,
+        user=admin,
+        action=ActionType.USER_UPDATE_ROLE,
+        entity="user",
+        entity_id=u.id,
+        detail=f"Rol cambiado de {old_role} a {u.role}",
+    )
+    
     await session.commit()
-
     return RedirectResponse("/admin/users", status_code=303)
