@@ -212,6 +212,7 @@ async def logout(
             detail="Cierre de sesión",
         )
         # ✅ Commit explícito (logout no toca nada más)
+        await session.flush()
         await session.commit()
 
     # Limpiar sesión
