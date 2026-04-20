@@ -170,6 +170,8 @@ async def login_post(
             entity_id=u.id,
             detail="Inicio de sesión correcto",
         )
+
+        await session.commit()
         
         return RedirectResponse("/", status_code=303)
 
