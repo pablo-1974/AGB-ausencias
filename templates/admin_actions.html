@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">
+      Registro de acciones
+    </h1>
+    <p class="text-sm text-gray-500">
+      Últimos 200 eventos del sistema
+    </p>
+  </div>
+
+  {% if logs %}
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Usuario</th>
+            <th>Acción</th>
+            <th>Entidad</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="whitespace-nowrap text-sm text-gray-600">
+              {{ log.created_at.strftime("%d/%m/%Y %H:%M:%S") }}
+            </td>
+
+            <td>
+              {% if log.user %}
+                {{ log.user.name }}
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+
+            <td>
+              <span class="font-mono text-sm">
+                {{ log.action }}
+              </span>
+            </td>
+
+            <td>
+              {% if log.entity %}
+                {{ log.entity }}
+                {% if log.entity_id %}
+                  <span class="text-gray-500">
+                    (#{{ log.entity_id }})
+                  </span>
+                {% endif %}
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+
+            <td class="max-w-xl">
+              {% if log.detail %}
+                {{ log.detail }}
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-gray-500">
+      No hay acciones registradas.
+    </p>
+  {% endif %}
+</div>
+{% endblock %}
