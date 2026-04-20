@@ -116,6 +116,23 @@ async def admin_actions(
         )
     ).scalars().all()
 
+    ACTIONS = [
+        "login",
+        "logout",
+        "absence_create",
+        "absence_update",
+        "absence_categorize",
+        "absence_delete",
+        "leave_create",
+        "leave_update",
+        "leave_close_cascade",
+        "leave_close_subtree",
+        "leave_delete",
+        "substitution_create",
+        "user_update_role",
+        "user_toggle_active",
+    ]
+    
     return _templates(request).TemplateResponse(
         "admin_actions.html",
         ctx(
@@ -124,6 +141,7 @@ async def admin_actions(
             title="Registro de acciones",
             logs=logs,
             users=users,
+            actions=ACTIONS,
             filters={
                 "user_id": user_id,
                 "action": action,
