@@ -25,13 +25,18 @@
     </div>
 
     <!-- Acción -->
-    <div>
-      <label>Acción</label>
-      <input type="text"
-             name="action"
-             placeholder="leave_update, user_update_role…"
-             value="{{ filters.action or '' }}">
-    </div>
+     <div>
+       <label>Acción</label>
+       <select name="action">
+         <option value="">Todas</option>
+         {% for a in actions %}
+           <option value="{{ a }}"
+                   {% if filters.action == a %}selected{% endif %}>
+             {{ a }}
+           </option>
+         {% endfor %}
+       </select>
+     </div>
 
     <!-- Entidad -->
     <div>
