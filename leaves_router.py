@@ -29,6 +29,9 @@ from services.schedule import clone_teacher_schedule
 
 from absences_router import ABSENCE_CATEGORIES
 
+from services.actions_log import log_action
+from utils import ActionType
+
 router = APIRouter()
 
 
