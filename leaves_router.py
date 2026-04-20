@@ -495,18 +495,32 @@ async def leaves_edit_save(
     else:
         end_date = date.fromisoformat(end_date)
 
+    # ✅ Guardar categoría anterior
+    old_category = leave.category
+    
+    # Aplicar cambios
     leave.start_date = start_date
     leave.end_date = end_date
     leave.cause = reason.strip()
     leave.category = category.strip()
-
+    
+    # ✅ Determinar detalle del log
+    detail = "Datos de la baja modificados"
+    
+    if old_category != leave.category:
+        if old_category:
+            detail = f"Baja recatalogada de {old_category} a {leave.category}"
+        else:
+            detail = f"Baja catalogada como {leave.category}"
+    
+    # ✅ REGISTRO DE ACCIÓN
     await log_action(
         session,
         user=admin,
         action=ActionType.LEAVE_UPDATE,
         entity="leave",
         entity_id=leave.id,
-        detail="Datos de la baja modificados",
+        detail=detail,
     )
     
     await session.commit()
