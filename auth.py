@@ -193,7 +193,28 @@ async def login_post(
 
 
 @router.get("/logout")
-async def logout(request: Request):
+async def logout(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    # Obtener usuario ANTES de borrar la sesión
+    uid = request.session.get("uid") if request.session else None
+    user = await session.get(User, uid) if uid else None
+
+    # ✅ REGISTRO DE ACCIÓN: LOGOUT
+    if user:
+        await log_action(
+            session,
+            user=user,
+            action=ActionType.LOGOUT,
+            entity="user",
+            entity_id=user.id,
+            detail="Cierre de sesión",
+        )
+        # ✅ Commit explícito (logout no toca nada más)
+        await session.commit()
+
+    # Limpiar sesión
     if request.session:
         request.session.clear()
 
@@ -201,7 +222,10 @@ async def logout(request: Request):
 
     is_secure = request.url.scheme == "https"
     response.delete_cookie(
-        key=COOKIE_NAME, path="/", samesite="lax", secure=is_secure, domain=None
+        key=COOKIE_NAME,
+        path="/",
+        samesite="lax",
+        secure=is_secure,
     )
     return response
 
