@@ -26,26 +26,29 @@
 
       <td class="text-right flex gap-2 justify-end">
 
-        <!-- EDITAR (borde azul) -->
-        <a href="/leaves/edit/{{ l.id }}"
-           class="btn-sm px-3 py-1 border border-blue-500 text-blue-600 rounded hover:bg-blue-50 transition">
-           Editar
-        </a>
-        
-        <!-- ELIMINAR (borde rojo) -->
-        <form method="post" action="/leaves/delete/{{ l.id }}" style="display:inline">
-          <button type="submit"
-                  class="btn-sm px-3 py-1 border border-red-500 text-red-600 rounded hover:bg-red-50 transition"
-                  onclick="return confirm('¿Seguro que deseas eliminar esta baja?');">
-            Eliminar
-          </button>
-        </form>
+        {% if user.role == "admin" %}
+          <!-- EDITAR -->
+          <a href="/leaves/edit/{{ l.id }}"
+             class="btn-sm px-3 py-1 border border-blue-500 text-blue-600 rounded hover:bg-blue-50 transition">
+             Editar
+          </a>
+          
+          <!-- ELIMINAR -->
+          <form method="post" action="/leaves/delete/{{ l.id }}" style="display:inline">
+            <button type="submit"
+                    class="btn-sm px-3 py-1 border border-red-500 text-red-600 rounded hover:bg-red-50 transition"
+                    onclick="return confirm('¿Seguro que deseas eliminar esta baja?');">
+              Eliminar
+            </button>
+          </form>
+        {% else %}
+          <span class="text-sm text-gray-500">⚠️ Solo admin</span>
+        {% endif %}
 
       </td>
     </tr>
     {% endfor %}
   </tbody>
-
 </table>
 
 {% endblock %}
