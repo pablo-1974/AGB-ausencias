@@ -1,7 +1,14 @@
 {% extends "base.html" %}
+
 {% block content %}
 
 <h2 class="mb-4">Edición de ausencias</h2>
+
+{% if user.role != "admin" %}
+<div class="alert alert-info mb-4">
+  ℹ️ Algunas acciones están reservadas al administrador del sistema.
+</div>
+{% endif %}
 
 <table class="table">
   <thead>
@@ -11,7 +18,7 @@
       <th>Horas</th>
       <th>Causa</th>
       <th>Categoría</th>
-      <th style="width: 140px;"></th>
+      <th style="width: 160px;"></th>
     </tr>
   </thead>
 
@@ -25,22 +32,33 @@
       <td>{{ a.category or "—" }}</td>
 
       <td class="text-right flex gap-2 justify-end">
+        {% if user.role == "admin" %}
 
-        <a href="/absences/edit/{{ a.id }}" class="btn-muted btn-sm">Editar</a>
+          <a href="/absences/edit/{{ a.id }}"
+             class="btn-muted btn-sm">
+            Editar
+          </a>
 
-        <form method="post" action="/absences/delete/{{ a.id }}" style="display:inline">
-          <button type="submit"
-                  class="btn-danger btn-sm"
-                  onclick="return confirm('¿Seguro que deseas eliminar esta ausencia?');">
-            Eliminar
-          </button>
-        </form>
+          <form method="post"
+                action="/absences/delete/{{ a.id }}"
+                style="display:inline">
+            <button type="submit"
+                    class="btn-danger btn-sm"
+                    onclick="return confirm('¿Seguro que deseas eliminar esta ausencia?');">
+              Eliminar
+            </button>
+          </form>
 
+        {% else %}
+          <span class="badge bg-gray text-sm"
+                title="Acción reservada al administrador del sistema">
+            ⚠️ Solo admin
+          </span>
+        {% endif %}
       </td>
     </tr>
     {% endfor %}
   </tbody>
-
 </table>
 
 {% endblock %}
