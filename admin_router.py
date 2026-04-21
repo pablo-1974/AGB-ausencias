@@ -132,6 +132,13 @@ async def admin_actions(
         "user_update_role",
         "user_toggle_active",
     ]
+
+    ENTITIES = [
+        "user",
+        "absence",
+        "leave",
+        "substitution",
+    ]
     
     return _templates(request).TemplateResponse(
         "admin_actions.html",
@@ -142,6 +149,7 @@ async def admin_actions(
             logs=logs,
             users=users,
             actions=ACTIONS,
+            entities=ENTITIES,
             filters={
                 "user_id": user_id,
                 "action": action,
