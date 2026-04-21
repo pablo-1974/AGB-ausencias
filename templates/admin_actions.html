@@ -131,13 +131,13 @@
 
             <td>
               <span class="font-mono text-sm">
-                {{ log.action }}
+                {{ action_labels.get(log.action, log.action) }}
               </span>
             </td>
 
             <td>
               {% if log.entity %}
-                {{ log.entity }}
+                {{ entity_labels.get(log.entity, log.entity) }}
                 {% if log.entity_id %}
                   <span class="text-gray-500">
                     (#{{ log.entity_id }})
