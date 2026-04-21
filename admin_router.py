@@ -139,6 +139,34 @@ async def admin_actions(
         "leave",
         "substitution",
     ]
+
+    ACTION_LABELS = {
+        "login": "Inicio de sesión",
+        "logout": "Cierre de sesión",
+    
+        "absence_create": "Crear ausencia",
+        "absence_update": "Modificar ausencia",
+        "absence_categorize": "Catalogar ausencia",
+        "absence_delete": "Eliminar ausencia",
+    
+        "leave_create": "Crear baja",
+        "leave_update": "Modificar baja",
+        "leave_close_cascade": "Cerrar baja (cascada)",
+        "leave_close_subtree": "Cerrar sustitución",
+        "leave_delete": "Eliminar baja",
+    
+        "substitution_create": "Crear sustitución",
+    
+        "user_update_role": "Cambio de rol de usuario",
+        "user_toggle_active": "Activar / desactivar usuario",
+    }
+    
+    ENTITY_LABELS = {
+        "user": "Usuarios",
+        "absence": "Ausencias",
+        "leave": "Bajas",
+        "substitution": "Sustituciones",
+    }
     
     return _templates(request).TemplateResponse(
         "admin_actions.html",
@@ -150,6 +178,8 @@ async def admin_actions(
             users=users,
             actions=ACTIONS,
             entities=ENTITIES,
+            action_labels=ACTION_LABELS,
+            entity_labels=ENTITY_LABELS,
             filters={
                 "user_id": user_id,
                 "action": action,
