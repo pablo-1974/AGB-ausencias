@@ -28,28 +28,28 @@
      <div>
        <label>Acción</label>
        <select name="action">
-         <option value="">Todas</option>
-         {% for a in actions %}
-           <option value="{{ a }}"
-                   {% if filters.action == a %}selected{% endif %}>
-             {{ a }}
-           </option>
-         {% endfor %}
-       </select>
+            <option value="">Todas</option>
+            {% for a in actions %}
+              <option value="{{ a }}"
+                      {% if filters.action == a %}selected{% endif %}>
+                {{ action_labels.get(a, a) }}
+              </option>
+            {% endfor %}
+          </select>
      </div>
 
     <!-- Entidad -->
      <div>
        <label>Entidad</label>
        <select name="entity">
-         <option value="">Todas</option>
-         {% for e in entities %}
-           <option value="{{ e }}"
-                   {% if filters.entity == e %}selected{% endif %}>
-             {{ e }}
-           </option>
-         {% endfor %}
-       </select>
+            <option value="">Todas</option>
+            {% for e in entities %}
+              <option value="{{ e }}"
+                      {% if filters.entity == e %}selected{% endif %}>
+                {{ entity_labels.get(e, e) }}
+              </option>
+            {% endfor %}
+          </select>
      </div>
 
     <!-- Fecha desde -->
