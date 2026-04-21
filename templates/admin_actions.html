@@ -39,13 +39,18 @@
      </div>
 
     <!-- Entidad -->
-    <div>
-      <label>Entidad</label>
-      <input type="text"
-             name="entity"
-             placeholder="user, leave, absence…"
-             value="{{ filters.entity or '' }}">
-    </div>
+     <div>
+       <label>Entidad</label>
+       <select name="entity">
+         <option value="">Todas</option>
+         {% for e in entities %}
+           <option value="{{ e }}"
+                   {% if filters.entity == e %}selected{% endif %}>
+             {{ e }}
+           </option>
+         {% endfor %}
+       </select>
+     </div>
 
     <!-- Fecha desde -->
     <div>
