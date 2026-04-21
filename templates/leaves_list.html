@@ -10,10 +10,14 @@
     <h2 class="text-2xl font-bold">Bajas y sustituciones</h2>
 
     <!-- Enlace a la pantalla de cierre de bajas -->
+    {% if user.role == "admin" %}
     <a href="/leaves/close"
        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
       Finalizar bajas
     </a>
+    {% else %}
+    <span class="text-sm text-gray-500">⚠️ Solo admin</span>
+    {% endif %}
   </div>
 
   {% if error %}
