@@ -97,21 +97,35 @@
 
 {% if schedule %}
   <!-- ACCIONES -->
-  <div class="mb-4 flex gap-4">
+  <div class="mb-4 flex gap-4 items-start">
 
-    <a href="/schedule/edit/{{ selected_id }}"
-       class="border px-3 py-1" 
-       style="background-color: #50EE9B; color: black; border-radius: 8px; text-decoration: none; display: inline-block;">
-      Editar horario
-    </a>
+    {% if user.role == "admin" %}
+      <a href="/schedule/edit/{{ selected_id }}"
+         class="border px-3 py-1"
+         style="background-color: #50EE9B; color: black; border-radius: 8px; text-decoration: none; display: inline-block;">
+        Editar horario
+      </a>
+    {% else %}
+      <button
+        type="button"
+        class="border px-3 py-1 opacity-50 cursor-not-allowed"
+        style="background-color: #50EE9B; color: black; border-radius: 8px;"
+        title="Esta función está reservada al administrador">
+        Editar horario
+      </button>
+      <div class="text-xs text-gray-500 mt-1">
+        Esta función está reservada al administrador
+      </div>
+    {% endif %}
 
     <a href="/schedule/print/{{ selected_id }}"
-       class="border px-3 py-1" 
+       class="border px-3 py-1"
        style="background-color: #50EE9B; color: black; border-radius: 8px; text-decoration: none; display: inline-block;">
       Imprimir horario
     </a>
 
   </div>
+{% endif %}
 
 
 <!-- TABLA DE HORARIO -->
