@@ -40,8 +40,6 @@ async def stats_recount(
     tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
     categoria: str = Query("ALL"),
 ):
-    if not user:
-        return RedirectResponse("/login", 303)
 
     # ---------------------------------------------
     # Fechas por defecto según calendario escolar
@@ -119,8 +117,6 @@ async def stats_ranking(
     date_to: date | None = Query(None),
     tipo: str = Query("both", pattern="^(absences|leaves|both)$"),
 ):
-    if not user:
-        return RedirectResponse("/login", 303)
 
     calendar = (
         await session.execute(
